@@ -1,0 +1,13 @@
+.DS_Store
+.nvimlog
+tags
+*__pycache__*
+
+logs/*
+data/*/*
+notebooks/.ipynb_checkpoints/
+
+!.gitkeep
+!data/checkpoints/.gitkeep
+!data/origin/.gitkeep
+!data/submissions/.gitkeep

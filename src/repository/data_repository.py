@@ -1,10 +1,9 @@
 from dataclasses import dataclass
-from typing import Any, Dict
 
 from pandas import DataFrame
 
 from src.log import myLogger
-from src.repository import Repository
+from src.repository.repository import Repository
 
 
 @dataclass(frozen=True)
