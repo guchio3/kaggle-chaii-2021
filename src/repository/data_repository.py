@@ -17,12 +17,12 @@ class DataRepository(Repository):
 
     def load_train_df(self) -> DataFrame:
         filepath = f"{self.origin_data_dir}/{self.train_filename}"
-        df: DataFrame = self.load(filepath=filepath, mode="dfcsv")
+        df: DataFrame = self.load(filepath=filepath, mode="dfcsv", load_from_gcs=True)
         return df
 
     def load_test_df(self) -> DataFrame:
         filepath = f"{self.origin_data_dir}/{self.test_filename}"
-        df: DataFrame = self.load(filepath=filepath, mode="dfcsv")
+        df: DataFrame = self.load(filepath=filepath, mode="dfcsv", load_from_gcs=True)
         return df
 
     def load_sample_submission_df(self) -> DataFrame:
