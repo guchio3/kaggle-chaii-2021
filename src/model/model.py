@@ -1,24 +1,21 @@
 from abc import ABCMeta, abstractmethod
-from typing import Any, List, Optional
 
-from src.logs import myLogger
-from src.models.factory import ModelFactory
-from src.models.repository import ModelRepository
+from torch.nn import Module
+from transformers import AutoModel
 
 
-class Model(metaclass=ABCMeta):
-    def __init__(
-        self, exp_id: str, device: str, model_type: str, logger: myLogger
-    ) -> None:
-        self.model_repository = ModelRepository(
-            exp_id=exp_id,
-        )
-        self.model = ModelFactory(logger=logger).create(model_type)
+class Model(Module, metaclass=ABCMeta):
+    def __init__(self, pretrained_model_name_or_path: str) -> None:
+        super().__init__()
+        if isinstance(pretrained_model_name_or_path, str):
+            self.model = AutoModel.from_pretrained(pretrained_model_name_or_path)
+        else:
+            # for sub
+            self.model = AutoModel(pretrained_model_name_or_path)
 
     @abstractmethod
-    def train(self) -> None:
+    def calc_loss() -> float:
         raise NotImplementedError()
 
-    @abstractmethod
-    def pred(self, features: Optional[List[List[Any]]]) -> None:
-        raise NotImplementedError()
+    def resize_token_embeddings(self, token_num: int) -> None:
+        self.model.resize_token_embeddings(token_num)
