@@ -20,7 +20,7 @@ RUN wget https://raw.githubusercontent.com/git/git/master/contrib/completion/git
 RUN conda install -y -c conda-forge pudb
 
 # install pip packages
-RUN pip install japanize_matplotlib
+RUN pip install japanize_matplotlib wandb
 
 # set jupyter notebook
 # jupyter vim key-bind settings

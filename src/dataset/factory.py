@@ -1,8 +1,7 @@
-from typing import List, Tuple
+from typing import List
 
 from pandas import DataFrame
 from torch.utils.data import Dataset
-from transformers import AutoTokenizer
 
 from src.dataset.chaii_dataset import ChaiiDataset
 from src.factory import Factory
@@ -24,13 +23,9 @@ class DatasetFactory(Factory[Dataset]):
             logger=logger,
         )
 
-    def _create(self, df: DataFrame, is_train: bool) -> Dataset:
-        tokenizer = AutoTokenizer.from_pretrained(self.tokenizer_type)
-
+    def _create(self, df: DataFrame) -> Dataset:
         if self.dataset_type == "chaii":
-            dataset = ChaiiDataset(
-                df=df, tokenizer=tokenizer, is_train=is_train, logger=self.logger
-            )
+            dataset = ChaiiDataset(df=df, logger=self.logger)
         else:
             raise NotImplementedError()
         return dataset

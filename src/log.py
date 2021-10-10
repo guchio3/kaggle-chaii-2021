@@ -1,17 +1,37 @@
 import os
 from logging import DEBUG, FileHandler, Formatter, StreamHandler, getLogger
-from typing import Optional
+from typing import Any, Dict, Optional
 
 import requests
+import wandb
 
 
 class myLogger:
-    def __init__(self, log_filename: str) -> None:
+    def __init__(
+        self,
+        log_filename: str,
+        exp_id: str,
+        wdb_prj_id: str,
+        exp_config: Dict[str, Any],
+    ) -> None:
         self.logger = getLogger(__name__)
         log_dir_name = "/".join(log_filename.split("/")[:-1])
         if not os.path.exists(log_dir_name):
             os.makedirs(log_dir_name)
         self._logInit(log_filename)
+
+        self._wandb_init(wdb_prj_id=wdb_prj_id, exp_id=exp_id)
+
+    def _wandb_init(self, wdb_prj_id: str, exp_id: str) -> None:
+        wandb.init(project=wdb_prj_id, entity="guchio3")
+        wandb.run.name = exp_id
+        wandb.run.save()
+
+        # define our custom x axis metric
+        wandb.define_metric("epoch")
+        # define which metrics will be plotted against it
+        wandb.define_metric("train/*", step_metric="epoch")
+        wandb.define_metric("valid/*", step_metric="epoch")
 
     def info(self, message: str) -> None:
         self.logger.info(message)
@@ -50,3 +70,10 @@ class myLogger:
             handler.setFormatter(log_fmt)
             self.logger.setLevel(DEBUG)
             self.logger.addHandler(handler)
+
+    def wdb_log(self, log_dict: Dict[str, Any]) -> None:
+        wandb.log(log_dict)
+
+    def wdb_sum(self, sum_dict: Dict[str, Any]) -> None:
+        for key, value in sum_dict.items():
+            wandb.run.summery[key] = value

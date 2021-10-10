@@ -1,6 +1,6 @@
 import os
 from glob import glob
-from typing import Any, Dict, Tuple
+from typing import Any, Dict, Optional, Tuple
 
 import numpy as np
 import pandas as pd
@@ -13,14 +13,13 @@ from tqdm.auto import tqdm
 
 from src.dataset.factory import DatasetFactory
 from src.fobj.factory import FobjFactory
-from src.loader.factory import DatasetFactory, LoaderFactory
 from src.log import myLogger
 from src.model.factory import ModelFactory
-from src.model.repository import ModelRepository
 from src.optimizer.factory import OptimizerFactory
 from src.pipeline.pipeline import Pipeline
 from src.preprocessor.factory import PreprocessorFactory
-from src.repository.repository import DataRepository
+from src.repository.checkpoint_repository import CheckpointRepository
+from src.repository.data_repository import DataRepository
 from src.sampler.factory import SamplerFactory
 from src.scheduler.factory import SchedulerFactory
 from src.splitter.factory import SplitterFactory
@@ -33,14 +32,12 @@ class TrainPredPipeline(Pipeline):
         exp_id: str,
         config: Dict[str, Any],
         device: str,
-        mode: str,
         debug: bool,
         logger: myLogger,
     ) -> None:
         super().__init__("train_pred", exp_id, logger)
         self.config = config
         self.device = device
-        self.mode = mode
         self.debug = debug
 
         self.data_repository = DataRepository(logger=logger)
@@ -52,7 +49,6 @@ class TrainPredPipeline(Pipeline):
             **config["preprocessor"], logger=logger
         )
         self.splitter_factory = SplitterFactory(**config["splitter"], logger=logger)
-        self.loader_factory = LoaderFactory(**config["loader"], logger=logger)
         self.dataset_factory = DatasetFactory(**config["dataset"], logger=logger)
         self.sampler_factory = SamplerFactory(**config["sampler"], logger=logger)
         self.model_factory = ModelFactory(**config["model"], logger=logger)
@@ -65,24 +61,24 @@ class TrainPredPipeline(Pipeline):
         )
 
     @class_dec_timer(unit="m")
-    def run(self) -> None:
-        if self.mode == "train":
+    def run(self, mode: str) -> None:
+        if mode == "train":
             self._train()
-        elif self.mode == "pred":
+        elif mode == "pred":
             self._pred()
         else:
-            raise NotImplementedError(f"mode {self.mode} is not supported.")
+            raise NotImplementedError(f"mode {mode} is not supported.")
 
     @class_dec_timer(unit="m")
     def _train(self) -> None:
         trn_df = self.data_repository.load_train_df()
-        preprocessor = self.preprocessor_factory.create()
+        preprocessor = self.preprocessor_factory.create(
+            data_repository=self.data_repository
+        )
         trn_df = preprocessor(trn_df)
 
         splitter = self.splitter_factory.create()
-        fold = splitter.split(
-            trn_df["id"], trn_df["language"], groups=None
-        )
+        fold = splitter.split(trn_df["id"], trn_df["language"], groups=None)
 
         for fold_num, (trn_idx, val_idx) in enumerate(fold):
             # fold data
@@ -110,12 +106,14 @@ class TrainPredPipeline(Pipeline):
             for epoch in range(self.num_epochs):
                 self._train_one_epoch(
                     device=self.device,
+                    fold_num=fold_num,
                     epoch=epoch,
+                    accum_mod=1,
                     loader=trn_loader,
                     model=model,
                     optimizer=optimizer,
                     scheduler=scheduler,
-                    fobj=fobj,
+                    fobjs={"fobj": fobj, "fobj_segmentation": None},
                 )
                 self._valid(
                     fold_num=fold_num, model=model, loader=val_loader, fobj=fobj
@@ -133,12 +131,14 @@ class TrainPredPipeline(Pipeline):
     def _train_one_epoch(
         self,
         device: str,
+        fold_num: int,
         epoch: int,
+        accum_mod: int,
         loader: DataLoader,
         model: Module,
         optimizer: Optimizer,
         scheduler: _LRScheduler,
-        fobj: _Loss,
+        fobjs: Dict[str, Optional[_Loss]],
     ) -> None:
         # init for train
         model.warmup(epoch)
@@ -147,12 +147,42 @@ class TrainPredPipeline(Pipeline):
         model.to(device)
         model.train()
 
+        running_loss = 0.0
         for batch_i, batch in enumerate(tqdm(loader)):
-            1
+            input_ids = batch["input_ids"].to(self.device)
+            attention_mask = batch["attention_mask"].to(self.device)
+            start_position = batch["start_position"].to(self.device)
+            end_position = batch["end_position"].to(self.device)
+            segmentation_positions = batch["segmentation_positions"].to(self.device)
 
-        self.logger.info(f"trn_loss: {1}")
+            logits = model(
+                input_ids=input_ids,
+                attention_mask=attention_mask,
+            )
+            loss = model.calc_loss(
+                logits=logits,
+                fobjs=fobjs,
+                start_position=start_position,
+                end_position=end_position,
+                segmentation_positions=segmentation_positions,
+            )
+            loss.backward()
+            running_loss += loss.item()
+            if (batch_i + 1) % accum_mod == 0:
+                optimizer.step()
+                optimizer.zero_grad()
 
-        if self.device != "cpu":
+        scheduler.step()
+
+        running_loss /= len(loader)
+        self.logger.info(
+            f"fold_num: {fold_num} / epoch: {epoch} / trn_loss: {running_loss}"
+        )
+        self.logger.wdb_log(
+            {"epoch": epoch, f"train/fold_{fold_num}_loss": running_loss}
+        )
+
+        if device != "cpu":
             model = model.module
         model.to("cpu")
 

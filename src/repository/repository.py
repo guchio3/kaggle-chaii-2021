@@ -105,6 +105,11 @@ class Repository:
 
         return res
 
+    def delete(self, filepath: str, delete_from_gcs: bool) -> None:
+        os.remove(filepath)
+        if delete_from_gcs:
+            self.delete_gcs_file(prefix=filepath)
+
     def delete_gcs_file(self, prefix: str) -> None:
         storage_client = storage.Client()
         bucket = storage_client.bucket(self.bucket_name)
