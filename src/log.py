@@ -11,7 +11,7 @@ class myLogger:
         self,
         log_filename: str,
         exp_id: str,
-        wdb_prj_id: str,
+        wdb_prj_id: Optional[str],
         exp_config: Dict[str, Any],
     ) -> None:
         self.logger = getLogger(__name__)
@@ -20,7 +20,10 @@ class myLogger:
             os.makedirs(log_dir_name)
         self._logInit(log_filename)
 
-        self._wandb_init(wdb_prj_id=wdb_prj_id, exp_id=exp_id)
+        if wdb_prj_id:
+            self._wandb_init(wdb_prj_id=wdb_prj_id, exp_id=exp_id)
+        else:
+            self.info("skip wandb init")
 
     def _wandb_init(self, wdb_prj_id: str, exp_id: str) -> None:
         wandb.init(project=wdb_prj_id, entity="guchio3")

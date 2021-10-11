@@ -3,8 +3,10 @@ import pickle
 from dataclasses import dataclass
 from typing import Any, List
 
+import numpy as np
 import pandas as pd
 from google.cloud import storage
+from numpy import ndarray
 from pandas import DataFrame
 
 from src.log import myLogger
@@ -36,10 +38,14 @@ class Repository:
             self.__save_dfscv(df=save_obj, filepath=filepath)
         elif mode == "pkl":
             self.__save_pickle(save_obj=save_obj, filepath=filepath)
+        elif mode == "np":
+            self.__save_numpy(save_obj=save_obj, filepath=filepath)
         else:
             raise NotImplementedError(f"mode {mode} is not supported.")
 
-        if gcs_mode in ["cp", "mv"]:
+        if gcs_mode == "pass":
+            pass
+        elif gcs_mode in ["cp", "mv"]:
             self.__upload_to_gcs(src_filepath=filepath, dst_filepath=filepath)
         else:
             raise NotImplementedError(f"gcs_mode {gcs_mode} is not supported.")
@@ -63,6 +69,9 @@ class Repository:
         with open(filepath, "rb") as fout:
             pickle.dump(save_obj, fout)
 
+    def __save_numpy(self, save_obj: ndarray, filepath: str) -> None:
+        np.save(filepath, save_obj)
+
     def load(self, filepath: str, mode: str, load_from_gcs: bool = False) -> Any:
         if not os.path.exists(filepath) and load_from_gcs:
             self.__download_from_gcs(src_filepath=filepath, dst_filepath=filepath)
@@ -71,6 +80,8 @@ class Repository:
             res = self.__load_dfcsv(filepath)
         elif mode == "pkl":
             res = self.__load_pickle(filepath)
+        elif mode == "np":
+            res = self.__load_numpy(filepath)
         else:
             raise NotImplementedError(f"mode {mode} is not supported.")
         return res
@@ -92,6 +103,10 @@ class Repository:
     def __load_pickle(self, filepath: str) -> Any:
         with open(filepath, "rb") as fin:
             res = pickle.load(fin)
+        return res
+
+    def __load_numpy(self, filepath: str) -> ndarray:
+        res: ndarray = np.load(filepath)
         return res
 
     def list_gcs_files(self, prefix: str) -> List[str]:

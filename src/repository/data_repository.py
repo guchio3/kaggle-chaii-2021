@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 
+from numpy import ndarray
 from pandas import DataFrame
 
 from src.log import myLogger
@@ -36,9 +37,14 @@ class DataRepository(Repository):
             save_obj=sub_df,
             filepath=filepath,
             mode="dfcsv",
-            gcs_mode="cp",
+            gcs_mode="pass",
             force_save=True,
         )
+
+    def load_sub_df(self, exp_id: str) -> DataFrame:
+        filepath = f"./data/submissions/sub_{exp_id}.csv"
+        df = self.load(filepath=filepath, mode="dfcsv", load_from_gcs=False)
+        return df
 
     def save_preprocessed_df(self, preprocessed_df: DataFrame, ver: str) -> None:
         filepath = f"./data/preprocessed/{ver}.csv"
@@ -48,3 +54,23 @@ class DataRepository(Repository):
             mode="dfcsv",
             gcs_mode="cp",
         )
+
+    def load_preprocessed_df(self, ver: str) -> DataFrame:
+        filepath = f"./data/preprocessed/{ver}.csv"
+        df = self.load(filepath=filepath, mode="dfcsv", load_from_gcs=True)
+        return df
+
+    def save_fold_idxes(self, exp_id: str, fold: int, fold_idxes: ndarray) -> None:
+        filepath = f"./data/fold/{exp_id}/{fold}.npy"
+        self.save(
+            save_obj=fold_idxes,
+            filepath=filepath,
+            mode="np",
+            gcs_mode="cp",
+            force_save=False,
+        )
+
+    def load_fold_idxes(self, exp_id: str, fold: int) -> ndarray:
+        filepath = f"./data/fold/{exp_id}/{fold}.npy"
+        fold_idxes = self.load(filepath=filepath, mode="np", load_from_gcs=True)
+        return fold_idxes

@@ -5,7 +5,8 @@ from typing import Any, Dict, Optional, Tuple
 import numpy as np
 import pandas as pd
 from pandas import DataFrame
-from torch.nn import DataParallel, Module, _Loss
+from torch.nn import DataParallel, Module
+from torch.nn.modules.loss import _Loss
 from torch.optim import Optimizer
 from torch.optim.lr_scheduler import _LRScheduler
 from torch.utils.data import DataLoader
@@ -15,6 +16,7 @@ from src.dataset.factory import DatasetFactory
 from src.fobj.factory import FobjFactory
 from src.log import myLogger
 from src.model.factory import ModelFactory
+from src.model.model import Model
 from src.optimizer.factory import OptimizerFactory
 from src.pipeline.pipeline import Pipeline
 from src.preprocessor.factory import PreprocessorFactory
@@ -78,9 +80,9 @@ class TrainPredPipeline(Pipeline):
         trn_df = preprocessor(trn_df)
 
         splitter = self.splitter_factory.create()
-        fold = splitter.split(trn_df["id"], trn_df["language"], groups=None)
+        folds = splitter.split(trn_df["id"], trn_df["language"], groups=None)
 
-        for fold_num, (trn_idx, val_idx) in enumerate(fold):
+        for fold, (trn_idx, val_idx) in enumerate(folds):
             # fold data
             fold_trn_df = trn_df.iloc[trn_idx]
             trn_loader = self._build_loader(
@@ -106,7 +108,7 @@ class TrainPredPipeline(Pipeline):
             for epoch in range(self.num_epochs):
                 self._train_one_epoch(
                     device=self.device,
-                    fold_num=fold_num,
+                    fold=fold,
                     epoch=epoch,
                     accum_mod=1,
                     loader=trn_loader,
@@ -116,10 +118,10 @@ class TrainPredPipeline(Pipeline):
                     fobjs={"fobj": fobj, "fobj_segmentation": None},
                 )
                 self._valid(
-                    fold_num=fold_num, model=model, loader=val_loader, fobj=fobj
+                    fold=fold, model=model, loader=val_loader, fobj=fobj
                 )
                 self.checkpoint_repository.save(
-                    fold_num=fold_num,
+                    fold=fold,
                     epoch=epoch,
                     model=model,
                     optimizer=optimizer,
@@ -131,11 +133,11 @@ class TrainPredPipeline(Pipeline):
     def _train_one_epoch(
         self,
         device: str,
-        fold_num: int,
+        fold: int,
         epoch: int,
         accum_mod: int,
         loader: DataLoader,
-        model: Module,
+        model: Model,
         optimizer: Optimizer,
         scheduler: _LRScheduler,
         fobjs: Dict[str, Optional[_Loss]],
@@ -176,10 +178,10 @@ class TrainPredPipeline(Pipeline):
 
         running_loss /= len(loader)
         self.logger.info(
-            f"fold_num: {fold_num} / epoch: {epoch} / trn_loss: {running_loss}"
+            f"fold: {fold} / epoch: {epoch} / trn_loss: {running_loss}"
         )
         self.logger.wdb_log(
-            {"epoch": epoch, f"train/fold_{fold_num}_loss": running_loss}
+            {"epoch": epoch, f"train/fold_{fold}_loss": running_loss}
         )
 
         if device != "cpu":
@@ -215,14 +217,14 @@ class TrainPredPipeline(Pipeline):
         )
         return loader
 
-    def _build_model(self) -> Tuple[Module, Optimizer, _LRScheduler]:
+    def _build_model(self) -> Tuple[Model, Optimizer, _LRScheduler]:
         model = self.model_factory.create()
         optimizer = self.optimizer_factory.create(model=model)
-        scheduler = self.scheduler_factory.create(model=model)
+        scheduler = self.scheduler_factory.create(optimizer=optimizer)
         return model, optimizer, scheduler
 
     @class_dec_timer(unit="m")
     def _valid(
-        self, fold_num: int, model: Module, loader: DataLoader, fobj: _Loss
+        self, fold: int, model: Module, loader: DataLoader, fobj: _Loss
     ) -> None:
         1

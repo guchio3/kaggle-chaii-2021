@@ -1,10 +1,8 @@
-import re
-
-from tensorflow.keras.optimizers import Adam, Optimizer
-from tensorflow.keras.optimizers.schedules import LearningRateSchedule
+from torch.optim import Adam, Optimizer
 
 from src.factory import Factory
 from src.log import myLogger
+from src.model.model import Model
 
 
 class OptimizerFactory(Factory[Optimizer]):
@@ -20,12 +18,9 @@ class OptimizerFactory(Factory[Optimizer]):
             logger=logger,
         )
 
-    def _create(
-        self,
-        scheduler: LearningRateSchedule
-    ) -> Optimizer:
-        if re.match("adam", self.optimizer_type):
-            optim = Adam(learning_rate=scheduler)
+    def _create(self, model: Model) -> Optimizer:
+        if self.optimizer_type == "adam":
+            optimizer = Adam(params=model.parameters(), lr=self.learning_rate)
         else:
             raise NotImplementedError
-        return optim
+        return optimizer

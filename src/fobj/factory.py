@@ -1,12 +1,13 @@
 import re
 
-from tensorflow.keras.losses import BinaryCrossentropy, Loss
+from torch.nn import BCEWithLogitsLoss, CrossEntropyLoss
+from torch.nn.modules.loss import _Loss
 
 from src.factory import Factory
 from src.log import myLogger
 
 
-class FobjFactory(Factory[Loss]):
+class FobjFactory(Factory[_Loss]):
     def __init__(
         self,
         fobj_type: str,
@@ -19,10 +20,11 @@ class FobjFactory(Factory[Loss]):
 
     def _create(
         self,
-    ) -> Loss:
-        if re.match("BCE", self.fobj_type):
-            loss = BinaryCrossentropy()
-            # loss = BinaryCrossentropy(from_logits=False, label_smoothing=0, axis=-1)
+    ) -> _Loss:
+        if self.fobj_type == "bce":
+            loss = BCEWithLogitsLoss()
+        elif self.fobj_type == "ce":
+            loss = CrossEntropyLoss()
         else:
             raise NotImplementedError
         return loss
