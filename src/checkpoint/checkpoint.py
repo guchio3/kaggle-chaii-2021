@@ -13,20 +13,20 @@ class Checkpoint:
     exp_id: str
     fold: int
     epoch: int
-    val_loss: Optional[float]
-    best_val_jaccard: Optional[float]
     model_state_dict: Optional[Dict[str, Tensor]] = None
     optimizer_state_dict: Optional[Dict[str, Tensor]] = None
     scheduler_state_dict: Optional[Dict[str, Tensor]] = None
     val_ids: List[str] = []
     val_preds: List[float] = []
+    val_loss: Optional[float] = None
+    val_jaccard: Optional[float] = None
 
     @property
     def non_filled_mambers(self) -> List[str]:
         non_filled_members = []
         if self.val_loss is None:
             non_filled_members.append("val_loss")
-        if self.best_val_jaccard is None:
+        if self.val_jaccard is None:
             non_filled_members.append("best_val_jaccard")
         if self.model_state_dict is None:
             non_filled_members.append("model_state_dict")
@@ -52,8 +52,10 @@ class Checkpoint:
     def set_scheduler(self, scheduler: _LRScheduler) -> None:
         self.scheduler_state_dict = scheduler.state_dict()
 
-    def extend_val_ids(self, val_ids: List[str]) -> None:
-        self.val_ids.extend(val_ids)
+    def extend_val_ids(self, val_ids: Tensor) -> None:
+        val_ids.to("cpu")
+        self.val_ids.extend(val_ids.tolist())
 
-    def extend_val_preds(self, val_preds: List[float]) -> None:
-        self.val_preds.extend(val_preds)
+    def extend_val_preds(self, val_preds: Tensor) -> None:
+        val_preds.to("cpu")
+        self.val_preds.extend(val_preds.tolist())

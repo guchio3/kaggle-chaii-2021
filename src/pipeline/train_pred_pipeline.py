@@ -10,6 +10,7 @@ from torch.optim.lr_scheduler import _LRScheduler
 from torch.utils.data import DataLoader
 from tqdm.auto import tqdm
 
+from src.checkpoint.checkpoint import Checkpoint
 from src.dataset.factory import DatasetFactory
 from src.fobj.factory import FobjFactory
 from src.log import myLogger
@@ -115,6 +116,10 @@ class TrainPredPipeline(Pipeline):
                     scheduler=scheduler,
                     fobjs={"fobj": fobj, "fobj_segmentation": None},
                 )
+                checkpoint = Checkpoint(exp_id=self.exp_id, fold=fold, epoch=epoch)
+                checkpoint.set_model(model=model)
+                checkpoint.set_optimizer(optimizer=optimizer)
+                checkpoint.set_scheduler(scheduler=scheduler)
                 self._valid(fold=fold, model=model, loader=val_loader, fobj=fobj)
                 self.checkpoint_repository.save(
                     fold=fold,
