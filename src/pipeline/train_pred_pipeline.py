@@ -1,9 +1,7 @@
 import os
-from glob import glob
 from typing import Any, Dict, Optional, Tuple
 
 import numpy as np
-import pandas as pd
 from pandas import DataFrame
 from torch.nn import DataParallel, Module
 from torch.nn.modules.loss import _Loss
@@ -117,9 +115,7 @@ class TrainPredPipeline(Pipeline):
                     scheduler=scheduler,
                     fobjs={"fobj": fobj, "fobj_segmentation": None},
                 )
-                self._valid(
-                    fold=fold, model=model, loader=val_loader, fobj=fobj
-                )
+                self._valid(fold=fold, model=model, loader=val_loader, fobj=fobj)
                 self.checkpoint_repository.save(
                     fold=fold,
                     epoch=epoch,
@@ -146,7 +142,7 @@ class TrainPredPipeline(Pipeline):
         model.warmup(epoch)
         if device != "cpu":
             model = DataParallel(model)
-        model.to(device)
+        self._to_device(device=self.device, model=model, optimizer=optimizer)
         model.train()
 
         running_loss = 0.0
@@ -177,16 +173,12 @@ class TrainPredPipeline(Pipeline):
         scheduler.step()
 
         running_loss /= len(loader)
-        self.logger.info(
-            f"fold: {fold} / epoch: {epoch} / trn_loss: {running_loss}"
-        )
-        self.logger.wdb_log(
-            {"epoch": epoch, f"train/fold_{fold}_loss": running_loss}
-        )
+        self.logger.info(f"fold: {fold} / epoch: {epoch} / trn_loss: {running_loss}")
+        self.logger.wdb_log({"epoch": epoch, f"train/fold_{fold}_loss": running_loss})
 
         if device != "cpu":
             model = model.module
-        model.to("cpu")
+        self._to_device(device="cpu", model=model, optimizer=optimizer)
 
     def _build_loader(
         self,
@@ -224,7 +216,12 @@ class TrainPredPipeline(Pipeline):
         return model, optimizer, scheduler
 
     @class_dec_timer(unit="m")
-    def _valid(
-        self, fold: int, model: Module, loader: DataLoader, fobj: _Loss
-    ) -> None:
+    def _valid(self, fold: int, model: Module, loader: DataLoader, fobj: _Loss) -> None:
         1
+
+    def _to_device(self, device: str, model: Model, optimizer: Optimizer) -> None:
+        model.to(device)
+        for state in optimizer.state.values():
+            for k, v in state.items():
+                if isinstance(v, Tensor):
+                    state[k] = v.to(device)

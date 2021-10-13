@@ -1,3 +1,5 @@
+from typing import List
+
 import torch
 from pandas import DataFrame
 from torch.utils.data import Dataset
@@ -9,9 +11,11 @@ class ChaiiDataset(Dataset):
     def __init__(
         self,
         df: DataFrame,
+        aug: List[str],
         logger: myLogger,
     ) -> None:
         self.df = df
+        self.aug = aug
         self.logger = logger
 
     def __len__(self) -> int:

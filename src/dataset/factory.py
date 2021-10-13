@@ -12,20 +12,18 @@ class DatasetFactory(Factory[Dataset]):
     def __init__(
         self,
         dataset_type: str,
-        tokenizer_type: str,
         aug: List[str],
         logger: myLogger,
     ) -> None:
         super().__init__(
             dataset_type=dataset_type,
-            tokenizer_type=tokenizer_type,
             aug=aug,
             logger=logger,
         )
 
     def _create(self, df: DataFrame) -> Dataset:
         if self.dataset_type == "chaii":
-            dataset = ChaiiDataset(df=df, logger=self.logger)
+            dataset = ChaiiDataset(df=df, aug=self.aug, logger=self.logger)
         else:
             raise NotImplementedError()
         return dataset

@@ -9,8 +9,8 @@ from pandas import DataFrame, Series
 from tqdm.auto import tqdm
 from transformers import PreTrainedTokenizer
 
-from src.repository.data_repository import DataRepository
 from src.log import myLogger
+from src.repository.data_repository import DataRepository
 from src.timer import class_dec_timer
 
 

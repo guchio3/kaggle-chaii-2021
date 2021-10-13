@@ -72,7 +72,13 @@ class Repository:
     def __save_numpy(self, save_obj: ndarray, filepath: str) -> None:
         np.save(filepath, save_obj)
 
-    def load(self, filepath: str, mode: str, load_from_gcs: bool = False) -> Any:
+    def load(
+        self,
+        filepath: str,
+        mode: str,
+        load_from_gcs: bool = False,
+        rm_after_load: bool = False,
+    ) -> Any:
         if not os.path.exists(filepath) and load_from_gcs:
             self.__download_from_gcs(src_filepath=filepath, dst_filepath=filepath)
 
@@ -84,6 +90,9 @@ class Repository:
             res = self.__load_numpy(filepath)
         else:
             raise NotImplementedError(f"mode {mode} is not supported.")
+
+        if rm_after_load:
+            os.remove(filepath)
         return res
 
     def __download_from_gcs(self, src_filepath: str, dst_filepath: str) -> None:
@@ -121,12 +130,35 @@ class Repository:
         return res
 
     def delete(self, filepath: str, delete_from_gcs: bool) -> None:
-        os.remove(filepath)
+        if os.path.exists(filepath):
+            os.remove(filepath)
+        else:
+            self.logger.warn(
+                f"ignore deleting local {filepath} because it does not exist."
+            )
+
         if delete_from_gcs:
-            self.delete_gcs_file(prefix=filepath)
+            gcs_file = self.list_gcs_files(prefix=filepath)
+            if len(gcs_file) == 1:
+                self.delete_gcs_file(prefix=filepath)
+            else:
+                self.logger.warn(
+                    f"ignore deleting gcs {filepath} because it does not exist."
+                )
 
     def delete_gcs_file(self, prefix: str) -> None:
         storage_client = storage.Client()
         bucket = storage_client.bucket(self.bucket_name)
         blob = bucket.blob(prefix)
         blob.delete()
+
+    def copy_gcs_file(self, src_filepath: str, dst_filepath: str) -> None:
+        storage_client = storage.Client()
+        src_bucket = storage_client.bucket(self.bucket_name)
+        src_blob = src_bucket.blob(src_filepath)
+        dst_bucket = storage_client.bucket(self.bucket_name)
+        _ = src_bucket.copy_blob(src_blob, dst_bucket, dst_filepath)
+
+    def move_gcs_file(self, src_filepath: str, dst_filepath: str) -> None:
+        self.copy_gcs_file(src_filepath=src_filepath, dst_filepath=dst_filepath)
+        self.delete_gcs_file(prefix=src_filepath)

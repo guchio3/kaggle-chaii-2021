@@ -1,8 +1,10 @@
 from dataclasses import dataclass
+from typing import Tuple
 
 from numpy import ndarray
 from pandas import DataFrame
 
+from src.checkpoint.checkpoint import Checkpoint
 from src.log import myLogger
 from src.repository.repository import Repository
 
@@ -10,29 +12,31 @@ from src.repository.repository import Repository
 @dataclass(frozen=True)
 class DataRepository(Repository):
     logger: myLogger
-    origin_data_dir: str = "./data/origin"
-    train_filename: str = "train.csv"
-    test_filename: str = "test.csv"
-    sample_submission_filename: str = "sample_submission.csv"
     bucket_name: str = "kaggle-chaii-2021"
 
     def load_train_df(self) -> DataFrame:
-        filepath = f"{self.origin_data_dir}/{self.train_filename}"
-        df: DataFrame = self.load(filepath=filepath, mode="dfcsv", load_from_gcs=True)
+        filepath = "data/origin/train.csv"
+        df: DataFrame = self.load(
+            filepath=filepath, mode="dfcsv", load_from_gcs=True, rm_after_load=False
+        )
         return df
 
     def load_test_df(self) -> DataFrame:
-        filepath = f"{self.origin_data_dir}/{self.test_filename}"
-        df: DataFrame = self.load(filepath=filepath, mode="dfcsv", load_from_gcs=True)
+        filepath = "data/origin/test.csv"
+        df: DataFrame = self.load(
+            filepath=filepath, mode="dfcsv", load_from_gcs=True, rm_after_load=False
+        )
         return df
 
     def load_sample_submission_df(self) -> DataFrame:
-        filepath = f"{self.origin_data_dir}/{self.sample_submission_filename}"
-        df: DataFrame = self.load(filepath=filepath, mode="dfcsv")
+        filepath = "data/origin/sample_submission.csv"
+        df: DataFrame = self.load(
+            filepath=filepath, mode="dfcsv", load_from_gcs=True, rm_after_load=False
+        )
         return df
 
     def save_sub_df(self, sub_df: DataFrame, exp_id: str) -> None:
-        filepath = f"./data/submissions/sub_{exp_id}.csv"
+        filepath = f"data/submission/sub_{exp_id}.csv"
         self.save(
             save_obj=sub_df,
             filepath=filepath,
@@ -42,12 +46,14 @@ class DataRepository(Repository):
         )
 
     def load_sub_df(self, exp_id: str) -> DataFrame:
-        filepath = f"./data/submissions/sub_{exp_id}.csv"
-        df = self.load(filepath=filepath, mode="dfcsv", load_from_gcs=False)
+        filepath = f"data/submission/sub_{exp_id}.csv"
+        df = self.load(
+            filepath=filepath, mode="dfcsv", load_from_gcs=False, rm_after_load=False
+        )
         return df
 
     def save_preprocessed_df(self, preprocessed_df: DataFrame, ver: str) -> None:
-        filepath = f"./data/preprocessed/{ver}.csv"
+        filepath = f"data/preprocessed/{ver}.csv"
         self.save(
             save_obj=preprocessed_df,
             filepath=filepath,
@@ -56,21 +62,93 @@ class DataRepository(Repository):
         )
 
     def load_preprocessed_df(self, ver: str) -> DataFrame:
-        filepath = f"./data/preprocessed/{ver}.csv"
-        df = self.load(filepath=filepath, mode="dfcsv", load_from_gcs=True)
+        filepath = f"data/preprocessed/{ver}.csv"
+        df = self.load(
+            filepath=filepath, mode="dfcsv", load_from_gcs=True, rm_after_load=False
+        )
         return df
 
-    def save_fold_idxes(self, exp_id: str, fold: int, fold_idxes: ndarray) -> None:
-        filepath = f"./data/fold/{exp_id}/{fold}.npy"
+    def save_fold_idxes(
+        self, exp_id: str, fold: int, fold_idxes: Tuple[ndarray, ndarray]
+    ) -> None:
+        filepath = f"data/fold/{exp_id}/{fold}.pkl"
         self.save(
             save_obj=fold_idxes,
             filepath=filepath,
-            mode="np",
+            mode="pkl",
             gcs_mode="cp",
             force_save=False,
         )
 
-    def load_fold_idxes(self, exp_id: str, fold: int) -> ndarray:
-        filepath = f"./data/fold/{exp_id}/{fold}.npy"
-        fold_idxes = self.load(filepath=filepath, mode="np", load_from_gcs=True)
+    def load_fold_idxes(self, exp_id: str, fold: int) -> Tuple[ndarray, ndarray]:
+        filepath = f"data/fold/{exp_id}/{fold}.pkl"
+        fold_idxes = self.load(
+            filepath=filepath, mode="pkl", load_from_gcs=True, rm_after_load=False
+        )
         return fold_idxes
+
+    def save_checkpoint(self, checkpoint: Checkpoint) -> None:
+        if checkpoint.non_filled_mambers:
+            raise Exception(
+                f"checkpoint members {checkpoint.non_filled_mambers} are not filled."
+            )
+        filepath = (
+            f"data/checkpoint/{checkpoint.exp_id}/{checkpoint.fold}/"
+            f"{checkpoint.epoch}_{checkpoint.val_loss}_{checkpoint.best_val_jaccard}.pkl"
+        )
+        self.save(
+            save_obj=checkpoint,
+            filepath=filepath,
+            mode="pkl",
+            gcs_mode="mv",
+            force_save=True,
+        )
+
+    def load_checkpoint(self, exp_id: str, fold: int, epoch: int) -> Checkpoint:
+        filepaths = self.list_gcs_files(
+            f"data/checkpoint/{exp_id}/{fold}/{epoch}_*.pkl"
+        )
+        if len(filepaths) != 1:
+            raise Exception(f"non-unique fold epoch checkpoint, {filepaths}.")
+        filepath = filepaths[0]
+        checkpoint = self.load(
+            filepath=filepath, mode="pkl", load_from_gcs=True, rm_after_load=True
+        )
+        return checkpoint
+
+    def clean_best_fold_epoch_checkpoint(self, exp_id: str) -> None:
+        best_filepaths = self.list_gcs_files(f"data/checkpoint/{exp_id}/best/*.pkl")
+        for best_filepath in best_filepaths:
+            self.delete(best_filepath, delete_from_gcs=True)
+
+    def extract_and_save_best_fold_epoch_checkpoint(
+        self, exp_id: str, fold: int
+    ) -> Checkpoint:
+        filepaths = self.list_gcs_files(f"data/checkpoint/{exp_id}/{fold}/*.pkl")
+        if len(filepaths) == 0:
+            raise Exception("no checkpoints for exp_id:{exp_id} fold: {fold}.")
+        best_score = -1.0
+        best_filepath = None
+        for filepath in filepaths:
+            score = float(filepath.split("/")[-1].split("_")[2])
+            if score > best_score:
+                best_score = score
+                best_filepath = filepath
+        if best_filepath is None:
+            raise Exception("failed to extract best filename.")
+
+        best_checkpoint = self.load(
+            filepath=best_filepath, mode="pkl", load_from_gcs=True, rm_after_load=True
+        )
+
+        best_filename = best_filepath.split("/")[-1]
+        best_save_filepath = f"data/checkpoint/{exp_id}/best/{best_filename}"
+        self.save(
+            save_obj=best_checkpoint,
+            filepath=best_save_filepath,
+            mode="pkl",
+            gcs_mode="cp",
+            force_save=True,
+        )
+
+        return best_checkpoint
