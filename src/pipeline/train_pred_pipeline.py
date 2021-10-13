@@ -2,7 +2,9 @@ import os
 from typing import Any, Dict, Optional, Tuple
 
 import numpy as np
+import torch
 from pandas import DataFrame
+from torch import Tensor
 from torch.nn import DataParallel, Module
 from torch.nn.modules.loss import _Loss
 from torch.optim import Optimizer
@@ -120,7 +122,9 @@ class TrainPredPipeline(Pipeline):
                 checkpoint.set_model(model=model)
                 checkpoint.set_optimizer(optimizer=optimizer)
                 checkpoint.set_scheduler(scheduler=scheduler)
-                self._valid(fold=fold, model=model, loader=val_loader, fobj=fobj)
+                self._valid(
+                    model=model, loader=val_loader, fobj=fobj, checkpoint=checkpoint
+                )
                 self.checkpoint_repository.save(
                     fold=fold,
                     epoch=epoch,
@@ -177,9 +181,9 @@ class TrainPredPipeline(Pipeline):
 
         scheduler.step()
 
-        running_loss /= len(loader)
-        self.logger.info(f"fold: {fold} / epoch: {epoch} / trn_loss: {running_loss}")
-        self.logger.wdb_log({"epoch": epoch, f"train/fold_{fold}_loss": running_loss})
+        trn_loss = running_loss / len(loader)
+        self.logger.info(f"fold: {fold} / epoch: {epoch} / trn_loss: {trn_loss}")
+        self.logger.wdb_log({"epoch": epoch, f"train/fold_{fold}_loss": trn_loss})
 
         if device != "cpu":
             model = model.module
@@ -221,8 +225,70 @@ class TrainPredPipeline(Pipeline):
         return model, optimizer, scheduler
 
     @class_dec_timer(unit="m")
-    def _valid(self, fold: int, model: Module, loader: DataLoader, fobj: _Loss) -> None:
-        1
+    def _valid(
+        self,
+        device: str,
+        fold: int,
+        epoch: int,
+        model: Model,
+        loader: DataLoader,
+        fobjs: Dict[str, Optional[_Loss]],
+        checkpoint: Checkpoint,
+    ) -> None:
+        if device != "cpu":
+            model = DataParallel(model)
+        model.to(device)
+        model.eval()
+
+        with torch.no_grad():
+            running_loss = 0.0
+            for batch_i, batch in enumerate(tqdm(loader)):
+                ids = batch["id"]
+                input_ids = batch["input_ids"].to(self.device)
+                attention_mask = batch["attention_mask"].to(self.device)
+                start_position = batch["start_position"].to(self.device)
+                end_position = batch["end_position"].to(self.device)
+                segmentation_positions = batch["segmentation_positions"].to(self.device)
+
+                logits = model(
+                    input_ids=input_ids,
+                    attention_mask=attention_mask,
+                )
+                loss = model.calc_loss(
+                    logits=logits,
+                    fobjs=fobjs,
+                    start_position=start_position,
+                    end_position=end_position,
+                    segmentation_positions=segmentation_positions,
+                )
+                model.calc_probas()
+
+                checkpoint.extend_val_info(key="val_input_ids", val_info=ids)
+                checkpoint.extend_val_info(, key=)
+                checkpoint.extend_val_info(, key=)
+                checkpoint.extend_val_info(, key=)
+                checkpoint.extend_val_info(, key=)
+
+                running_loss += loss.item()
+
+            val_loss = running_loss / len(loader)
+            val_jaccard = jaccard()
+            checkpoint.val_loss = val_loss
+            checkpoint.val_jaccard = val_jaccard
+            self.logger.info(
+                f"fold: {fold} / epoch: {epoch} / val_loss: {running_loss}"
+            )
+            self.logger.wdb_log(
+                {
+                    "epoch": epoch,
+                    f"valid/fold_{fold}_loss": running_loss,
+                    f"valid/fold_{fold}_jaccard": val_jaccard,
+                }
+            )
+
+        if device != "cpu":
+            model = model.module
+        model.to("cpu")
 
     def _to_device(self, device: str, model: Model, optimizer: Optimizer) -> None:
         model.to(device)

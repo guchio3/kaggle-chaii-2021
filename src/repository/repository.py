@@ -1,3 +1,4 @@
+import json
 import os
 import pickle
 from dataclasses import dataclass
@@ -5,6 +6,7 @@ from typing import Any, List
 
 import numpy as np
 import pandas as pd
+import torch
 from google.cloud import storage
 from numpy import ndarray
 from pandas import DataFrame
@@ -38,8 +40,12 @@ class Repository:
             self.__save_dfscv(df=save_obj, filepath=filepath)
         elif mode == "pkl":
             self.__save_pickle(save_obj=save_obj, filepath=filepath)
+        elif mode == "json":
+            self.__save_json(save_obj=save_obj, filepath=filepath)
         elif mode == "np":
             self.__save_numpy(save_obj=save_obj, filepath=filepath)
+        elif mode == "pt":
+            self.__save_torch(save_obj=save_obj, filepath=filepath)
         else:
             raise NotImplementedError(f"mode {mode} is not supported.")
 
@@ -66,32 +72,46 @@ class Repository:
         df.to_csv(filepath, index=False)
 
     def __save_pickle(self, save_obj: Any, filepath: str) -> None:
-        with open(filepath, "rb") as fout:
+        with open(filepath, "wb") as fout:
             pickle.dump(save_obj, fout)
+
+    def __save_json(self, save_obj: Any, filepath: str) -> None:
+        with open(filepath, "w") as fout:
+            json.dump(save_obj, fout)
 
     def __save_numpy(self, save_obj: ndarray, filepath: str) -> None:
         np.save(filepath, save_obj)
+
+    def __save_torch(self, save_obj: Any, filepath: str) -> None:
+        torch.save(save_obj, filepath)
 
     def load(
         self,
         filepath: str,
         mode: str,
         load_from_gcs: bool = False,
-        rm_after_load: bool = False,
+        rm_local_after_load: bool = False,
     ) -> Any:
-        if not os.path.exists(filepath) and load_from_gcs:
-            self.__download_from_gcs(src_filepath=filepath, dst_filepath=filepath)
+        if not os.path.exists(filepath):
+            if load_from_gcs:
+                self.__download_from_gcs(src_filepath=filepath, dst_filepath=filepath)
+            else:
+                raise Exception(f"{filepath} does not exist int local.")
 
         if mode == "dfcsv":
             res = self.__load_dfcsv(filepath)
         elif mode == "pkl":
             res = self.__load_pickle(filepath)
+        elif mode == "json":
+            res = self.__load_json(filepath)
         elif mode == "np":
             res = self.__load_numpy(filepath)
+        elif mode == "pt":
+            res = self.__load_torch(filepath)
         else:
             raise NotImplementedError(f"mode {mode} is not supported.")
 
-        if rm_after_load:
+        if rm_local_after_load:
             os.remove(filepath)
         return res
 
@@ -114,8 +134,17 @@ class Repository:
             res = pickle.load(fin)
         return res
 
+    def __load_json(self, filepath: str) -> Any:
+        with open(filepath, "r") as fin:
+            res = json.load(fin)
+        return res
+
     def __load_numpy(self, filepath: str) -> ndarray:
         res: ndarray = np.load(filepath)
+        return res
+
+    def __load_torch(self, filepath: str) -> ndarray:
+        res = torch.load(filepath)
         return res
 
     def list_gcs_files(self, prefix: str) -> List[str]:
