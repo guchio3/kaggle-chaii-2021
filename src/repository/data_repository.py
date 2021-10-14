@@ -1,18 +1,15 @@
 from dataclasses import asdict, dataclass
-from typing import Dict, Tuple
+from typing import Tuple
 
 from numpy import ndarray
 from pandas import DataFrame
-from torch import Tensor
 
 from src.checkpoint.checkpoint import Checkpoint
-from src.log import myLogger
 from src.repository.repository import Repository
 
 
 @dataclass(frozen=True)
 class DataRepository(Repository):
-    logger: myLogger
     bucket_name: str = "kaggle-chaii-2021"
 
     def load_train_df(self) -> DataFrame:
@@ -131,6 +128,9 @@ class DataRepository(Repository):
         return checkpoint
 
     def __load_checkpoint_from_filepath(self, filepath: str) -> Checkpoint:
+        """
+        to fix the loading format for checkpoint
+        """
         checkpoint = Checkpoint(
             **self.load(
                 filepath=filepath,
@@ -148,7 +148,7 @@ class DataRepository(Repository):
 
     def extract_and_save_best_fold_epoch_model_state_dict(
         self, exp_id: str, fold: int
-    ) -> Dict[str, Tensor]:
+    ) -> None:
         filepaths = self.list_gcs_files(f"data/checkpoint/{exp_id}/{fold}/*.pkl")
         if len(filepaths) == 0:
             raise Exception("no checkpoints for exp_id:{exp_id} fold: {fold}.")
@@ -178,5 +178,3 @@ class DataRepository(Repository):
             gcs_mode="cp",
             force_save=True,
         )
-
-        return best_model_state_dict

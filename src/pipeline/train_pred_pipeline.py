@@ -5,7 +5,7 @@ import numpy as np
 import torch
 from pandas import DataFrame
 from torch import Tensor
-from torch.nn import DataParallel, Module
+from torch.nn import DataParallel
 from torch.nn.modules.loss import _Loss
 from torch.optim import Optimizer
 from torch.optim.lr_scheduler import _LRScheduler
@@ -21,7 +21,6 @@ from src.model.model import Model
 from src.optimizer.factory import OptimizerFactory
 from src.pipeline.pipeline import Pipeline
 from src.preprocessor.factory import PreprocessorFactory
-from src.repository.checkpoint_repository import CheckpointRepository
 from src.repository.data_repository import DataRepository
 from src.sampler.factory import SamplerFactory
 from src.scheduler.factory import SchedulerFactory
@@ -44,7 +43,6 @@ class TrainPredPipeline(Pipeline):
         self.debug = debug
 
         self.data_repository = DataRepository(logger=logger)
-        self.checkpoint_repository = CheckpointRepository(logger=logger)
 
         self.num_epochs = config["num_epochs"]
 
@@ -74,6 +72,9 @@ class TrainPredPipeline(Pipeline):
 
     @class_dec_timer(unit="m")
     def _train(self) -> None:
+        # clean best model weights
+        self.data_repository.clean_best_fold_epoch_checkpoint(exp_id=self.exp_id)
+
         trn_df = self.data_repository.load_train_df()
         preprocessor = self.preprocessor_factory.create(
             data_repository=self.data_repository
@@ -123,16 +124,16 @@ class TrainPredPipeline(Pipeline):
                 checkpoint.set_optimizer(optimizer=optimizer)
                 checkpoint.set_scheduler(scheduler=scheduler)
                 self._valid(
-                    model=model, loader=val_loader, fobj=fobj, checkpoint=checkpoint
-                )
-                self.checkpoint_repository.save(
+                    device=self.device,
                     fold=fold,
                     epoch=epoch,
-                    model=model,
-                    optimizer=optimizer,
-                    scheduler=scheduler,
-                    debug=self.debug,
+                    model=model, loader=val_loader, fobjs={"fobj": fobj, "fobj_segmentation": None}, checkpoint=checkpoint
                 )
+                self.data_repository.save_checkpoint(
+                        checkpoint=checkpoint
+                )
+
+            self.data_repository.extract_and_save_best_fold_epoch_model_state_dict(exp_id=self.exp_id, fold=fold)
 
     @class_dec_timer(unit="m")
     def _train_one_epoch(
@@ -264,10 +265,10 @@ class TrainPredPipeline(Pipeline):
                 model.calc_probas()
 
                 checkpoint.extend_val_info(key="val_input_ids", val_info=ids)
-                checkpoint.extend_val_info(, key=)
-                checkpoint.extend_val_info(, key=)
-                checkpoint.extend_val_info(, key=)
-                checkpoint.extend_val_info(, key=)
+                checkpoint.extend_val_info(key="", val_info=)
+                checkpoint.extend_val_info(key="", val_info=)
+                checkpoint.extend_val_info(key="", val_info=)
+                checkpoint.extend_val_info(key="", val_info=)
 
                 running_loss += loss.item()
 
