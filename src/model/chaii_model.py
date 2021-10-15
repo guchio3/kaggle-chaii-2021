@@ -49,12 +49,12 @@ class ChaiiXLMRBModel1(Model):
         end_position: Tensor,
         **kwargs
     ) -> Tensor:
-        logits_start, logits_end = logits
+        start_logits, end_logits = logits
         fobj = fobjs["fobj"]
 
         if fobj is None:
             raise Exception("plz set fobj.")
-        loss = fobj(logits_start, start_position)
-        loss += fobj(logits_end, end_position)
+        loss = fobj(start_logits, start_position)
+        loss += fobj(end_logits, end_position)
 
         return loss

@@ -26,6 +26,7 @@ class ChaiiDataset(Dataset):
         res = {
             "input_ids": torch.tensor(row["input_ids"]),
             "attention_mask": torch.tensor(row["attention_mask"]),
+            "offset_mapping": torch.tensor(row["offset_mapping"]),
             "start_position": torch.tensor(row["start_position"]),
             "end_position": torch.tensor(row["end_position"]),
             "segmentation_positions": torch.tensor(row["segmentation_positions"]),

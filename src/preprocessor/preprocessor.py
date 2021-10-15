@@ -35,25 +35,49 @@ class Preprocessor(metaclass=ABCMeta):
 
 
 class PreprocessorV1(Preprocessor):
+    def __init__(
+        self,
+        tokenizer: PreTrainedTokenizer,
+        data_repository: DataRepository,
+        max_length: int,
+        is_test: bool,
+        logger: myLogger,
+    ):
+        super().__init__(
+            tokenizer=tokenizer,
+            data_repository=data_repository,
+            max_length=max_length,
+            is_test=is_test,
+            logger=logger,
+        )
+        self.ver = "v1"
+
     @class_dec_timer(unit="m")
     def __call__(self, df: DataFrame) -> DataFrame:
-        self.logger.info("now preprocessing df ...")
-        # reset index to deal it correctly
-        df.reset_index(drop=True, inplace=True)
-        with Pool(os.cpu_count()) as p:
-            iter_func = partial(
-                _prep_text_v1,
-                tokenizer=self.tokenizer,
-                max_length=self.max_length,
-                is_test=self.is_test,
-            )
-            imap = p.imap_unordered(iter_func, df.iterrows())
-            res_pairs = list(tqdm(imap, total=len(df)))
-            p.close()
-            p.join()
-        res_df = pd.concat([row for _, row in sorted(res_pairs)])
-        self.data_repository.save_preprocessed_df(res_df, ver="v1")
-        self.logger.info("done.")
+        if not self.is_test and self.data_repository.preprocessed_df_exists(
+            ver=self.ver
+        ):
+            self.logger.info("load preprocessed_df because it already exists.")
+            res_df = self.data_repository.load_preprocessed_df(ver=self.ver)
+        else:
+            self.logger.info("now preprocessing df ...")
+            # reset index to deal it correctly
+            df.reset_index(drop=True, inplace=True)
+            with Pool(os.cpu_count()) as p:
+                iter_func = partial(
+                    _prep_text_v1,
+                    tokenizer=self.tokenizer,
+                    max_length=self.max_length,
+                    is_test=self.is_test,
+                )
+                imap = p.imap_unordered(iter_func, df.iterrows())
+                res_pairs = list(tqdm(imap, total=len(df)))
+                p.close()
+                p.join()
+            res_df = pd.concat([row for _, row in sorted(res_pairs)])
+            if not self.is_test:
+                self.data_repository.save_preprocessed_df(res_df, ver=self.ver)
+            self.logger.info("done.")
         return res_df
 
 

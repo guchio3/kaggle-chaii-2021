@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from typing import Dict, List, Optional
 
 from torch import Tensor
@@ -17,27 +17,18 @@ class Checkpoint:
     optimizer_state_dict: Optional[Dict[str, Tensor]] = None
     scheduler_state_dict: Optional[Dict[str, Tensor]] = None
     val_ids: List[str] = []
-    val_start_pred_probas: List[float] = []
-    val_end_pred_probas: List[float] = []
-    val_segmentation_pred_probas: List[float] = []
+    val_start_logits: List[float] = []
+    val_end_logits: List[float] = []
+    val_segmentation_logits: List[float] = []
     val_loss: Optional[float] = None
     val_jaccard: Optional[float] = None
 
     @property
     def non_filled_mambers(self) -> List[str]:
         non_filled_members = []
-        if self.model_state_dict is None:
-            non_filled_members.append("model_state_dict")
-        if self.optimizer_state_dict is None:
-            non_filled_members.append("optimizer_state_dict")
-        if self.optimizer_state_dict is None:
-            non_filled_members.append("optimizer_state_dict")
-        if self.scheduler_state_dict is None:
-            non_filled_members.append("scheduler_state_dict")
-        if self.val_loss is None:
-            non_filled_members.append("val_loss")
-        if self.val_jaccard is None:
-            non_filled_members.append("val_jaccard")
+        for field, field_value in asdict(self).items():
+            if not field_value:
+                non_filled_members.append(field)
         return non_filled_members
 
     def set_model(self, model: Model) -> None:

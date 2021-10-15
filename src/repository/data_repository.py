@@ -12,8 +12,28 @@ from src.repository.repository import Repository
 class DataRepository(Repository):
     bucket_name: str = "kaggle-chaii-2021"
 
+    def __train_df_filepath(self) -> str:
+        return "data/origin/train.csv"
+
+    def __test_df_filepath(self) -> str:
+        return "data/origin/test.csv"
+
+    def __sample_submission_filepath(self) -> str:
+        return "data/origin/sample_submission.csv"
+
+    def __preprocessed_df_filepath(self, ver: str) -> str:
+        return f"data/preprocessed/{ver}.csv"
+
+    def __fold_idxes_filepath(self, exp_id: str, fold: int) -> str:
+        return f"data/fold/{exp_id}/{fold}.pkl"
+
+    def __checkpoint_filename(
+        self, exp_id: str, fold: int, epoch: int, val_loss: float, val_jaccard: float
+    ) -> str:
+        return f"data/checkpoint/{exp_id}/{fold}/{epoch}_{val_loss}_{val_jaccard}.pkl"
+
     def load_train_df(self) -> DataFrame:
-        filepath = "data/origin/train.csv"
+        filepath = self.__train_df_filepath()
         df: DataFrame = self.load(
             filepath=filepath,
             mode="dfcsv",
@@ -23,7 +43,7 @@ class DataRepository(Repository):
         return df
 
     def load_test_df(self) -> DataFrame:
-        filepath = "data/origin/test.csv"
+        filepath = self.__test_df_filepath()
         df: DataFrame = self.load(
             filepath=filepath,
             mode="dfcsv",
@@ -33,7 +53,7 @@ class DataRepository(Repository):
         return df
 
     def load_sample_submission_df(self) -> DataFrame:
-        filepath = "data/origin/sample_submission.csv"
+        filepath = self.__sample_submission_filepath()
         df: DataFrame = self.load(
             filepath=filepath,
             mode="dfcsv",
@@ -42,8 +62,11 @@ class DataRepository(Repository):
         )
         return df
 
+    def __sub_df_filepath(self, exp_id: str) -> str:
+        return f"data/submission/sub_{exp_id}.csv"
+
     def save_sub_df(self, sub_df: DataFrame, exp_id: str) -> None:
-        filepath = f"data/submission/sub_{exp_id}.csv"
+        filepath = self.__sub_df_filepath(exp_id=exp_id)
         self.save(
             save_obj=sub_df,
             filepath=filepath,
@@ -53,7 +76,7 @@ class DataRepository(Repository):
         )
 
     def load_sub_df(self, exp_id: str) -> DataFrame:
-        filepath = f"data/submission/sub_{exp_id}.csv"
+        filepath = self.__sub_df_filepath(exp_id=exp_id)
         df = self.load(
             filepath=filepath,
             mode="dfcsv",
@@ -62,8 +85,18 @@ class DataRepository(Repository):
         )
         return df
 
+    def preprocessed_df_exists(self, ver: str) -> bool:
+        filepath = self.__preprocessed_df_filepath(ver=ver)
+        gcs_files = self.list_gcs_files(prefix=filepath)
+        if len(gcs_files) == 0:
+            return False
+        elif len(gcs_files) == 1:
+            return True
+        else:
+            raise Exception("should not occur case.")
+
     def save_preprocessed_df(self, preprocessed_df: DataFrame, ver: str) -> None:
-        filepath = f"data/preprocessed/{ver}.csv"
+        filepath = self.__preprocessed_df_filepath(ver=ver)
         self.save(
             save_obj=preprocessed_df,
             filepath=filepath,
@@ -72,7 +105,7 @@ class DataRepository(Repository):
         )
 
     def load_preprocessed_df(self, ver: str) -> DataFrame:
-        filepath = f"data/preprocessed/{ver}.csv"
+        filepath = self.__preprocessed_df_filepath(ver=ver)
         df = self.load(
             filepath=filepath,
             mode="dfcsv",
@@ -84,7 +117,7 @@ class DataRepository(Repository):
     def save_fold_idxes(
         self, exp_id: str, fold: int, fold_idxes: Tuple[ndarray, ndarray]
     ) -> None:
-        filepath = f"data/fold/{exp_id}/{fold}.pkl"
+        filepath = self.__fold_idxes_filepath(exp_id=exp_id, fold=fold)
         self.save(
             save_obj=fold_idxes,
             filepath=filepath,
@@ -94,20 +127,37 @@ class DataRepository(Repository):
         )
 
     def load_fold_idxes(self, exp_id: str, fold: int) -> Tuple[ndarray, ndarray]:
-        filepath = f"data/fold/{exp_id}/{fold}.pkl"
+        filepath = self.__fold_idxes_filepath(exp_id=exp_id, fold=fold)
         fold_idxes = self.load(
             filepath=filepath, mode="pkl", load_from_gcs=True, rm_local_after_load=False
         )
         return fold_idxes
+
+    def __load_checkpoint_from_filepath(self, filepath: str) -> Checkpoint:
+        """
+        to fix the loading format for checkpoint
+        """
+        checkpoint = Checkpoint(
+            **self.load(
+                filepath=filepath,
+                mode="json",
+                load_from_gcs=True,
+                rm_local_after_load=True,
+            )
+        )
+        return checkpoint
 
     def save_checkpoint(self, checkpoint: Checkpoint) -> None:
         if checkpoint.non_filled_mambers:
             raise Exception(
                 f"checkpoint members {checkpoint.non_filled_mambers} are not filled."
             )
-        filepath = (
-            f"data/checkpoint/{checkpoint.exp_id}/{checkpoint.fold}/"
-            f"{checkpoint.epoch}_{checkpoint.val_loss}_{checkpoint.val_jaccard}.pkl"
+        filepath = self.__checkpoint_filename(
+            exp_id=checkpoint.exp_id,
+            fold=checkpoint.fold,
+            epoch=checkpoint.epoch,
+            val_loss=checkpoint.val_loss,
+            val_jaccard=checkpoint.val_jaccard,
         )
         self.save(
             save_obj=asdict(checkpoint),
@@ -125,20 +175,6 @@ class DataRepository(Repository):
             raise Exception(f"non-unique fold epoch checkpoint, {filepaths}.")
         filepath = filepaths[0]
         checkpoint = self.__load_checkpoint_from_filepath(filepath=filepath)
-        return checkpoint
-
-    def __load_checkpoint_from_filepath(self, filepath: str) -> Checkpoint:
-        """
-        to fix the loading format for checkpoint
-        """
-        checkpoint = Checkpoint(
-            **self.load(
-                filepath=filepath,
-                mode="json",
-                load_from_gcs=True,
-                rm_local_after_load=True,
-            )
-        )
         return checkpoint
 
     def clean_best_fold_epoch_checkpoint(self, exp_id: str) -> None:
