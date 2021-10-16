@@ -1,5 +1,5 @@
 from abc import ABCMeta, abstractmethod
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
 from torch import Tensor
 from torch.nn import Module
@@ -27,6 +27,12 @@ class Model(Module, metaclass=ABCMeta):
         self.warmup_epoch = warmup_epoch
         self.logger = logger
 
+    @abstractmethod
+    def forward(
+        self, input_ids: Tensor, attention_masks: Tensor
+    ) -> Tuple[Optional[Tensor], Optional[Tensor], Optional[Tensor]]:
+        raise NotImplementedError()
+
     def warmup(self, epoch: int) -> None:
         if epoch == 0:
             for name, child in self.named_children():
@@ -48,11 +54,14 @@ class Model(Module, metaclass=ABCMeta):
     @abstractmethod
     def calc_loss(
         self,
-        logits: List[Tensor],
-        fobjs: Dict[str, Optional[_Loss]],
-        start_position: Tensor,
-        end_position: Tensor,
+        start_logits: Tensor,
+        end_logits: Tensor,
+        segmentation_logits: Tensor,
+        start_positions: Tensor,
+        end_positions: Tensor,
         segmentation_positions: Tensor,
+        fobj: Optional[_Loss],
+        segmentation_fobj: Optional[_Loss]
     ) -> Tensor:
         raise NotImplementedError()
 

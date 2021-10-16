@@ -45,7 +45,11 @@ class Checkpoint:
     def set_scheduler(self, scheduler: _LRScheduler) -> None:
         self.scheduler_state_dict = scheduler.state_dict()
 
-    def extend_val_info(self, key: str, val_info: Optional[Tensor]) -> None:
+    def extend_str_list_val_info(self, key: str, val_info: Optional[List[str]]) -> None:
+        if val_info is not None:
+            getattr(self, key).extend(val_info)
+
+    def extend_tensor_val_info(self, key: str, val_info: Optional[Tensor]) -> None:
         if val_info is not None:
             val_info.to("cpu")
             getattr(self, key).extend(val_info.tolist())

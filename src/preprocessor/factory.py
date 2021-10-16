@@ -36,6 +36,6 @@ class PreprocessorFactory(Factory[Preprocessor]):
             )
         else:
             raise NotImplementedError(
-                f"preprocessor_type {preprocessor_type} is not supported."
+                f"preprocessor_type {self.preprocessor_type} is not supported."
             )
         return preprocessor

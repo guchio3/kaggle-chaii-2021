@@ -1,3 +1,4 @@
+import itertools
 import os
 from typing import Any, Dict, Optional, Tuple
 
@@ -16,10 +17,12 @@ from src.checkpoint.checkpoint import Checkpoint
 from src.dataset.factory import DatasetFactory
 from src.fobj.factory import FobjFactory
 from src.log import myLogger
+from src.metrics.jaccard import calc_jaccard_mean
 from src.model.factory import ModelFactory
 from src.model.model import Model
 from src.optimizer.factory import OptimizerFactory
 from src.pipeline.pipeline import Pipeline
+from src.postprocessor.factory import PostprocessorFactory
 from src.preprocessor.factory import PreprocessorFactory
 from src.repository.data_repository import DataRepository
 from src.sampler.factory import SamplerFactory
@@ -48,6 +51,9 @@ class TrainPredPipeline(Pipeline):
 
         self.preprocessor_factory = PreprocessorFactory(
             **config["preprocessor"], logger=logger
+        )
+        self.postprocessor_factory = PostprocessorFactory(
+            **config["postprocessor"], logger=logger
         )
         self.splitter_factory = SplitterFactory(**config["splitter"], logger=logger)
         self.dataset_factory = DatasetFactory(**config["dataset"], logger=logger)
@@ -117,7 +123,8 @@ class TrainPredPipeline(Pipeline):
                     model=model,
                     optimizer=optimizer,
                     scheduler=scheduler,
-                    fobjs={"fobj": fobj, "fobj_segmentation": None},
+                    fobs=fobj,
+                    segmentation_fobj==None,
                 )
                 checkpoint = Checkpoint(exp_id=self.exp_id, fold=fold, epoch=epoch)
                 checkpoint.set_model(model=model)
@@ -146,7 +153,8 @@ class TrainPredPipeline(Pipeline):
         model: Model,
         optimizer: Optimizer,
         scheduler: _LRScheduler,
-        fobjs: Dict[str, Optional[_Loss]],
+        fobj: Optional[_Loss],
+        segmentation_fobj: Optional[_Loss]
     ) -> None:
         # init for train
         model.warmup(epoch)
@@ -158,21 +166,24 @@ class TrainPredPipeline(Pipeline):
         running_loss = 0.0
         for batch_i, batch in enumerate(tqdm(loader)):
             input_ids = batch["input_ids"].to(self.device)
-            attention_mask = batch["attention_mask"].to(self.device)
-            start_position = batch["start_position"].to(self.device)
-            end_position = batch["end_position"].to(self.device)
+            attention_masks = batch["attention_mask"].to(self.device)
+            start_positions = batch["start_position"].to(self.device)
+            end_positions = batch["end_position"].to(self.device)
             segmentation_positions = batch["segmentation_positions"].to(self.device)
 
-            logits = model(
+            start_logits, end_logits, segmentation_logits = model(
                 input_ids=input_ids,
-                attention_mask=attention_mask,
+                attention_mask=attention_masks,
             )
             loss = model.calc_loss(
-                logits=logits,
-                fobjs=fobjs,
-                start_position=start_position,
-                end_position=end_position,
+                start_logits=start_logits,
+                end_logits=end_logits,
+                segmentation_logits=segmentation_logits,
+                start_positions=start_positions,
+                end_positions=end_positions,
                 segmentation_positions=segmentation_positions,
+                fobj=fobj,
+                segmentation_fobj=segmentation_fobj,
             )
             loss.backward()
             running_loss += loss.item()
@@ -201,7 +212,7 @@ class TrainPredPipeline(Pipeline):
         if debug:
             df = df.iloc[: batch_size * 3]
         dataset = self.dataset_factory.create(df=df)
-        sampler = self.sampler_factory.create(sampler_type=sampler_type)
+        sampler = self.sampler_factory.create(order_settings={"sampler_type": sampler_type})
         _cpu_count = os.cpu_count()
         if self.debug or _cpu_count is None:
             num_workers = 1
@@ -233,7 +244,8 @@ class TrainPredPipeline(Pipeline):
         epoch: int,
         model: Model,
         loader: DataLoader,
-        fobjs: Dict[str, Optional[_Loss]],
+        fobj: Optional[_Loss],
+        segmentation_fobj: Optional[_Loss],
         checkpoint: Checkpoint,
     ) -> None:
         if device != "cpu":
@@ -243,39 +255,63 @@ class TrainPredPipeline(Pipeline):
 
         with torch.no_grad():
             running_loss = 0.0
-            for batch_i, batch in enumerate(tqdm(loader)):
+            all_contexts = []
+            all_answer_texts = []
+            all_start_logits = []
+            all_end_logits = []
+            all_segmentation_logits = []
+            for _, batch in enumerate(tqdm(loader)):
                 ids = batch["id"]
+                contexts = batch["context"]
+                answer_text = batch["answer_text"]
                 input_ids = batch["input_ids"].to(self.device)
-                attention_mask = batch["attention_mask"].to(self.device)
-                start_position = batch["start_position"].to(self.device)
-                end_position = batch["end_position"].to(self.device)
-                segmentation_positions = batch["segmentation_positions"].to(self.device)
+                attention_masks = batch["attention_mask"].to(self.device)
+                start_positions = batch["start_position"].to(self.device)
+                end_positions = batch["end_position"].to(self.device)
+                segmentation_positions = batch["segmentation_position"].to(self.device)
 
-                logits = model(
+                start_logits, end_logits, segmentation_logits = model(
                     input_ids=input_ids,
-                    attention_mask=attention_mask,
+                    attention_mask=attention_masks,
                 )
                 loss = model.calc_loss(
-                    logits=logits,
-                    fobjs=fobjs,
-                    start_position=start_position,
-                    end_position=end_position,
+                    start_logits=start_logits,
+                    end_logits=end_logits,
+                    segmentation_logits=segmentation_logits,
+                    start_positions=start_positions,
+                    end_positions=end_positions,
                     segmentation_positions=segmentation_positions,
+                    fobj=fobj,
+                    segmentation_fobj=segmentation_fobj,
                 )
-                model.calc_probas()
 
-                checkpoint.extend_val_info(key="val_input_ids", val_info=ids)
-                checkpoint.extend_val_info(key="", val_info=)
-                checkpoint.extend_val_info(key="", val_info=)
-                checkpoint.extend_val_info(key="", val_info=)
-                checkpoint.extend_val_info(key="", val_info=)
+                all_contexts.append(contexts)
+                all_answer_texts.append(answer_text)
+                all_start_logits.append(start_logits)
+                all_end_logits.append(end_logits)
+                all_segmentation_logits.append(end_logits)
+
+                checkpoint.extend_str_list_val_info(key="val_ids", val_info=ids)
+                checkpoint.extend_tensor_val_info(key="val_start_logits", val_info=start_logits)
+                checkpoint.extend_tensor_val_info(key="val_end_logits", val_info=end_logits)
+                checkpoint.extend_tensor_val_info(key="val_segmentation_logits", val_info=segmentation_logits)
 
                 running_loss += loss.item()
 
+            all_contexts = list(itertools.chain.from_iterable(all_contexts))
+            all_answer_texts = list(itertools.chain.from_iterable(all_answer_texts))
+            all_start_logits = torch.cat(all_start_logits)
+            all_end_logits = torch.cat(all_end_logits)
+            all_segmentation_logits = torch.cat(all_segmentation_logits)
+
             val_loss = running_loss / len(loader)
-            val_jaccard = jaccard()
+            postprocessor = self.postprocessor_factory.create()
+            pred_answers = postprocessor(contexts=contexts, offset_mappings=offset_mappings, start_logits=start_logits, end_logits=end_logits)
+            val_jaccard = calc_jaccard_mean(text_trues=all_answer_texts, text_preds=pred_answers)
+
             checkpoint.val_loss = val_loss
             checkpoint.val_jaccard = val_jaccard
+
             self.logger.info(
                 f"fold: {fold} / epoch: {epoch} / val_loss: {running_loss}"
             )

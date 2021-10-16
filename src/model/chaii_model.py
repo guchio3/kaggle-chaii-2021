@@ -1,4 +1,4 @@
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
 import torch
 from torch import Tensor
@@ -28,33 +28,34 @@ class ChaiiXLMRBModel1(Model):
         self.add_module("conv_output_start", self.classifier_conv_start)
         self.add_module("conv_output_end", self.classifier_conv_end)
 
-    def forward(self, input_ids: Tensor, attention_mask: Tensor) -> List[Tensor]:
+    def forward(
+        self, input_ids: Tensor, attention_masks: Tensor
+    ) -> Tuple[Tensor, Tensor, Tensor]:
         outputs = self.model(
             input_ids=input_ids,
-            attention_mask=attention_mask,
+            attention_mask=attention_masks,
         )
         output = outputs[0]
         output = torch.transpose(output, 1, 2)
         output = self.dropout(output)
-        logits_start = self.classifier_conv_start(output).squeeze()
-        logits_end = self.classifier_conv_end(output).squeeze()
+        start_logits = self.classifier_conv_start(output).squeeze()
+        end_logits = self.classifier_conv_end(output).squeeze()
 
-        return [logits_start, logits_end]
+        return start_logits, end_logits, Tensor()
 
     def calc_loss(
         self,
-        logits: List[Tensor],
-        fobjs: Dict[str, Optional[_Loss]],
-        start_position: Tensor,
-        end_position: Tensor,
-        **kwargs
+        start_logits: Tensor,
+        end_logits: Tensor,
+        segmentation_logits: Tensor,
+        start_positions: Tensor,
+        end_positions: Tensor,
+        segmentation_positions: Tensor,
+        fobj: Optional[_Loss],
+        segmentation_fobj: Optional[_Loss]
     ) -> Tensor:
-        start_logits, end_logits = logits
-        fobj = fobjs["fobj"]
-
         if fobj is None:
             raise Exception("plz set fobj.")
-        loss = fobj(start_logits, start_position)
-        loss += fobj(end_logits, end_position)
-
+        loss = fobj(start_logits, start_positions)
+        loss += fobj(end_logits, end_positions)
         return loss

@@ -118,7 +118,7 @@ def _prep_text_v1(
     if is_test:
         row["start_position"] = cls_index
         row["end_position"] = cls_index
-        row["segmentation_positions"] = [cls_index]
+        row["segmentation_position"] = [cls_index]
     else:
         start_char_index = int(row["answer_start"])
         end_char_index = start_char_index + len(row["answer_text"])
@@ -140,7 +140,7 @@ def _prep_text_v1(
         ):
             row["start_position"] = cls_index
             row["end_position"] = cls_index
-            row["segmentation_positions"] = [cls_index]
+            row["segmentation_position"] = [cls_index]
         else:
             # Otherwise move the token_start_index and token_end_index to the two ends of the answer.
             # Note: we could go after the last offset if the answer is the last word (edge case).
@@ -155,7 +155,8 @@ def _prep_text_v1(
             while offset_mapping[token_end_index][1] >= end_char_index:
                 token_end_index -= 1
             row["end_positions"] = token_end_index + 1  # +1 because even in == case
-            row["segmentation_positions"] = [
-                i for i in range(row["start_position"], row["end_position"] + 1)
+            row["segmentation_position"] = [
+                1 if row["start_position"] <= i and i <= row["end_position"] else 0
+                for i in range(len(offset_mapping))
             ]
     return i, row
