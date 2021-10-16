@@ -123,8 +123,8 @@ class TrainPredPipeline(Pipeline):
                     model=model,
                     optimizer=optimizer,
                     scheduler=scheduler,
-                    fobs=fobj,
-                    segmentation_fobj==None,
+                    fobj=fobj,
+                    segmentation_fobj=None,
                 )
                 checkpoint = Checkpoint(exp_id=self.exp_id, fold=fold, epoch=epoch)
                 checkpoint.set_model(model=model)
@@ -134,13 +134,17 @@ class TrainPredPipeline(Pipeline):
                     device=self.device,
                     fold=fold,
                     epoch=epoch,
-                    model=model, loader=val_loader, fobjs={"fobj": fobj, "fobj_segmentation": None}, checkpoint=checkpoint
+                    model=model,
+                    loader=val_loader,
+                    fobj=fobj,
+                    segmentation_fobj=None,
+                    checkpoint=checkpoint,
                 )
-                self.data_repository.save_checkpoint(
-                        checkpoint=checkpoint
-                )
+                self.data_repository.save_checkpoint(checkpoint=checkpoint)
 
-            self.data_repository.extract_and_save_best_fold_epoch_model_state_dict(exp_id=self.exp_id, fold=fold)
+            self.data_repository.extract_and_save_best_fold_epoch_model_state_dict(
+                exp_id=self.exp_id, fold=fold
+            )
 
     @class_dec_timer(unit="m")
     def _train_one_epoch(
@@ -154,7 +158,7 @@ class TrainPredPipeline(Pipeline):
         optimizer: Optimizer,
         scheduler: _LRScheduler,
         fobj: Optional[_Loss],
-        segmentation_fobj: Optional[_Loss]
+        segmentation_fobj: Optional[_Loss],
     ) -> None:
         # init for train
         model.warmup(epoch)
@@ -212,7 +216,9 @@ class TrainPredPipeline(Pipeline):
         if debug:
             df = df.iloc[: batch_size * 3]
         dataset = self.dataset_factory.create(df=df)
-        sampler = self.sampler_factory.create(order_settings={"sampler_type": sampler_type})
+        sampler = self.sampler_factory.create(
+            order_settings={"sampler_type": sampler_type}
+        )
         _cpu_count = os.cpu_count()
         if self.debug or _cpu_count is None:
             num_workers = 1
@@ -257,6 +263,7 @@ class TrainPredPipeline(Pipeline):
             running_loss = 0.0
             all_contexts = []
             all_answer_texts = []
+            all_offset_mappings = []
             all_start_logits = []
             all_end_logits = []
             all_segmentation_logits = []
@@ -264,6 +271,7 @@ class TrainPredPipeline(Pipeline):
                 ids = batch["id"]
                 contexts = batch["context"]
                 answer_text = batch["answer_text"]
+                offset_mappings = batch["offset_mappings"]
                 input_ids = batch["input_ids"].to(self.device)
                 attention_masks = batch["attention_mask"].to(self.device)
                 start_positions = batch["start_position"].to(self.device)
@@ -287,27 +295,47 @@ class TrainPredPipeline(Pipeline):
 
                 all_contexts.append(contexts)
                 all_answer_texts.append(answer_text)
+                all_offset_mappings.append(offset_mappings)
                 all_start_logits.append(start_logits)
                 all_end_logits.append(end_logits)
                 all_segmentation_logits.append(end_logits)
 
                 checkpoint.extend_str_list_val_info(key="val_ids", val_info=ids)
-                checkpoint.extend_tensor_val_info(key="val_start_logits", val_info=start_logits)
-                checkpoint.extend_tensor_val_info(key="val_end_logits", val_info=end_logits)
-                checkpoint.extend_tensor_val_info(key="val_segmentation_logits", val_info=segmentation_logits)
+                checkpoint.extend_tensor_val_info(
+                    key="val_start_logits", val_info=start_logits
+                )
+                checkpoint.extend_tensor_val_info(
+                    key="val_end_logits", val_info=end_logits
+                )
+                checkpoint.extend_tensor_val_info(
+                    key="val_segmentation_logits", val_info=segmentation_logits
+                )
 
                 running_loss += loss.item()
 
-            all_contexts = list(itertools.chain.from_iterable(all_contexts))
-            all_answer_texts = list(itertools.chain.from_iterable(all_answer_texts))
-            all_start_logits = torch.cat(all_start_logits)
-            all_end_logits = torch.cat(all_end_logits)
-            all_segmentation_logits = torch.cat(all_segmentation_logits)
+            final_all_contexts = list(itertools.chain.from_iterable(all_contexts))
+            final_all_answer_texts = list(
+                itertools.chain.from_iterable(all_answer_texts)
+            )
+            final_all_offset_mappings = list(
+                itertools.chain.from_iterable(all_offset_mappings)
+            )
+            final_all_start_logits = torch.cat(all_start_logits)
+            final_all_end_logits = torch.cat(all_end_logits)
+            final_all_segmentation_logits = torch.cat(all_segmentation_logits)
 
             val_loss = running_loss / len(loader)
             postprocessor = self.postprocessor_factory.create()
-            pred_answers = postprocessor(contexts=contexts, offset_mappings=offset_mappings, start_logits=start_logits, end_logits=end_logits)
-            val_jaccard = calc_jaccard_mean(text_trues=all_answer_texts, text_preds=pred_answers)
+            pred_answers = postprocessor(
+                contexts=final_all_contexts,
+                offset_mappings=final_all_offset_mappings,
+                start_logits=final_all_start_logits,
+                end_logits=final_all_end_logits,
+                segmentation_logits=final_all_segmentation_logits,
+            )
+            val_jaccard = calc_jaccard_mean(
+                text_trues=final_all_answer_texts, text_preds=pred_answers
+            )
 
             checkpoint.val_loss = val_loss
             checkpoint.val_jaccard = val_jaccard
