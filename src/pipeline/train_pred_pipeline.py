@@ -3,16 +3,10 @@ import os
 from typing import Any, Dict, Optional, Tuple
 
 import numpy as np
-import torch
 from pandas import DataFrame
-from torch import Tensor
-from torch.nn import DataParallel
-from torch.nn.modules.loss import _Loss
-from torch.optim import Optimizer
-from torch.optim.lr_scheduler import _LRScheduler
-from torch.utils.data import DataLoader
 from tqdm.auto import tqdm
 
+import torch
 from src.checkpoint.checkpoint import Checkpoint
 from src.dataset.factory import DatasetFactory
 from src.fobj.factory import FobjFactory
@@ -29,6 +23,12 @@ from src.sampler.factory import SamplerFactory
 from src.scheduler.factory import SchedulerFactory
 from src.splitter.factory import SplitterFactory
 from src.timer import class_dec_timer
+from torch import Tensor
+from torch.nn import DataParallel
+from torch.nn.modules.loss import _Loss
+from torch.optim import Optimizer
+from torch.optim.lr_scheduler import _LRScheduler
+from torch.utils.data import DataLoader
 
 
 class TrainPredPipeline(Pipeline):
@@ -38,6 +38,7 @@ class TrainPredPipeline(Pipeline):
         config: Dict[str, Any],
         device: str,
         debug: bool,
+        mode: str,
         logger: myLogger,
     ) -> None:
         super().__init__("train_pred", exp_id, logger)
@@ -48,6 +49,7 @@ class TrainPredPipeline(Pipeline):
         self.data_repository = DataRepository(logger=logger)
 
         self.num_epochs = config["num_epochs"]
+        self.accum_mode = config["accum_mod"]
 
         self.preprocessor_factory = PreprocessorFactory(
             **config["preprocessor"], logger=logger
@@ -68,10 +70,10 @@ class TrainPredPipeline(Pipeline):
         )
 
     @class_dec_timer(unit="m")
-    def run(self, mode: str) -> None:
-        if mode == "train":
+    def run(self) -> None:
+        if self.mode == "train":
             self._train()
-        elif mode == "pred":
+        elif self.mode == "pred":
             self._pred()
         else:
             raise NotImplementedError(f"mode {mode} is not supported.")
@@ -118,7 +120,7 @@ class TrainPredPipeline(Pipeline):
                     device=self.device,
                     fold=fold,
                     epoch=epoch,
-                    accum_mod=1,
+                    accum_mod=self.accum_mod,
                     loader=trn_loader,
                     model=model,
                     optimizer=optimizer,

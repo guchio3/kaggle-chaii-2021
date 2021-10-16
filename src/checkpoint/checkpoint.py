@@ -1,11 +1,10 @@
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from typing import Dict, List, Optional
 
+from src.model.model import Model
 from torch import Tensor
 from torch.optim import Optimizer
 from torch.optim.lr_scheduler import _LRScheduler
-
-from src.model.model import Model
 
 
 @dataclass
@@ -16,10 +15,10 @@ class Checkpoint:
     model_state_dict: Optional[Dict[str, Tensor]] = None
     optimizer_state_dict: Optional[Dict[str, Tensor]] = None
     scheduler_state_dict: Optional[Dict[str, Tensor]] = None
-    val_ids: List[str] = []
-    val_start_logits: List[float] = []
-    val_end_logits: List[float] = []
-    val_segmentation_logits: List[float] = []
+    val_ids: List[str] = field(default_factory=list)
+    val_start_logits: List[float] = field(default_factory=list)
+    val_end_logits: List[float] = field(default_factory=list)
+    val_segmentation_logits: List[float] = field(default_factory=list)
     val_loss: Optional[float] = None
     val_jaccard: Optional[float] = None
 

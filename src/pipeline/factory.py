@@ -15,9 +15,7 @@ class PipelineFactory(Factory[Pipeline]):
         self, pipeline_type: str, exp_id: str, device: str, debug: bool
     ) -> Pipeline:
         config = self._load_config_from_yaml(pipeline_type, exp_id)
-        default_config = self._load_config_from_yaml(
-            pipeline_type, "e000"
-        )
+        default_config = self._load_config_from_yaml(pipeline_type, "e000")
         self._fill_config_by_default_config(config, default_config)
 
         logger = myLogger(
@@ -27,10 +25,23 @@ class PipelineFactory(Factory[Pipeline]):
             exp_config=config,
         )
 
-        if pipeline_type == "train_pred":
-            pass
+        if pipeline_type == "train":
             return TrainPredPipeline(
-                exp_id=exp_id, config=config, device=device, debug=debug, logger=logger
+                exp_id=exp_id,
+                config=config,
+                device=device,
+                debug=debug,
+                mode="train",
+                logger=logger,
+            )
+        elif pipeline_type == "pred":
+            return TrainPredPipeline(
+                exp_id=exp_id,
+                config=config,
+                device=device,
+                debug=debug,
+                mode="pred",
+                logger=logger,
             )
         else:
             raise NotImplementedError(f"pipeline {pipeline_type} is not supported yet.")

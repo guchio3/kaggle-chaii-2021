@@ -1,2 +1,0 @@
-description: "pipeline for creating tfrecords"
-batch_size: 3000

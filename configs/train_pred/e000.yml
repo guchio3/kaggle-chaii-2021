@@ -1,6 +1,13 @@
 description: "train and pred"
 cluster_name: "kaggle-g2net"
 num_epochs: 20
+accum_mod: 1
+preprocessor:
+    preprocessor_type: 
+    tokenizer_type: 
+    max_length: 
+
+
 fold:
   group_col: null
   splitter_config:
