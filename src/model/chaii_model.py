@@ -1,23 +1,19 @@
 from typing import Dict, List, Optional, Tuple
 
 import torch
+from src.log import myLogger
+from src.model.model import Model
 from torch import Tensor
 from torch.nn import Conv1d, Dropout
 from torch.nn.modules.loss import _Loss
 
-from src.log import myLogger
-from src.model.model import Model
-
 
 class ChaiiXLMRBModel1(Model):
-    def __init__(
-        self, pretrained_model_name_or_path: str, warmup_epoch: int, logger: myLogger,
-    ) -> None:
+    def __init__(self, pretrained_model_name_or_path: str, warmup_epoch: int) -> None:
         super().__init__(
             pretrained_model_name_or_path=pretrained_model_name_or_path,
             warmup_key="conv_output",
             warmup_epoch=warmup_epoch,
-            logger=logger,
         )
         self.dropout = Dropout(0.2)
         self.classifier_conv_start = Conv1d(self.model.pooler.dense.out_features, 1, 1)

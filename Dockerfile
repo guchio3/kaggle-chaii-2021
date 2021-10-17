@@ -1,6 +1,9 @@
 FROM gcr.io/kaggle-images/python:latest
 #FROM kaggle/python-gpu-build:latest
 
+# ENV vars
+ARG WANDB_API_KEY
+
 # set env
 ENV LC_ALL "en_US.UTF-8"
 
@@ -27,6 +30,8 @@ RUN conda install -y -c conda-forge pudb
 
 # install pip packages
 RUN pip install japanize_matplotlib wandb
+
+RUN wandb login $WANDB_API_KEY
 
 # set jupyter notebook
 # jupyter vim key-bind settings

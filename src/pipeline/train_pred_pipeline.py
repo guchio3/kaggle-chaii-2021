@@ -51,6 +51,9 @@ class TrainPredPipeline(Pipeline):
 
         self.num_epochs = config["num_epochs"]
         self.accum_mode = config["accum_mod"]
+        self.trn_batch_size = config["trn_batch_size"]
+        self.val_batch_size = config["val_batch_size"]
+        self.tst_batch_size = config["tst_batch_size"]
 
         self.preprocessor_factory = PreprocessorFactory(
             **config["preprocessor"], debug=debug, logger=logger
@@ -77,7 +80,7 @@ class TrainPredPipeline(Pipeline):
         elif self.mode == "pred":
             self._pred()
         else:
-            raise NotImplementedError(f"mode {mode} is not supported.")
+            raise NotImplementedError(f"mode {self.mode} is not supported.")
 
     @class_dec_timer(unit="m")
     def _train(self) -> None:
@@ -219,7 +222,7 @@ class TrainPredPipeline(Pipeline):
             df = df.iloc[: batch_size * 3]
         dataset = self.dataset_factory.create(df=df)
         sampler = self.sampler_factory.create(
-            order_settings={"sampler_type": sampler_type}
+            dataset=dataset, order_settings={"sampler_type": sampler_type}
         )
         _cpu_count = os.cpu_count()
         if self.debug or _cpu_count is None:
