@@ -34,7 +34,7 @@ def parse_args():
     parser.add_argument(
         "-p",
         "--pipeline_type",
-        help="the pipeline type, choose from (train|pred)",
+        help="the pipeline type, choose from (train_pred)",
         type=str,
         required=True,
     )
