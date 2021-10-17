@@ -12,9 +12,9 @@ RUN rm .bashrc && ln -s /root/guchio_utils/.bashrc .bashrc
 
 # dev env for GLIBCXX_3.4.26
 RUN add-apt-repository ppa:ubuntu-toolchain-r/test -y
-RUN apt update -y
-RUN apt install gcc-4.9 -y
-RUN apt upgrade libstdc++6 -y
+RUN apt-get update -y
+# RUN apt-get install gcc-4.9 -y
+RUN apt-get upgrade libstdc++6 -y
 
 # install git-completion.bash and git-prompt.sh
 RUN wget https://raw.githubusercontent.com/git/git/master/contrib/completion/git-completion.bash -O ~/.git-completion.bash \
