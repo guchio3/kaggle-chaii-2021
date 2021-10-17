@@ -97,16 +97,16 @@ class TrainPredPipeline(Pipeline):
             fold_trn_df = trn_df.iloc[trn_idx]
             trn_loader = self._build_loader(
                 df=fold_trn_df,
-                sampler_type=self.config["loader"]["trn_sampler_type"],
-                batch_size=self.config["loader"]["trn_batch_size"],
+                sampler_type=self.config["sampler"]["trn_sampler_type"],
+                batch_size=self.trn_batch_size,
                 drop_last=True,
                 debug=self.debug,
             )
             fold_val_df = trn_df.iloc[val_idx]
             val_loader = self._build_loader(
                 df=fold_val_df,
-                sampler_type=self.config["loader"]["val_sampler_type"],
-                batch_size=self.config["loader"]["val_batch_size"],
+                sampler_type=self.config["sampler"]["val_sampler_type"],
+                batch_size=self.val_batch_size,
                 drop_last=True,
                 debug=self.debug,
             )

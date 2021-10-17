@@ -1,9 +1,9 @@
-from transformers import AutoTokenizer
-
 from src.factory import Factory
 from src.log import myLogger
-from src.preprocessor.preprocessor import Preprocessor, PreprocessorV1
+from src.preprocessor.preprocessor import (BaselineKernelPreprocessor,
+                                           Preprocessor)
 from src.repository.data_repository import DataRepository
+from transformers import AutoTokenizer
 
 
 class PreprocessorFactory(Factory[Preprocessor]):
@@ -12,26 +12,24 @@ class PreprocessorFactory(Factory[Preprocessor]):
         preprocessor_type: str,
         tokenizer_type: str,
         max_length: int,
-        is_test: bool,
         logger: myLogger,
     ) -> None:
         super().__init__(
             preprocessor_type=preprocessor_type,
             tokenizer_type=tokenizer_type,
             max_length=max_length,
-            is_test=is_test,
             logger=logger,
         )
 
-    def _create(self, data_repository: DataRepository) -> Preprocessor:
+        def _create(self, data_repository: DataRepository, is_test: bool) -> Preprocessor:
         tokenizer = AutoTokenizer.from_pretrained(self.tokenizer_type)
 
-        if self.preprocessor_type == "v1":
-            preprocessor = PreprocessorV1(
+        if self.preprocessor_type == "baseline_kernel":
+            preprocessor = BaselineKernelPreprocessor(
                 tokenizer=tokenizer,
                 data_repository=data_repository,
                 max_length=self.max_length,
-                is_test=self.is_test,
+                is_test=is_test,
                 logger=self.logger,
             )
         else:
