@@ -34,7 +34,7 @@ class Preprocessor(metaclass=ABCMeta):
         raise NotImplementedError()
 
 
-class PreprocessorV1(Preprocessor):
+class BaselineKernelPreprocessor(Preprocessor):
     def __init__(
         self,
         tokenizer: PreTrainedTokenizer,

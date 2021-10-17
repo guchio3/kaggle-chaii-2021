@@ -1,6 +1,6 @@
 from src.factory import Factory
 from src.log import myLogger
-from src.model import Model
+from src.model.model import Model
 
 
 class ModelFactory(Factory[Model]):

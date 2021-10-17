@@ -22,18 +22,18 @@ class PreprocessorFactory(Factory[Preprocessor]):
         )
 
         def _create(self, data_repository: DataRepository, is_test: bool) -> Preprocessor:
-        tokenizer = AutoTokenizer.from_pretrained(self.tokenizer_type)
+            tokenizer = AutoTokenizer.from_pretrained(self.tokenizer_type)
 
-        if self.preprocessor_type == "baseline_kernel":
-            preprocessor = BaselineKernelPreprocessor(
-                tokenizer=tokenizer,
-                data_repository=data_repository,
-                max_length=self.max_length,
-                is_test=is_test,
-                logger=self.logger,
-            )
-        else:
-            raise NotImplementedError(
-                f"preprocessor_type {self.preprocessor_type} is not supported."
-            )
-        return preprocessor
+            if self.preprocessor_type == "baseline_kernel":
+                preprocessor = BaselineKernelPreprocessor(
+                    tokenizer=tokenizer,
+                    data_repository=data_repository,
+                    max_length=self.max_length,
+                    is_test=is_test,
+                    logger=self.logger,
+                )
+            else:
+                raise NotImplementedError(
+                    f"preprocessor_type {self.preprocessor_type} is not supported."
+                )
+            return preprocessor
