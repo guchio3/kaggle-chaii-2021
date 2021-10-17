@@ -9,16 +9,9 @@ from src.log import myLogger
 
 
 class DatasetFactory(Factory[Dataset]):
-    def __init__(
-        self,
-        dataset_type: str,
-        aug: List[str],
-        logger: myLogger,
-    ) -> None:
+    def __init__(self, dataset_type: str, aug: List[str], logger: myLogger,) -> None:
         super().__init__(
-            dataset_type=dataset_type,
-            aug=aug,
-            logger=logger,
+            dataset_type=dataset_type, aug=aug, logger=logger,
         )
 
     def _create(self, df: DataFrame) -> Dataset:

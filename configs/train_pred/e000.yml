@@ -24,6 +24,7 @@ sampler:
     val_sampler_type: sequential
     tst_sampler_type: sequential
 model:
+    model_type: chaii-xlmrb-1
     pretrained_model_name_or_path: data/dataset/deepset/xlm-roberta-base-squad2/
     warmup_epoch: 1
 optimizer:
@@ -35,42 +36,3 @@ scheduler:
     scheduler_type: 
     max_epoch: 20
     cosine_eta_min: 0.000001
-
-
-
-
-
-fold:
-  group_col: null
-  splitter_config:
-    split_type: kf
-    split_num: 5
-    shuffle: true
-    random_state: 71
-dataset:
-  dataset_type: cqt
-  batch_size: 32
-  repeat: false
-  shuffle: true
-  aug: []
-  sr: 2048
-  fmin: 20
-  fmax: 1024
-  bins_per_octave: 24
-  IMG_SIZE: 256
-  HOP_LENGTH: 16
-model:
-  model_type: EfficientNetB0
-  img_size: 256
-  img_channel: 3
-  do_rate: 0.2
-  weights: imagenet
-optimizer:
-  optimizer_type: adam
-  learning_rate: 0.0001
-fobj:
-  fobj_type: BCE
-scheduler:
-  scheduler_type: cosine
-  initial_learning_rate: 0.0001
-  alpha: 0.00003

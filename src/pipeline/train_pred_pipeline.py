@@ -45,6 +45,7 @@ class TrainPredPipeline(Pipeline):
         self.config = config
         self.device = device
         self.debug = debug
+        self.mode = mode
 
         self.data_repository = DataRepository(logger=logger)
 
@@ -52,7 +53,7 @@ class TrainPredPipeline(Pipeline):
         self.accum_mode = config["accum_mod"]
 
         self.preprocessor_factory = PreprocessorFactory(
-            **config["preprocessor"], logger=logger
+            **config["preprocessor"], debug=debug, logger=logger
         )
         self.postprocessor_factory = PostprocessorFactory(
             **config["postprocessor"], logger=logger
@@ -85,7 +86,7 @@ class TrainPredPipeline(Pipeline):
 
         trn_df = self.data_repository.load_train_df()
         preprocessor = self.preprocessor_factory.create(
-            data_repository=self.data_repository
+            data_repository=self.data_repository, is_test=False
         )
         trn_df = preprocessor(trn_df)
 
@@ -178,8 +179,7 @@ class TrainPredPipeline(Pipeline):
             segmentation_positions = batch["segmentation_positions"].to(self.device)
 
             start_logits, end_logits, segmentation_logits = model(
-                input_ids=input_ids,
-                attention_mask=attention_masks,
+                input_ids=input_ids, attention_mask=attention_masks,
             )
             loss = model.calc_loss(
                 start_logits=start_logits,
@@ -281,8 +281,7 @@ class TrainPredPipeline(Pipeline):
                 segmentation_positions = batch["segmentation_position"].to(self.device)
 
                 start_logits, end_logits, segmentation_logits = model(
-                    input_ids=input_ids,
-                    attention_mask=attention_masks,
+                    input_ids=input_ids, attention_mask=attention_masks,
                 )
                 loss = model.calc_loss(
                     start_logits=start_logits,

@@ -1,19 +1,13 @@
+from src.factory import Factory
+from src.log import myLogger
 from torch.utils.data import Dataset
 from torch.utils.data.sampler import RandomSampler, Sampler, SequentialSampler
 
-from src.factory import Factory
-from src.log import myLogger
-
 
 class SamplerFactory(Factory[Sampler]):
-    def __init__(
-        self,
-        sampler_type: str,
-        logger: myLogger,
-    ):
+    def __init__(self, sampler_type: str, logger: myLogger, **kwargs):
         super().__init__(
-            sampler_type=sampler_type,
-            logger=logger,
+            sampler_type=sampler_type, logger=logger,
         )
 
     def _create(self, dataset: Dataset) -> Sampler:

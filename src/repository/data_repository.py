@@ -98,10 +98,7 @@ class DataRepository(Repository):
     def save_preprocessed_df(self, preprocessed_df: DataFrame, ver: str) -> None:
         filepath = self.__preprocessed_df_filepath(ver=ver)
         self.save(
-            save_obj=preprocessed_df,
-            filepath=filepath,
-            mode="dfcsv",
-            gcs_mode="cp",
+            save_obj=preprocessed_df, filepath=filepath, mode="dfcsv", gcs_mode="cp",
         )
 
     def load_preprocessed_df(self, ver: str) -> DataFrame:

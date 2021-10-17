@@ -9,10 +9,7 @@ from src.log import myLogger
 
 class Postprocessor(metaclass=ABCMeta):
     def __init__(
-        self,
-        logger: myLogger,
-        n_best_size: int = 20,
-        max_answer_length: int = 30,
+        self, logger: myLogger, n_best_size: int = 20, max_answer_length: int = 30,
     ) -> None:
         self.n_best_size = n_best_size
         self.max_answer_length = max_answer_length

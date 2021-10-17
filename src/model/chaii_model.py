@@ -11,10 +11,7 @@ from src.model.model import Model
 
 class ChaiiXLMRBModel1(Model):
     def __init__(
-        self,
-        pretrained_model_name_or_path: str,
-        warmup_epoch: int,
-        logger: myLogger,
+        self, pretrained_model_name_or_path: str, warmup_epoch: int, logger: myLogger,
     ) -> None:
         super().__init__(
             pretrained_model_name_or_path=pretrained_model_name_or_path,
@@ -31,10 +28,7 @@ class ChaiiXLMRBModel1(Model):
     def forward(
         self, input_ids: Tensor, attention_masks: Tensor
     ) -> Tuple[Tensor, Tensor, Tensor]:
-        outputs = self.model(
-            input_ids=input_ids,
-            attention_mask=attention_masks,
-        )
+        outputs = self.model(input_ids=input_ids, attention_mask=attention_masks,)
         output = outputs[0]
         output = torch.transpose(output, 1, 2)
         output = self.dropout(output)
@@ -52,7 +46,7 @@ class ChaiiXLMRBModel1(Model):
         end_positions: Tensor,
         segmentation_positions: Tensor,
         fobj: Optional[_Loss],
-        segmentation_fobj: Optional[_Loss]
+        segmentation_fobj: Optional[_Loss],
     ) -> Tensor:
         if fobj is None:
             raise Exception("plz set fobj.")

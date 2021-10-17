@@ -12,7 +12,7 @@ from src.pipeline.train_pred_pipeline import TrainPredPipeline
 
 class PipelineFactory(Factory[Pipeline]):
     def _create(
-        self, pipeline_type: str, exp_id: str, device: str, debug: bool
+        self, pipeline_type: str, mode: str, exp_id: str, device: str, debug: bool
     ) -> Pipeline:
         config = self._load_config_from_yaml(pipeline_type, exp_id)
         default_config = self._load_config_from_yaml(pipeline_type, "e000")
@@ -23,24 +23,16 @@ class PipelineFactory(Factory[Pipeline]):
             exp_id=exp_id,
             wdb_prj_id="kaggle-chaii-2021",
             exp_config=config,
+            debug=debug,
         )
 
-        if pipeline_type == "train":
+        if pipeline_type == "train_pred":
             return TrainPredPipeline(
                 exp_id=exp_id,
                 config=config,
                 device=device,
                 debug=debug,
-                mode="train",
-                logger=logger,
-            )
-        elif pipeline_type == "pred":
-            return TrainPredPipeline(
-                exp_id=exp_id,
-                config=config,
-                device=device,
-                debug=debug,
-                mode="pred",
+                mode=mode,
                 logger=logger,
             )
         else:

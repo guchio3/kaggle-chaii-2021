@@ -7,11 +7,11 @@ from typing import List, Tuple
 import pandas as pd
 from pandas import DataFrame, Series
 from tqdm.auto import tqdm
-from transformers import PreTrainedTokenizer
 
 from src.log import myLogger
 from src.repository.data_repository import DataRepository
 from src.timer import class_dec_timer
+from transformers import PreTrainedTokenizer
 
 
 class Preprocessor(metaclass=ABCMeta):
@@ -21,12 +21,14 @@ class Preprocessor(metaclass=ABCMeta):
         data_repository: DataRepository,
         max_length: int,
         is_test: bool,
+        debug: bool,
         logger: myLogger,
     ) -> None:
         self.tokenizer = tokenizer
         self.data_repository = data_repository
         self.max_length = max_length
         self.is_test = is_test
+        self.debug = debug
         self.logger = logger
 
     @abstractmethod
@@ -41,6 +43,7 @@ class BaselineKernelPreprocessor(Preprocessor):
         data_repository: DataRepository,
         max_length: int,
         is_test: bool,
+        debug: bool,
         logger: myLogger,
     ):
         super().__init__(
@@ -48,6 +51,7 @@ class BaselineKernelPreprocessor(Preprocessor):
             data_repository=data_repository,
             max_length=max_length,
             is_test=is_test,
+            debug=debug,
             logger=logger,
         )
         self.ver = "v1"
@@ -63,17 +67,29 @@ class BaselineKernelPreprocessor(Preprocessor):
             self.logger.info("now preprocessing df ...")
             # reset index to deal it correctly
             df.reset_index(drop=True, inplace=True)
-            with Pool(os.cpu_count()) as p:
-                iter_func = partial(
-                    _prep_text_v1,
-                    tokenizer=self.tokenizer,
-                    max_length=self.max_length,
-                    is_test=self.is_test,
-                )
-                imap = p.imap_unordered(iter_func, df.iterrows())
-                res_pairs = list(tqdm(imap, total=len(df)))
-                p.close()
-                p.join()
+            if self.debug:
+                res_pairs = []
+                for i, row in tqdm(df.iterrows()):
+                    res_pairs.append(
+                        _prep_text_v1(
+                            row_pair=(i, row),
+                            tokenizer=self.tokenizer,
+                            max_length=self.max_length,
+                            is_test=self.is_test,
+                        )
+                    )
+            else:
+                with Pool(os.cpu_count()) as p:
+                    iter_func = partial(
+                        _prep_text_v1,
+                        tokenizer=self.tokenizer,
+                        max_length=self.max_length,
+                        is_test=self.is_test,
+                    )
+                    imap = p.imap_unordered(iter_func, df.iterrows())
+                    res_pairs = list(tqdm(imap, total=len(df)))
+                    p.close()
+                    p.join()
             res_df = pd.concat([row for _, row in sorted(res_pairs)])
             if not self.is_test:
                 self.data_repository.save_preprocessed_df(res_df, ver=self.ver)
@@ -92,27 +108,28 @@ def _prep_text_v1(
     tokenized_res = tokenizer.encode_plus(
         text=str(row["context"]),
         text_pair=str(row["question"]),
-        add_special_tokens=True,
+        # add_special_tokens=True,
         padding="max_length",
         truncation="only_first",
         max_length=max_length,
-        stride=0,
-        return_tensor="pt",
+        # stride=0,
+        # return_tensors="pt",
         return_attention_mask=True,
-        return_overflowing_tokens=True,
+        # return_overflowing_tokens=True,
         return_special_tokens_mask=False,
         return_offsets_mapping=True,
-        return_length=True,
+        # return_length=True,
     )
     input_ids: List[int] = tokenized_res["input_ids"]
     attention_mask: List[int] = tokenized_res["attention_mask"]
-    special_tokens_mask: List[int] = tokenized_res["special_tokens_mask"]
-    sequence_ids: List[int] = tokenized_res["sequence_ids"]
+    # special_tokens_mask: List[int] = tokenized_res["special_tokens_mask"]
+    # sequence_ids: List[int] = tokenized_res["sequence_ids"]
+    sequence_ids = [i for i in range(len(input_ids))]
     offset_mapping: List[Tuple[int, int]] = tokenized_res["offset_mapping"]
     cls_index = input_ids.index(tokenizer.cls_token_id)
     row["input_ids"] = input_ids
     row["attention_mask"] = attention_mask
-    row["special_tokens_mask"] = special_tokens_mask
+    # row["special_tokens_mask"] = special_tokens_mask
     row["sequence_ids"] = sequence_ids
     row["offset_mapping"] = offset_mapping
     if is_test:

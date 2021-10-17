@@ -61,7 +61,7 @@ class Model(Module, metaclass=ABCMeta):
         end_positions: Tensor,
         segmentation_positions: Tensor,
         fobj: Optional[_Loss],
-        segmentation_fobj: Optional[_Loss]
+        segmentation_fobj: Optional[_Loss],
     ) -> Tensor:
         raise NotImplementedError()
 

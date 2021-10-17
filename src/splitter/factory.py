@@ -1,7 +1,6 @@
 from src.factory import Factory
 from src.log import myLogger
-from src.splitter.splitter import (GKFSplitter, KFSplitter, SKFSplitter,
-                                   Splitter)
+from src.splitter.splitter import GKFSplitter, KFSplitter, SKFSplitter, Splitter
 
 
 class SplitterFactory(Factory):
@@ -19,9 +18,7 @@ class SplitterFactory(Factory):
         self.random_state = random_state
         self.logger = logger
 
-    def _create(
-        self,
-    ) -> Splitter:
+    def _create(self,) -> Splitter:
         if self.splitter_type == "kf":
             return KFSplitter(
                 split_num=self.split_num,

@@ -8,12 +8,7 @@ from src.log import myLogger
 
 
 class ChaiiDataset(Dataset):
-    def __init__(
-        self,
-        df: DataFrame,
-        aug: List[str],
-        logger: myLogger,
-    ) -> None:
+    def __init__(self, df: DataFrame, aug: List[str], logger: myLogger,) -> None:
         self.df = df
         self.aug = aug
         self.logger = logger

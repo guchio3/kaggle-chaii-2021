@@ -3,6 +3,7 @@ from logging import DEBUG, FileHandler, Formatter, StreamHandler, getLogger
 from typing import Any, Dict, Optional
 
 import requests
+
 import wandb
 
 
@@ -13,6 +14,7 @@ class myLogger:
         exp_id: str,
         wdb_prj_id: Optional[str],
         exp_config: Dict[str, Any],
+        debug: bool,
     ) -> None:
         self.logger = getLogger(__name__)
         log_dir_name = "/".join(log_filename.split("/")[:-1])
@@ -20,7 +22,7 @@ class myLogger:
             os.makedirs(log_dir_name)
         self._logInit(log_filename)
 
-        if wdb_prj_id:
+        if not debug and wdb_prj_id:
             self._wandb_init(wdb_prj_id=wdb_prj_id, exp_id=exp_id)
         else:
             self.info("skip wandb init")

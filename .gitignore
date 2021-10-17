@@ -2,6 +2,7 @@
 .nvimlog
 tags
 *__pycache__*
+wandb/
 
 logs/*
 data/*/*
