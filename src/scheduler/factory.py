@@ -1,8 +1,7 @@
-from torch.optim import Optimizer
-from torch.optim.lr_scheduler import CosineAnnealingLR, _LRScheduler
-
 from src.factory import Factory
 from src.log import myLogger
+from torch.optim import Optimizer
+from torch.optim.lr_scheduler import CosineAnnealingLR, _LRScheduler
 
 
 class SchedulerFactory(Factory[_LRScheduler]):

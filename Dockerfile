@@ -1,5 +1,5 @@
-FROM gcr.io/kaggle-images/python:latest
-#FROM kaggle/python-gpu-build:latest
+#FROM gcr.io/kaggle-images/python:latest
+FROM gcr.io/kaggle-gpu-images/python
 
 # ENV vars
 ARG WANDB_API_KEY

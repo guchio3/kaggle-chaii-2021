@@ -3,10 +3,16 @@ import os
 from typing import Any, Dict, Optional, Tuple
 
 import numpy as np
+import torch
 from pandas import DataFrame
+from torch import Tensor
+from torch.nn import DataParallel
+from torch.nn.modules.loss import _Loss
+from torch.optim import Optimizer
+from torch.optim.lr_scheduler import _LRScheduler
+from torch.utils.data import DataLoader
 from tqdm.auto import tqdm
 
-import torch
 from src.checkpoint.checkpoint import Checkpoint
 from src.dataset.factory import DatasetFactory
 from src.fobj.factory import FobjFactory
@@ -23,12 +29,6 @@ from src.sampler.factory import SamplerFactory
 from src.scheduler.factory import SchedulerFactory
 from src.splitter.factory import SplitterFactory
 from src.timer import class_dec_timer
-from torch import Tensor
-from torch.nn import DataParallel
-from torch.nn.modules.loss import _Loss
-from torch.optim import Optimizer
-from torch.optim.lr_scheduler import _LRScheduler
-from torch.utils.data import DataLoader
 
 
 class TrainPredPipeline(Pipeline):
@@ -50,7 +50,7 @@ class TrainPredPipeline(Pipeline):
         self.data_repository = DataRepository(logger=logger)
 
         self.num_epochs = config["num_epochs"]
-        self.accum_mode = config["accum_mod"]
+        self.accum_mod = config["accum_mod"]
         self.trn_batch_size = config["trn_batch_size"]
         self.val_batch_size = config["val_batch_size"]
         self.tst_batch_size = config["tst_batch_size"]
@@ -146,11 +146,13 @@ class TrainPredPipeline(Pipeline):
                     segmentation_fobj=None,
                     checkpoint=checkpoint,
                 )
-                self.data_repository.save_checkpoint(checkpoint=checkpoint)
+                if not self.debug:
+                    self.data_repository.save_checkpoint(checkpoint=checkpoint)
 
-            self.data_repository.extract_and_save_best_fold_epoch_model_state_dict(
-                exp_id=self.exp_id, fold=fold
-            )
+            if not self.debug:
+                self.data_repository.extract_and_save_best_fold_epoch_model_state_dict(
+                    exp_id=self.exp_id, fold=fold
+                )
 
     @class_dec_timer(unit="m")
     def _train_one_epoch(

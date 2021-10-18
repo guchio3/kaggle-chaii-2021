@@ -6,11 +6,11 @@ from typing import Any, List
 
 import numpy as np
 import pandas as pd
-import torch
 from google.cloud import storage
 from numpy import ndarray
 from pandas import DataFrame
 
+import torch
 from src.log import myLogger
 
 
@@ -27,7 +27,7 @@ class Repository:
         gcs_mode: str = "pass",
         force_save: bool = False,
     ) -> None:
-        if os.path.exists(filepath) and not force_save:
+        if not force_save and self.list_gcs_files(prefix=filepath):
             self.logger.info(f"{filepath} already exists.")
             self.logger.info("please use force_save if you wanna save it.")
             return

@@ -22,7 +22,7 @@ class DataRepository(Repository):
         return "data/origin/sample_submission.csv"
 
     def __preprocessed_df_filepath(self, ver: str) -> str:
-        return f"data/preprocessed/{ver}.csv"
+        return f"data/preprocessed/{ver}.pkl"
 
     def __fold_idxes_filepath(self, exp_id: str, fold: int) -> str:
         return f"data/fold/{exp_id}/{fold}.pkl"
@@ -98,14 +98,14 @@ class DataRepository(Repository):
     def save_preprocessed_df(self, preprocessed_df: DataFrame, ver: str) -> None:
         filepath = self.__preprocessed_df_filepath(ver=ver)
         self.save(
-            save_obj=preprocessed_df, filepath=filepath, mode="dfcsv", gcs_mode="cp",
+            save_obj=preprocessed_df, filepath=filepath, mode="pkl", gcs_mode="cp",
         )
 
     def load_preprocessed_df(self, ver: str) -> DataFrame:
         filepath = self.__preprocessed_df_filepath(ver=ver)
         df = self.load(
             filepath=filepath,
-            mode="dfcsv",
+            mode="pkl",
             load_from_gcs=True,
             rm_local_after_load=False,
         )

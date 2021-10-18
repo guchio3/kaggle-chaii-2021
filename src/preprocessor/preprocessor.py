@@ -90,8 +90,8 @@ class BaselineKernelPreprocessor(Preprocessor):
                     res_pairs = list(tqdm(imap, total=len(df)))
                     p.close()
                     p.join()
-            res_df = pd.concat([row for _, row in sorted(res_pairs)])
-            if not self.is_test:
+            res_df = pd.DataFrame([row.to_dict() for _, row in sorted(res_pairs)])
+            if not self.debug and not self.is_test:
                 self.data_repository.save_preprocessed_df(res_df, ver=self.ver)
             self.logger.info("done.")
         return res_df
@@ -121,6 +121,7 @@ def _prep_text_v1(
         # return_length=True,
     )
     input_ids: List[int] = tokenized_res["input_ids"]
+    token_type_ids: List[int] = tokenized_res.sequence_ids()  # CAUTION!!!!!
     attention_mask: List[int] = tokenized_res["attention_mask"]
     # special_tokens_mask: List[int] = tokenized_res["special_tokens_mask"]
     # sequence_ids: List[int] = tokenized_res["sequence_ids"]
@@ -128,6 +129,7 @@ def _prep_text_v1(
     offset_mapping: List[Tuple[int, int]] = tokenized_res["offset_mapping"]
     cls_index = input_ids.index(tokenizer.cls_token_id)
     row["input_ids"] = input_ids
+    row["token_type_ids"] = token_type_ids
     row["attention_mask"] = attention_mask
     # row["special_tokens_mask"] = special_tokens_mask
     row["sequence_ids"] = sequence_ids
@@ -142,12 +144,12 @@ def _prep_text_v1(
 
         # Start token index of the current span in the text.
         token_start_index = 0
-        while sequence_ids[token_start_index] != 0:
+        while token_type_ids[token_start_index] != 0:
             token_start_index += 1
 
         # End token index of the current span in the text.
         token_end_index = len(input_ids) - 1
-        while sequence_ids[token_end_index] != 0:
+        while token_type_ids[token_end_index] != 0:
             token_end_index -= 1
 
         # Detect if the answer is out of the span (in which case this feature is labeled with the CLS index).
@@ -166,12 +168,12 @@ def _prep_text_v1(
                 and offset_mapping[token_start_index][0] <= start_char_index
             ):
                 token_start_index += 1
-            row["start_positions"] = (
+            row["start_position"] = (
                 token_start_index - 1
             )  # -1 because +1 even in == case
             while offset_mapping[token_end_index][1] >= end_char_index:
                 token_end_index -= 1
-            row["end_positions"] = token_end_index + 1  # +1 because even in == case
+            row["end_position"] = token_end_index + 1  # +1 because even in == case
             row["segmentation_position"] = [
                 1 if row["start_position"] <= i and i <= row["end_position"] else 0
                 for i in range(len(offset_mapping))

@@ -24,6 +24,7 @@ class ModelFactory(Factory[Model]):
             model = ChaiiXLMRBModel1(
                 pretrained_model_name_or_path=self.pretrained_model_name_or_path,
                 warmup_epoch=self.warmup_epoch,
+                logger=self.logger,
             )
         else:
             raise NotImplementedError(f"model_type {self.model_type} is not supported.")

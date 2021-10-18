@@ -1,12 +1,11 @@
 from abc import ABCMeta, abstractmethod
-from typing import Dict, List, Optional, Tuple
+from typing import Optional, Tuple
 
+from src.log import myLogger
 from torch import Tensor
 from torch.nn import Module
 from torch.nn.modules.loss import _Loss
 from transformers import AutoModel
-
-from src.log import myLogger
 
 
 class Model(Module, metaclass=ABCMeta):
