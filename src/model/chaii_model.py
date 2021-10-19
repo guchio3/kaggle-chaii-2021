@@ -1,11 +1,12 @@
-from typing import Dict, List, Optional, Tuple
+from typing import Optional, Tuple
 
 import torch
-from src.log import myLogger
-from src.model.model import Model
 from torch import Tensor
 from torch.nn import Conv1d, Dropout
 from torch.nn.modules.loss import _Loss
+
+from src.log import myLogger
+from src.model.model import Model
 
 
 class ChaiiXLMRBModel1(Model):
@@ -14,7 +15,11 @@ class ChaiiXLMRBModel1(Model):
     ) -> None:
         super().__init__(
             pretrained_model_name_or_path=pretrained_model_name_or_path,
-            warmup_key="conv_output",
+            warmup_keys=[
+                "conv_output",
+                "roberta.pooler.dense.weight",
+                "roberta.pooler.dense.bias",
+            ],
             warmup_epoch=warmup_epoch,
             logger=logger,
         )

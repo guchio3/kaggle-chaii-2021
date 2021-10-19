@@ -1,18 +1,19 @@
 from abc import ABCMeta, abstractmethod
-from typing import Optional, Tuple
+from typing import List, Optional, Tuple
 
-from src.log import myLogger
 from torch import Tensor
 from torch.nn import Module
 from torch.nn.modules.loss import _Loss
 from transformers import AutoModel
+
+from src.log import myLogger
 
 
 class Model(Module, metaclass=ABCMeta):
     def __init__(
         self,
         pretrained_model_name_or_path: str,
-        warmup_key: str,
+        warmup_keys: List[str],
         warmup_epoch: int,
         logger: myLogger,
     ) -> None:
@@ -22,7 +23,7 @@ class Model(Module, metaclass=ABCMeta):
         else:
             # for sub
             self.model = AutoModel(pretrained_model_name_or_path)
-        self.warmup_key = warmup_key
+        self.warmup_keys = warmup_keys
         self.warmup_epoch = warmup_epoch
         self.logger = logger
 
@@ -35,7 +36,12 @@ class Model(Module, metaclass=ABCMeta):
     def warmup(self, epoch: int) -> None:
         if epoch == 0:
             for name, child in self.named_children():
-                if self.warmup_key in name:
+                is_key_in = False
+                for warmup_key in self.warmup_keys:
+                    if warmup_key in name:
+                        is_key_in = True
+                        break
+                if is_key_in:
                     self.logger.info(name + " is unfrozen")
                     for param in child.parameters():
                         param.requires_grad = True

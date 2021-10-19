@@ -7,11 +7,11 @@ from typing import List, Tuple
 import pandas as pd
 from pandas import DataFrame, Series
 from tqdm.auto import tqdm
+from transformers import PreTrainedTokenizer
 
 from src.log import myLogger
 from src.repository.data_repository import DataRepository
 from src.timer import class_dec_timer
-from transformers import PreTrainedTokenizer
 
 
 class Preprocessor(metaclass=ABCMeta):
@@ -93,6 +93,11 @@ class BaselineKernelPreprocessor(Preprocessor):
             res_df = pd.DataFrame([row.to_dict() for _, row in sorted(res_pairs)])
             if not self.debug and not self.is_test:
                 self.data_repository.save_preprocessed_df(res_df, ver=self.ver)
+            else:
+                self.logger(
+                    "ignore save_preprocessed_df because either of "
+                    f"self.debug {self.debug} self.is_test {self.is_test}."
+                )
             self.logger.info("done.")
         return res_df
 
@@ -157,9 +162,24 @@ def _prep_text_v1(
             offset_mapping[token_start_index][0] <= start_char_index
             and offset_mapping[token_end_index][1] >= end_char_index
         ):
+            print("=============================================")
+            # print(f"context: {row['context']}")
+            # print(f"answer_text: {row['answer_text']}")
+            print(f"token_type_ids: {token_type_ids}")
+            print(f"offset_mapping: {offset_mapping}")
+            print(f"token_start_index: {token_start_index}")
+            print(f"token_end_index: {token_end_index}")
+            print(
+                f"offset_mapping[token_start_index][0]: {offset_mapping[token_start_index][0]}"
+            )
+            print(
+                f"offset_mapping[token_end_index][1]: {offset_mapping[token_end_index][1]}"
+            )
+            print(f"start_char_index: {start_char_index}")
+            print(f"end_char_index: {end_char_index}")
             row["start_position"] = cls_index
             row["end_position"] = cls_index
-            row["segmentation_position"] = [cls_index]
+            row["segmentation_position"] = [cls_index] * len(offset_mapping)
         else:
             # Otherwise move the token_start_index and token_end_index to the two ends of the answer.
             # Note: we could go after the last offset if the answer is the last word (edge case).

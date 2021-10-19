@@ -111,7 +111,7 @@ class TrainPredPipeline(Pipeline):
                 df=fold_val_df,
                 sampler_type=self.config["sampler"]["val_sampler_type"],
                 batch_size=self.val_batch_size,
-                drop_last=True,
+                drop_last=False,
                 debug=self.debug,
             )
 
@@ -181,10 +181,10 @@ class TrainPredPipeline(Pipeline):
             attention_masks = batch["attention_mask"].to(self.device)
             start_positions = batch["start_position"].to(self.device)
             end_positions = batch["end_position"].to(self.device)
-            segmentation_positions = batch["segmentation_positions"].to(self.device)
+            segmentation_positions = batch["segmentation_position"].to(self.device)
 
             start_logits, end_logits, segmentation_logits = model(
-                input_ids=input_ids, attention_mask=attention_masks,
+                input_ids=input_ids, attention_masks=attention_masks,
             )
             loss = model.calc_loss(
                 start_logits=start_logits,
