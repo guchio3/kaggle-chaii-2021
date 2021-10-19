@@ -3,6 +3,8 @@ from typing import List, Tuple
 
 import numpy as np
 from torch import Tensor
+from torch.nn import Softmax
+from tqdm.auto import tqdm
 
 from src.log import myLogger
 
@@ -49,8 +51,9 @@ class BaselineKernelPostprocessor(Postprocessor):
                 "len(end_logits): {len(end_logits)}."
             )
         pred_texts = []
-        for context, offset_mapping, start_logit, end_logit in zip(
-            contexts, offset_mappings, start_logits, end_logits
+        for context, offset_mapping, start_logit, end_logit in tqdm(
+            zip(contexts, offset_mappings, start_logits, end_logits),
+            total=len(contexts),
         ):
             pred_text = self._extract_text(
                 context=context,
@@ -68,10 +71,16 @@ class BaselineKernelPostprocessor(Postprocessor):
         start_logit: Tensor,
         end_logit: Tensor,
     ) -> str:
-        start_indexes = np.argsort(start_logit)[
+        softmax = Softmax(dim=0)
+
+        start_indexes = np.argsort(start_logit.numpy())[
             -1 : -self.n_best_size - 1 : -1
         ].tolist()
-        end_indexes = np.argsort(end_logit)[-1 : -self.n_best_size - 1 : -1].tolist()
+        end_indexes = np.argsort(end_logit.numpy())[
+            -1 : -self.n_best_size - 1 : -1
+        ].tolist()
+
+        valid_answers = []
         for start_index in start_indexes:
             for end_index in end_indexes:
                 # Don't consider out-of-scope answers, either because the indices are out of bounds or correspond
@@ -94,8 +103,17 @@ class BaselineKernelPostprocessor(Postprocessor):
                 end_char = offset_mapping[end_index][1]
 
                 extracted_text = context[start_char:end_char]
-                break
+                score = float(
+                    softmax(start_logit[start_index]) * softmax(end_logit[end_index])
+                )
+                valid_answers.append({"extracted_text": extracted_text, "score": score})
+
+        if len(valid_answers) == 0:
+            self.logger.warn("couldn't find best start end. use context as answer.")
+            extracted_text = context
         else:
-            raise Exception("couldn't find extracted_text")
+            extracted_text = sorted(
+                valid_answers, key=lambda x: x["score"], reverse=True
+            )[0]["extracted_text"]
 
         return extracted_text

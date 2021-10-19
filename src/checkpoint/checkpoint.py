@@ -1,10 +1,11 @@
 from dataclasses import asdict, dataclass, field
 from typing import Dict, List, Optional
 
-from src.model.model import Model
 from torch import Tensor
 from torch.optim import Optimizer
 from torch.optim.lr_scheduler import _LRScheduler
+
+from src.model.model import Model
 
 
 @dataclass
@@ -25,9 +26,13 @@ class Checkpoint:
     @property
     def non_filled_mambers(self) -> List[str]:
         non_filled_members = []
-        for field, field_value in asdict(self).items():
-            if not field_value:
-                non_filled_members.append(field)
+        for field_key, field_value in asdict(self).items():
+            if (
+                field_value is None
+                or type(field_value) == list
+                and len(field_value) == 0
+            ):
+                non_filled_members.append(field_key)
         return non_filled_members
 
     def set_model(self, model: Model) -> None:

@@ -1,5 +1,5 @@
 from abc import ABCMeta, abstractmethod
-from typing import List, Optional, Tuple
+from typing import Iterator, List, Optional, Tuple
 
 from torch import Tensor
 from torch.nn import Module
@@ -55,6 +55,14 @@ class Model(Module, metaclass=ABCMeta):
             for name, child in self.named_children():
                 for param in child.parameters():
                     param.requires_grad = True
+
+    def named_children(self) -> Iterator[Tuple[str, 'Module']]:
+        named_children = {
+            k: v for k, v in super().named_children() if k != "model"
+        }  # remove model to use model's each children
+        named_children.update(self.model.named_children())
+        for name, child in named_children.items():
+            yield name, child
 
     @abstractmethod
     def calc_loss(

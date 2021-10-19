@@ -137,7 +137,7 @@ class DataRepository(Repository):
         checkpoint = Checkpoint(
             **self.load(
                 filepath=filepath,
-                mode="json",
+                mode="pkl",
                 load_from_gcs=True,
                 rm_local_after_load=True,
             )
@@ -159,7 +159,7 @@ class DataRepository(Repository):
         self.save(
             save_obj=asdict(checkpoint),
             filepath=filepath,
-            mode="json",
+            mode="pkl",
             gcs_mode="mv",
             force_save=True,
         )

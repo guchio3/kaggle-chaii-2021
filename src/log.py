@@ -27,6 +27,8 @@ class myLogger:
         else:
             self.info("skip wandb init")
 
+        self.is_debug = debug
+
     def _wandb_init(self, wdb_prj_id: str, exp_id: str) -> None:
         wandb.init(project=wdb_prj_id, entity="guchio3")
         wandb.run.name = exp_id
@@ -77,8 +79,14 @@ class myLogger:
             self.logger.addHandler(handler)
 
     def wdb_log(self, log_dict: Dict[str, Any]) -> None:
+        if self.is_debug:
+            self.warn("pass wdb_log because debug mode.")
+            return
         wandb.log(log_dict)
 
     def wdb_sum(self, sum_dict: Dict[str, Any]) -> None:
+        if self.is_debug:
+            self.warn("pass wdb_sum because debug mode.")
+            return
         for key, value in sum_dict.items():
             wandb.run.summery[key] = value

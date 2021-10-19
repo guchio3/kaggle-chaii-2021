@@ -1,4 +1,3 @@
-import os
 from abc import ABCMeta, abstractmethod
 from functools import partial
 from multiprocessing import Pool
@@ -69,7 +68,7 @@ class BaselineKernelPreprocessor(Preprocessor):
             df.reset_index(drop=True, inplace=True)
             if self.debug:
                 res_pairs = []
-                for i, row in tqdm(df.iterrows()):
+                for i, row in tqdm(df.iterrows(), total=len(df)):
                     res_pairs.append(
                         _prep_text_v1(
                             row_pair=(i, row),
@@ -79,22 +78,34 @@ class BaselineKernelPreprocessor(Preprocessor):
                         )
                     )
             else:
-                with Pool(os.cpu_count()) as p:
-                    iter_func = partial(
-                        _prep_text_v1,
-                        tokenizer=self.tokenizer,
-                        max_length=self.max_length,
-                        is_test=self.is_test,
+                res_pairs = []
+                for i, row in tqdm(df.iterrows(), total=len(df)):
+                    res_pairs.append(
+                        _prep_text_v1(
+                            row_pair=(i, row),
+                            tokenizer=self.tokenizer,
+                            max_length=self.max_length,
+                            is_test=self.is_test,
+                        )
                     )
-                    imap = p.imap_unordered(iter_func, df.iterrows())
-                    res_pairs = list(tqdm(imap, total=len(df)))
-                    p.close()
-                    p.join()
-            res_df = pd.DataFrame([row.to_dict() for _, row in sorted(res_pairs)])
+                # with Pool(os.cpu_count()) as p:
+                #     iter_func = partial(
+                #         _prep_text_v1,
+                #         tokenizer=self.tokenizer,
+                #         max_length=self.max_length,
+                #         is_test=self.is_test,
+                #     )
+                #     imap = p.imap_unordered(iter_func, df.iterrows())
+                #     res_pairs = list(tqdm(imap, total=len(df)))
+                #     p.close()
+                #     p.join()
+            res_df = pd.DataFrame([row.to_dict() for _, row, _ in sorted(res_pairs)])
+            successed_cnt = len(list(filter(lambda res_pair: res_pair[2], res_pairs)))
+            self.logger.info(f"successed_ratio: {successed_cnt} / {len(res_pairs)}")
             if not self.debug and not self.is_test:
                 self.data_repository.save_preprocessed_df(res_df, ver=self.ver)
             else:
-                self.logger(
+                self.logger.info(
                     "ignore save_preprocessed_df because either of "
                     f"self.debug {self.debug} self.is_test {self.is_test}."
                 )
@@ -108,7 +119,9 @@ def _prep_text_v1(
     tokenizer: PreTrainedTokenizer,
     max_length: int,
     is_test: bool,
-) -> Tuple[int, Series]:
+) -> Tuple[int, Series, bool]:
+    is_successed = True
+
     i, row = row_pair
     tokenized_res = tokenizer.encode_plus(
         text=str(row["context"]),
@@ -140,6 +153,7 @@ def _prep_text_v1(
     row["sequence_ids"] = sequence_ids
     row["offset_mapping"] = offset_mapping
     if is_test:
+        is_successed = False
         row["start_position"] = cls_index
         row["end_position"] = cls_index
         row["segmentation_position"] = [cls_index]
@@ -162,21 +176,22 @@ def _prep_text_v1(
             offset_mapping[token_start_index][0] <= start_char_index
             and offset_mapping[token_end_index][1] >= end_char_index
         ):
-            print("=============================================")
-            # print(f"context: {row['context']}")
-            # print(f"answer_text: {row['answer_text']}")
-            print(f"token_type_ids: {token_type_ids}")
-            print(f"offset_mapping: {offset_mapping}")
-            print(f"token_start_index: {token_start_index}")
-            print(f"token_end_index: {token_end_index}")
-            print(
-                f"offset_mapping[token_start_index][0]: {offset_mapping[token_start_index][0]}"
-            )
-            print(
-                f"offset_mapping[token_end_index][1]: {offset_mapping[token_end_index][1]}"
-            )
-            print(f"start_char_index: {start_char_index}")
-            print(f"end_char_index: {end_char_index}")
+            is_successed = False
+            # print("=============================================")
+            # # print(f"context: {row['context']}")
+            # # print(f"answer_text: {row['answer_text']}")
+            # print(f"token_type_ids: {token_type_ids}")
+            # print(f"offset_mapping: {offset_mapping}")
+            # print(f"token_start_index: {token_start_index}")
+            # print(f"token_end_index: {token_end_index}")
+            # print(
+            #     f"offset_mapping[token_start_index][0]: {offset_mapping[token_start_index][0]}"
+            # )
+            # print(
+            #     f"offset_mapping[token_end_index][1]: {offset_mapping[token_end_index][1]}"
+            # )
+            # print(f"start_char_index: {start_char_index}")
+            # print(f"end_char_index: {end_char_index}")
             row["start_position"] = cls_index
             row["end_position"] = cls_index
             row["segmentation_position"] = [cls_index] * len(offset_mapping)
@@ -198,4 +213,4 @@ def _prep_text_v1(
                 1 if row["start_position"] <= i and i <= row["end_position"] else 0
                 for i in range(len(offset_mapping))
             ]
-    return i, row
+    return i, row, is_successed

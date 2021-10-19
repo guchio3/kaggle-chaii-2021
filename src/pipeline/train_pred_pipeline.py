@@ -170,8 +170,8 @@ class TrainPredPipeline(Pipeline):
     ) -> None:
         # init for train
         model.warmup(epoch)
-        if device != "cpu":
-            model = DataParallel(model)
+        # if device != "cpu":
+        #     model = DataParallel(model)
         self._to_device(device=self.device, model=model, optimizer=optimizer)
         model.train()
 
@@ -208,8 +208,8 @@ class TrainPredPipeline(Pipeline):
         self.logger.info(f"fold: {fold} / epoch: {epoch} / trn_loss: {trn_loss}")
         self.logger.wdb_log({"epoch": epoch, f"train/fold_{fold}_loss": trn_loss})
 
-        if device != "cpu":
-            model = model.module
+        # if device != "cpu":
+        #     model = model.module
         self._to_device(device="cpu", model=model, optimizer=optimizer)
 
     def _build_loader(
@@ -261,8 +261,8 @@ class TrainPredPipeline(Pipeline):
         segmentation_fobj: Optional[_Loss],
         checkpoint: Checkpoint,
     ) -> None:
-        if device != "cpu":
-            model = DataParallel(model)
+        # if device != "cpu":
+        #     model = DataParallel(model)
         model.to(device)
         model.eval()
 
@@ -278,7 +278,7 @@ class TrainPredPipeline(Pipeline):
                 ids = batch["id"]
                 contexts = batch["context"]
                 answer_text = batch["answer_text"]
-                offset_mappings = batch["offset_mappings"]
+                offset_mappings = batch["offset_mapping"]
                 input_ids = batch["input_ids"].to(self.device)
                 attention_masks = batch["attention_mask"].to(self.device)
                 start_positions = batch["start_position"].to(self.device)
@@ -286,7 +286,7 @@ class TrainPredPipeline(Pipeline):
                 segmentation_positions = batch["segmentation_position"].to(self.device)
 
                 start_logits, end_logits, segmentation_logits = model(
-                    input_ids=input_ids, attention_mask=attention_masks,
+                    input_ids=input_ids, attention_masks=attention_masks,
                 )
                 loss = model.calc_loss(
                     start_logits=start_logits,
@@ -299,12 +299,16 @@ class TrainPredPipeline(Pipeline):
                     segmentation_fobj=segmentation_fobj,
                 )
 
+                start_logits.to("cpu")
+                end_logits.to("cpu")
+                segmentation_logits.to("cpu")
+
                 all_contexts.append(contexts)
                 all_answer_texts.append(answer_text)
                 all_offset_mappings.append(offset_mappings)
                 all_start_logits.append(start_logits)
                 all_end_logits.append(end_logits)
-                all_segmentation_logits.append(end_logits)
+                all_segmentation_logits.append(segmentation_logits)
 
                 checkpoint.extend_str_list_val_info(key="val_ids", val_info=ids)
                 checkpoint.extend_tensor_val_info(
@@ -326,9 +330,9 @@ class TrainPredPipeline(Pipeline):
             final_all_offset_mappings = list(
                 itertools.chain.from_iterable(all_offset_mappings)
             )
-            final_all_start_logits = torch.cat(all_start_logits)
-            final_all_end_logits = torch.cat(all_end_logits)
-            final_all_segmentation_logits = torch.cat(all_segmentation_logits)
+            final_all_start_logits = torch.cat(all_start_logits).to("cpu")
+            final_all_end_logits = torch.cat(all_end_logits).to("cpu")
+            final_all_segmentation_logits = torch.cat(all_segmentation_logits).to("cpu")
 
             val_loss = running_loss / len(loader)
             postprocessor = self.postprocessor_factory.create()
@@ -357,8 +361,8 @@ class TrainPredPipeline(Pipeline):
                 }
             )
 
-        if device != "cpu":
-            model = model.module
+        # if device != "cpu":
+        #     model = model.module
         model.to("cpu")
 
     def _to_device(self, device: str, model: Model, optimizer: Optimizer) -> None:

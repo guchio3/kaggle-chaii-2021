@@ -22,7 +22,7 @@ class ChaiiDataset(Dataset):
             "id": str(row["id"]),
             "context": str(row["context"]),
             "question": str(row["question"]),
-            "answer": str(row["answer_text"]),
+            "answer_text": str(row["answer_text"]),
             "language": str(row["language"]),
             "input_ids": torch.tensor(row["input_ids"]),
             "attention_mask": torch.tensor(row["attention_mask"]),
