@@ -3,8 +3,8 @@ import os
 import random
 
 import numpy as np
-
 import torch
+
 from src.pipeline.factory import PipelineFactory
 
 
@@ -63,9 +63,6 @@ def set_seed(seed=42):
     torch.manual_seed(seed)
 
 
-set_seed(1213)
-
-
 def main():
     args = parse_args()
     factory = PipelineFactory()
@@ -80,4 +77,5 @@ def main():
 
 
 if __name__ == "__main__":
+    set_seed(1213)
     main()

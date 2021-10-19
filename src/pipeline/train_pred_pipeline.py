@@ -85,7 +85,7 @@ class TrainPredPipeline(Pipeline):
     @class_dec_timer(unit="m")
     def _train(self) -> None:
         # clean best model weights
-        self.data_repository.clean_best_fold_epoch_checkpoint(exp_id=self.exp_id)
+        self.data_repository.clean_exp_checkpoint(exp_id=self.exp_id)
 
         trn_df = self.data_repository.load_train_df()
         preprocessor = self.preprocessor_factory.create(
@@ -351,12 +351,12 @@ class TrainPredPipeline(Pipeline):
             checkpoint.val_jaccard = val_jaccard
 
             self.logger.info(
-                f"fold: {fold} / epoch: {epoch} / val_loss: {running_loss}"
+                f"fold: {fold} / epoch: {epoch} / val_loss: {val_loss:.4f} / val_jaccard: {val_jaccard:.4f}"
             )
             self.logger.wdb_log(
                 {
                     "epoch": epoch,
-                    f"valid/fold_{fold}_loss": running_loss,
+                    f"valid/fold_{fold}_loss": val_loss,
                     f"valid/fold_{fold}_jaccard": val_jaccard,
                 }
             )

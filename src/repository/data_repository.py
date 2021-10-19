@@ -30,7 +30,7 @@ class DataRepository(Repository):
     def __checkpoint_filename(
         self, exp_id: str, fold: int, epoch: int, val_loss: float, val_jaccard: float
     ) -> str:
-        return f"data/checkpoint/{exp_id}/{fold}/{epoch}_{val_loss}_{val_jaccard}.pkl"
+        return f"data/checkpoint/{exp_id}/{fold}/{epoch}_{val_loss:.4f}_{val_jaccard:.4f}.pkl"
 
     def load_train_df(self) -> DataFrame:
         filepath = self.__train_df_filepath()
@@ -173,6 +173,11 @@ class DataRepository(Repository):
         filepath = filepaths[0]
         checkpoint = self.__load_checkpoint_from_filepath(filepath=filepath)
         return checkpoint
+
+    def clean_exp_checkpoint(self, exp_id: str) -> None:
+        best_filepaths = self.list_gcs_files(f"data/checkpoint/{exp_id}/*/*.pkl")
+        for best_filepath in best_filepaths:
+            self.delete(best_filepath, delete_from_gcs=True)
 
     def clean_best_fold_epoch_checkpoint(self, exp_id: str) -> None:
         best_filepaths = self.list_gcs_files(f"data/checkpoint/{exp_id}/best/*.pkl")

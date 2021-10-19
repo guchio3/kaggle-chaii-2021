@@ -34,7 +34,7 @@ class Model(Module, metaclass=ABCMeta):
         raise NotImplementedError()
 
     def warmup(self, epoch: int) -> None:
-        if epoch == 0:
+        if epoch < self.warmup_epoch:
             for name, child in self.named_children():
                 is_key_in = False
                 for warmup_key in self.warmup_keys:
