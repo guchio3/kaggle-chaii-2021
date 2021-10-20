@@ -205,7 +205,7 @@ class TrainPredPipeline(Pipeline):
         scheduler.step()
 
         trn_loss = running_loss / len(loader)
-        self.logger.info(f"fold: {fold} / epoch: {epoch} / trn_loss: {trn_loss}")
+        self.logger.info(f"fold: {fold} / epoch: {epoch} / trn_loss: {trn_loss:.4f}")
         self.logger.wdb_log({"epoch": epoch, f"train/fold_{fold}_loss": trn_loss})
 
         # if device != "cpu":

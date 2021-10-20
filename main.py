@@ -1,10 +1,6 @@
 import argparse
-import os
-import random
 
-import numpy as np
-import torch
-
+from pytorch_lightning.utilities.seed import seed_everything
 from src.pipeline.factory import PipelineFactory
 
 
@@ -56,13 +52,6 @@ def parse_args():
     return args
 
 
-def set_seed(seed=42):
-    random.seed(seed)
-    os.environ["PYTHONHASHSEED"] = str(seed)
-    np.random.seed(seed)
-    torch.manual_seed(seed)
-
-
 def main():
     args = parse_args()
     factory = PipelineFactory()
@@ -77,5 +66,5 @@ def main():
 
 
 if __name__ == "__main__":
-    set_seed(1213)
+    seed_everything(seed=1213, workers=True)
     main()
