@@ -14,7 +14,7 @@ class myLogger:
         exp_id: str,
         wdb_prj_id: Optional[str],
         exp_config: Dict[str, Any],
-        debug: bool,
+        use_wdb: bool,
     ) -> None:
         self.logger = getLogger(__name__)
         log_dir_name = "/".join(log_filename.split("/")[:-1])
@@ -22,12 +22,11 @@ class myLogger:
             os.makedirs(log_dir_name)
         self._logInit(log_filename)
 
-        if not debug and wdb_prj_id:
+        self.use_wdb = use_wdb
+        if self.use_wdb and wdb_prj_id:
             self._wandb_init(wdb_prj_id=wdb_prj_id, exp_id=exp_id)
         else:
             self.info("skip wandb init")
-
-        self.is_debug = debug
 
     def _wandb_init(self, wdb_prj_id: str, exp_id: str) -> None:
         wandb.init(project=wdb_prj_id, entity="guchio3")
@@ -79,13 +78,13 @@ class myLogger:
             self.logger.addHandler(handler)
 
     def wdb_log(self, log_dict: Dict[str, Any]) -> None:
-        if self.is_debug:
+        if self.use_wdb:
             self.warn("pass wdb_log because debug mode.")
             return
         wandb.log(log_dict)
 
     def wdb_sum(self, sum_dict: Dict[str, Any]) -> None:
-        if self.is_debug:
+        if self.use_wdb:
             self.warn("pass wdb_sum because debug mode.")
             return
         for key, value in sum_dict.items():

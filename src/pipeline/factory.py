@@ -18,12 +18,18 @@ class PipelineFactory(Factory[Pipeline]):
         default_config = self._load_config_from_yaml(pipeline_type, "e000")
         self._fill_config_by_default_config(config, default_config)
 
+        if not debug and mode != "train":
+            use_wdb = True
+        else:
+            use_wdb = True
+
+        use_wdb = self._use_wdb(pipeline_type=pipeline_type, mode=mode, debug=debug)
         logger = myLogger(
             log_filename=f"./logs/{pipeline_type}/{exp_id}.log",
             exp_id=exp_id,
             wdb_prj_id="kaggle-chaii-2021",
             exp_config=config,
-            debug=debug,
+            use_wdb=use_wdb,
         )
 
         if pipeline_type == "train_pred":
@@ -37,6 +43,19 @@ class PipelineFactory(Factory[Pipeline]):
             )
         else:
             raise NotImplementedError(f"pipeline {pipeline_type} is not supported yet.")
+
+    def _use_wdb(self, pipeline_type: str, mode: str, debug: bool) -> bool:
+        if debug:
+            return False
+        if pipeline_type == "train_pred":
+            if mode == "train":
+                return True
+            elif mode == "pred":
+                return False
+
+        raise Exception(
+            f"invalid setting, pipeline_type: {pipeline_type} / mode: {mode} / debug: {debug}."
+        )
 
     def _load_config_from_yaml(self, pipeline_type: str, exp_id: str) -> Dict[str, Any]:
         yaml_filename = f"./configs/{pipeline_type}/{exp_id}.yml"
