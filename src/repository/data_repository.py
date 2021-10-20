@@ -220,7 +220,7 @@ class DataRepository(Repository):
         # self.delete(best_prefix, delete_from_local=True, delete_from_gcs=False)
 
         # save results
-        best_filename = best_filepath.split("/")[-1]
+        best_filename = f"{fold}_" + best_filepath.split("/")[-1]
         best_checkpoint_filepath = (
             f"data/checkpoint/{exp_id}/best_checkpoint/{best_filename}"
         )
@@ -233,7 +233,7 @@ class DataRepository(Repository):
         )
         best_model_state_dict_filepath = f"data/checkpoint/{exp_id}/best_model_state_dict/model_state_dict_{best_filename}"
         self.save(
-            save_obj=best_checkpoint,
+            save_obj=best_model_state_dict,
             filepath=best_model_state_dict_filepath,
             mode="pkl",
             gcs_mode="mv",
