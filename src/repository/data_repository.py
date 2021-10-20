@@ -156,7 +156,7 @@ class DataRepository(Repository):
         )
         return checkpoint
 
-    @class_dec_timer
+    @class_dec_timer(unit="m")
     def save_checkpoint(self, checkpoint: Checkpoint) -> None:
         if checkpoint.non_filled_mambers:
             raise Exception(
@@ -242,5 +242,6 @@ class DataRepository(Repository):
 
         # delete checkpoints
         for filepath in filepaths:
-            prefix = self.__gcs_filepath_to_prefix(gcs_filepath=filepath)
-            self.delete(prefix, delete_from_local=True, delete_from_gcs=False)
+            self.delete(
+                filepath=filepath, delete_from_local=True, delete_from_gcs=False
+            )

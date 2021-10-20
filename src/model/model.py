@@ -34,7 +34,7 @@ class Model(Module, metaclass=ABCMeta):
         raise NotImplementedError()
 
     def warmup(self, epoch: int) -> None:
-        if epoch < self.warmup_epoch:
+        if self.warmup_epoch != 0 and epoch == self.warmup_epoch:
             for name, child in self.named_children():
                 is_key_in = False
                 for warmup_key in self.warmup_keys:
@@ -56,7 +56,7 @@ class Model(Module, metaclass=ABCMeta):
                 for param in child.parameters():
                     param.requires_grad = True
 
-    def named_children(self) -> Iterator[Tuple[str, 'Module']]:
+    def named_children(self) -> Iterator[Tuple[str, "Module"]]:
         named_children = {
             k: v for k, v in super().named_children() if k != "model"
         }  # remove model to use model's each children
