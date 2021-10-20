@@ -1,4 +1,5 @@
 from dataclasses import asdict, dataclass
+from glob import glob
 from typing import Tuple
 
 from numpy import ndarray
@@ -6,6 +7,7 @@ from pandas import DataFrame
 
 from src.checkpoint.checkpoint import Checkpoint
 from src.repository.repository import Repository
+from src.timer import class_dec_timer
 
 
 @dataclass(frozen=True)
@@ -148,12 +150,13 @@ class DataRepository(Repository):
             **self.load(
                 filepath=filepath,
                 mode="pkl",
-                load_from_gcs=True,
-                rm_local_after_load=True,
+                load_from_gcs=False,
+                rm_local_after_load=False,
             )
         )
         return checkpoint
 
+    @class_dec_timer
     def save_checkpoint(self, checkpoint: Checkpoint) -> None:
         if checkpoint.non_filled_mambers:
             raise Exception(
@@ -170,12 +173,13 @@ class DataRepository(Repository):
             save_obj=asdict(checkpoint),
             filepath=filepath,
             mode="pkl",
-            gcs_mode="mv",
+            gcs_mode="pass",
             force_save=True,
         )
 
     def load_checkpoint(self, exp_id: str, fold: int, epoch: int) -> Checkpoint:
-        filepaths = self.list_gcs_files(f"data/checkpoint/{exp_id}/{fold}/{epoch}_")
+        # filepaths = self.list_gcs_files(f"data/checkpoint/{exp_id}/{fold}/{epoch}_")
+        filepaths = glob(f"data/checkpoint/{exp_id}/{fold}/{epoch}_*")
         if len(filepaths) != 1:
             raise Exception(f"non-unique fold epoch checkpoint, {filepaths}.")
         filepath = filepaths[0]
@@ -186,46 +190,57 @@ class DataRepository(Repository):
         filepaths = self.list_gcs_files(f"data/checkpoint/{exp_id}/")
         for filepath in filepaths:
             prefix = self.__gcs_filepath_to_prefix(gcs_filepath=filepath)
-            self.delete(prefix, delete_from_gcs=True)
-
-    def clean_best_fold_epoch_checkpoint(self, exp_id: str) -> None:
-        best_filepaths = self.list_gcs_files(f"data/checkpoint/{exp_id}/best/")
-        for best_filepath in best_filepaths:
-            prefix = self.__gcs_filepath_to_prefix(gcs_filepath=best_filepath)
-            self.delete(prefix, delete_from_gcs=True)
+            self.delete(prefix, delete_from_local=True, delete_from_gcs=True)
 
     def extract_and_save_best_fold_epoch_model_state_dict(
         self, exp_id: str, fold: int
     ) -> None:
-        gcs_filepaths = self.list_gcs_files(f"data/checkpoint/{exp_id}/{fold}/")
-        if len(gcs_filepaths) == 0:
+        # gcs_filepaths = self.list_gcs_files(f"data/checkpoint/{exp_id}/{fold}/")
+        filepaths = glob(f"data/checkpoint/{exp_id}/{fold}/*")
+        if len(filepaths) == 0:
             raise Exception("no checkpoints for exp_id:{exp_id} fold: {fold}.")
         best_score = -1.0
-        best_gcs_filepath = None
-        for gcs_filepath in gcs_filepaths:
+        best_filepath = None
+        for filepath in filepaths:
             score = self.__checkpoint_filepath_to_val_jaccard(
-                checkpoint_filepath=gcs_filepath
+                checkpoint_filepath=filepath
             )
             if score > best_score:
                 best_score = score
-                best_gcs_filepath = gcs_filepath
-        if best_gcs_filepath is None:
+                best_filepath = filepath
+        if best_filepath is None:
             raise Exception("failed to extract best filename.")
 
-        best_prefix = self.__gcs_filepath_to_prefix(gcs_filepath=best_gcs_filepath)
-        best_checkpoint = self.__load_checkpoint_from_filepath(filepath=best_prefix)
+        # load best checkpoint and model_state_dict
+        # best_prefix = self.__gcs_filepath_to_prefix(gcs_filepath=best_gcs_filepath)
+        best_checkpoint = self.__load_checkpoint_from_filepath(filepath=best_filepath)
         best_model_state_dict = best_checkpoint.model_state_dict
         if best_model_state_dict is None:
-            raise Exception(f"model weight in {best_gcs_filepath} is None.")
+            raise Exception(f"model weight in {best_filepath} is None.")
+        # self.delete(best_prefix, delete_from_local=True, delete_from_gcs=False)
 
-        best_filename = best_gcs_filepath.split("/")[-1]
-        best_save_filepath = (
-            f"data/checkpoint/{exp_id}/best/model_state_dict_{best_filename}"
+        # save results
+        best_filename = best_filepath.split("/")[-1]
+        best_checkpoint_filepath = (
+            f"data/checkpoint/{exp_id}/best_checkpoint/{best_filename}"
         )
         self.save(
-            save_obj=best_model_state_dict,
-            filepath=best_save_filepath,
-            mode="pt",
-            gcs_mode="cp",
+            save_obj=best_checkpoint,
+            filepath=best_checkpoint_filepath,
+            mode="pkl",
+            gcs_mode="mv",
             force_save=True,
         )
+        best_model_state_dict_filepath = f"data/checkpoint/{exp_id}/best_model_state_dict/model_state_dict_{best_filename}"
+        self.save(
+            save_obj=best_checkpoint,
+            filepath=best_model_state_dict_filepath,
+            mode="pkl",
+            gcs_mode="mv",
+            force_save=True,
+        )
+
+        # delete checkpoints
+        for filepath in filepaths:
+            prefix = self.__gcs_filepath_to_prefix(gcs_filepath=filepath)
+            self.delete(prefix, delete_from_local=True, delete_from_gcs=False)

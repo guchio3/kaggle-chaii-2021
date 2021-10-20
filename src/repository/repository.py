@@ -6,11 +6,11 @@ from typing import Any, List
 
 import numpy as np
 import pandas as pd
+import torch
 from google.cloud import storage
 from numpy import ndarray
 from pandas import DataFrame
 
-import torch
 from src.log import myLogger
 
 
@@ -158,13 +158,14 @@ class Repository:
 
         return res
 
-    def delete(self, filepath: str, delete_from_gcs: bool) -> None:
-        if os.path.exists(filepath):
-            os.remove(filepath)
-        else:
-            self.logger.warn(
-                f"ignore deleting local {filepath} because it does not exist."
-            )
+    def delete(self, filepath: str, delete_from_local: bool, delete_from_gcs: bool) -> None:
+        if delete_from_local:
+            if os.path.exists(filepath):
+                os.remove(filepath)
+            else:
+                self.logger.warn(
+                    f"ignore deleting local {filepath} because it does not exist."
+                )
 
         if delete_from_gcs:
             gcs_file = self.list_gcs_files(prefix=filepath)
