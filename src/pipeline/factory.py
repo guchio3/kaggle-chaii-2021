@@ -60,7 +60,7 @@ class PipelineFactory(Factory[Pipeline]):
     def _load_config_from_yaml(self, pipeline_type: str, exp_id: str) -> Dict[str, Any]:
         yaml_filename = f"./configs/{pipeline_type}/{exp_id}.yml"
         with open(yaml_filename, "r") as fin:
-            config: Dict[str, Any] = yaml.load(fin)
+            config: Dict[str, Any] = yaml.load(fin, Loader=yaml.FullLoader)
 
         return config
 

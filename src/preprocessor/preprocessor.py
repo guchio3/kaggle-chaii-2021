@@ -1,4 +1,5 @@
 import itertools
+import os
 from abc import ABCMeta, abstractmethod
 # from functools import partial
 # from multiprocessing import Pool
@@ -76,6 +77,7 @@ class BaselineKernelPreprocessor(Preprocessor):
             res_df = self.data_repository.load_preprocessed_df(ver=self.ver)
         else:
             self.logger.info("now preprocessing df ...")
+            os.environ["TOKENIZERS_PARALLELISM"] = "true"
             # reset index to deal it correctly
             df.reset_index(drop=True, inplace=True)
             if self.debug:
@@ -117,10 +119,10 @@ class BaselineKernelPreprocessor(Preprocessor):
                 #     p.join()
             sorted_res_pairs = sorted(list(itertools.chain.from_iterable(res_lists)))
             res_df = pd.DataFrame(
-                [row.to_dict() for _, row, _ in sorted(sorted_res_pairs)]
+                [row.to_dict() for _, _, row, _ in sorted(sorted_res_pairs)]
             )
             successed_cnt = len(
-                list(filter(lambda res_pair: res_pair[2], sorted_res_pairs))
+                list(filter(lambda res_pair: res_pair[3], sorted_res_pairs))
             )
             self.logger.info(
                 f"successed_ratio: {successed_cnt} / {len(sorted_res_pairs)}"
@@ -132,6 +134,7 @@ class BaselineKernelPreprocessor(Preprocessor):
                     "ignore save_preprocessed_df because either of "
                     f"self.debug {self.debug} self.is_test {self.is_test}."
                 )
+            os.environ["TOKENIZERS_PARALLELISM"] = "false"
             self.logger.info("done.")
         return res_df
 
@@ -149,8 +152,10 @@ class BaselineKernelPreprocessor(Preprocessor):
             cls_token_id = tokenizer.cls_token_id
         else:
             raise Exception("no cls_token_id.")
+        context_index = 1 if pad_on_right else 0
 
         i, row = row_pair
+        row["question"] = str(row["question"]).lstrip()
         tokenized_res = tokenizer.encode_plus(
             text=str(row["question" if pad_on_right else "context"]),
             text_pair=str(row["context" if pad_on_right else "question"]),
@@ -165,21 +170,30 @@ class BaselineKernelPreprocessor(Preprocessor):
         )
 
         reses = []
-        for j, tokenized_res_j in enumerate(tokenized_res):
-            input_ids: List[int] = tokenized_res_j["input_ids"]
-            token_type_ids: List[int] = tokenized_res_j.sequence_ids()  # CAUTION!!!!!
-            attention_mask: List[int] = tokenized_res_j["attention_mask"]
+        for j, (input_ids, attention_mask, offset_mapping) in enumerate(
+            zip(
+                tokenized_res["input_ids"],
+                tokenized_res["attention_mask"],
+                tokenized_res["offset_mapping"],
+            )
+        ):
             # special_tokens_mask: List[int] = tokenized_res["special_tokens_mask"]
             # sequence_ids: List[int] = tokenized_res["sequence_ids"]
+            token_type_ids: List[int] = tokenized_res.sequence_ids(j)  # CAUTION!!!!!
             sequence_ids = [i for i in range(len(input_ids))]
-            offset_mapping: List[Tuple[int, int]] = tokenized_res_j["offset_mapping"]
+
             cls_index = input_ids.index(cls_token_id)
             row["input_ids"] = input_ids
             row["token_type_ids"] = token_type_ids
             row["attention_mask"] = attention_mask
             # row["special_tokens_mask"] = special_tokens_mask
             row["sequence_ids"] = sequence_ids
-            row["offset_mapping"] = offset_mapping
+            # Set to None the offset_mapping that are not part of the context so it's easy to determine if a token
+            # position is part of the context or not.
+            row["offset_mapping"][i] = [
+                (o if sequence_ids[k] == context_index else None)
+                for k, o in enumerate(offset_mapping)
+            ]
             if is_test:
                 is_successed = False
                 row["start_position"] = cls_index

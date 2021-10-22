@@ -20,6 +20,9 @@ class Checkpoint:
     val_start_logits: List[float] = field(default_factory=list)
     val_end_logits: List[float] = field(default_factory=list)
     val_segmentation_logits: List[float] = field(default_factory=list)
+    val_pospro_ids: List[str] = field(default_factory=list)
+    val_pospro_answer_texts: List[str] = field(default_factory=list)
+    val_pospro_answer_preds: List[str] = field(default_factory=list)
     val_loss: Optional[float] = None
     val_jaccard: Optional[float] = None
 

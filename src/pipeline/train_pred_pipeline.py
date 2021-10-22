@@ -268,6 +268,7 @@ class TrainPredPipeline(Pipeline):
 
         with torch.no_grad():
             running_loss = 0.0
+            all_ids = []
             all_contexts = []
             all_answer_texts = []
             all_offset_mappings = []
@@ -303,6 +304,7 @@ class TrainPredPipeline(Pipeline):
                 end_logits.to("cpu")
                 segmentation_logits.to("cpu")
 
+                all_ids.append(ids)
                 all_contexts.append(contexts)
                 all_answer_texts.append(answer_text)
                 all_offset_mappings.append(offset_mappings)
@@ -323,6 +325,7 @@ class TrainPredPipeline(Pipeline):
 
                 running_loss += loss.item()
 
+            final_all_ids = list(itertools.chain.from_iterable(all_ids))
             final_all_contexts = list(itertools.chain.from_iterable(all_contexts))
             final_all_answer_texts = list(
                 itertools.chain.from_iterable(all_answer_texts)
@@ -336,17 +339,22 @@ class TrainPredPipeline(Pipeline):
 
             val_loss = running_loss / len(loader)
             postprocessor = self.postprocessor_factory.create()
-            pred_answers = postprocessor(
+            pospro_ids, pospro_answer_preds, pospro_answer_texts = postprocessor(
+                ids=final_all_ids,
                 contexts=final_all_contexts,
+                answer_texts=final_all_answer_texts,
                 offset_mappings=final_all_offset_mappings,
                 start_logits=final_all_start_logits,
                 end_logits=final_all_end_logits,
                 segmentation_logits=final_all_segmentation_logits,
             )
             val_jaccard = calc_jaccard_mean(
-                text_trues=final_all_answer_texts, text_preds=pred_answers
+                text_trues=pospro_answer_texts, text_preds=pospro_answer_preds
             )
 
+            checkpoint.val_pospro_ids = pospro_ids
+            checkpoint.val_pospro_answer_preds = pospro_answer_preds
+            checkpoint.val_pospro_answer_texts = pospro_answer_texts
             checkpoint.val_loss = val_loss
             checkpoint.val_jaccard = val_jaccard
 
