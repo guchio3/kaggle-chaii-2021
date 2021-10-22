@@ -8,6 +8,8 @@ preprocessor:
     preprocessor_type: baseline_kernel
     tokenizer_type: data/dataset/deepset/xlm-roberta-base-squad2/
     max_length: 384
+    pad_on_right: true
+    stride: 128
 postprocessor:
     postprocessor_type: baseline_kernel
 splitter:
