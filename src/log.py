@@ -1,6 +1,6 @@
 import os
 from logging import DEBUG, FileHandler, Formatter, StreamHandler, getLogger
-from typing import Any, Dict, Optional
+from typing import Any, Callable, Dict, Optional
 
 import requests
 
@@ -39,17 +39,21 @@ class myLogger:
         wandb.define_metric("train/*", step_metric="epoch")
         wandb.define_metric("valid/*", step_metric="epoch")
 
-    def info(self, message: str) -> None:
-        self.logger.info(message)
+    @property
+    def info(self) -> Callable:
+        return self.logger.info
 
-    def debug(self, message: str) -> None:
-        self.logger.debug(message)
+    @property
+    def debug(self) -> Callable:
+        return self.logger.debug
 
-    def warn(self, message: str) -> None:
-        self.logger.warn(message)
+    @property
+    def warn(self) -> Callable:
+        return self.logger.warn
 
-    def warning(self, message: str) -> None:
-        self.logger.warning(message)
+    @property
+    def warning(self) -> Callable:
+        return self.logger.warning
 
     def send_line_notification(self, message: str) -> None:
         self.logger.info(message)
@@ -62,8 +66,7 @@ class myLogger:
 
     def _logInit(self, log_filename: Optional[str]) -> None:
         log_fmt = Formatter(
-            "%(asctime)s %(name)s \
-                %(lineno)d [%(levelname)s] [%(funcName)s] %(message)s "
+            "%(asctime)s %(filename)-20s %(lineno)-4d [%(levelname)s] [%(funcName)s] %(message)s "
         )
         handler = StreamHandler()
         handler.setLevel("INFO")
@@ -78,13 +81,13 @@ class myLogger:
             self.logger.addHandler(handler)
 
     def wdb_log(self, log_dict: Dict[str, Any]) -> None:
-        if self.use_wdb:
+        if not self.use_wdb:
             self.warn("pass wdb_log because debug mode.")
             return
         wandb.log(log_dict)
 
     def wdb_sum(self, sum_dict: Dict[str, Any]) -> None:
-        if self.use_wdb:
+        if not self.use_wdb:
             self.warn("pass wdb_sum because debug mode.")
             return
         for key, value in sum_dict.items():

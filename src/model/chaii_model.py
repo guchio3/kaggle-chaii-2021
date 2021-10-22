@@ -40,7 +40,7 @@ class ChaiiXLMRBModel1(Model):
         start_logits = self.classifier_conv_start(output).squeeze()
         end_logits = self.classifier_conv_end(output).squeeze()
 
-        return start_logits, end_logits, Tensor([0, 0])
+        return start_logits, end_logits, torch.zeros(start_logits.shape)
 
     def calc_loss(
         self,

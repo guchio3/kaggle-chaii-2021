@@ -339,7 +339,7 @@ class TrainPredPipeline(Pipeline):
 
             val_loss = running_loss / len(loader)
             postprocessor = self.postprocessor_factory.create()
-            pospro_ids, pospro_answer_preds, pospro_answer_texts = postprocessor(
+            pospro_ids, pospro_answer_texts, pospro_answer_preds = postprocessor(
                 ids=final_all_ids,
                 contexts=final_all_contexts,
                 answer_texts=final_all_answer_texts,
@@ -353,8 +353,8 @@ class TrainPredPipeline(Pipeline):
             )
 
             checkpoint.val_pospro_ids = pospro_ids
-            checkpoint.val_pospro_answer_preds = pospro_answer_preds
             checkpoint.val_pospro_answer_texts = pospro_answer_texts
+            checkpoint.val_pospro_answer_preds = pospro_answer_preds
             checkpoint.val_loss = val_loss
             checkpoint.val_jaccard = val_jaccard
 

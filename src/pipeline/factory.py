@@ -21,7 +21,7 @@ class PipelineFactory(Factory[Pipeline]):
         if not debug and mode != "train":
             use_wdb = True
         else:
-            use_wdb = True
+            use_wdb = False
 
         use_wdb = self._use_wdb(pipeline_type=pipeline_type, mode=mode, debug=debug)
         logger = myLogger(

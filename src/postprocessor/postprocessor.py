@@ -28,7 +28,7 @@ class Postprocessor(metaclass=ABCMeta):
         start_logits: Tensor,
         end_logits: Tensor,
         segmentation_logits: Tensor,
-    ) -> List[str]:
+    ) -> Tuple[List[str], List[str], List[str]]:
         raise NotImplementedError()
 
 
@@ -54,12 +54,12 @@ class BaselineKernelPostprocessor(Postprocessor):
         ):
             raise Exception(
                 "len of ids, contexts, answer_texts, offset_mappings, start_logits, and end_logits are different. "
-                "len(ids): {len(ids)}, "
-                "len(contexts): {len(contexts)}, "
-                "len(answer_texts): {len(answer_texts)}, "
-                "len(offset_mappings): {len(offset_mappings)}, "
-                "len(start_logits): {len(start_logits)}, "
-                "len(end_logits): {len(end_logits)}."
+                f"len(ids): {len(ids)}, "
+                f"len(contexts): {len(contexts)}, "
+                f"len(answer_texts): {len(answer_texts)}, "
+                f"len(offset_mappings): {len(offset_mappings)}, "
+                f"len(start_logits): {len(start_logits)}, "
+                f"len(end_logits): {len(end_logits)}."
             )
 
         raw_df = DataFrame()
@@ -121,12 +121,10 @@ class BaselineKernelPostprocessor(Postprocessor):
         start_logit: ndarray,
         end_logit: ndarray,
     ) -> List[str]:
-        start_indexes = np.argsort(start_logit.numpy())[
+        start_indexes = np.argsort(start_logit)[
             -1 : -self.n_best_size - 1 : -1
         ].tolist()
-        end_indexes = np.argsort(end_logit.numpy())[
-            -1 : -self.n_best_size - 1 : -1
-        ].tolist()
+        end_indexes = np.argsort(end_logit)[-1 : -self.n_best_size - 1 : -1].tolist()
 
         candidates = []
         for start_index in start_indexes:
@@ -136,8 +134,8 @@ class BaselineKernelPostprocessor(Postprocessor):
                 if (
                     start_index >= len(offset_mapping)
                     or end_index >= len(offset_mapping)
-                    or offset_mapping[start_index] is None
-                    or offset_mapping[end_index] is None
+                    or offset_mapping[start_index] == (-1, -1)
+                    or offset_mapping[end_index] == (-1, -1)
                 ):
                     continue
                 # Don't consider answers with a length that is either < 0 or > max_answer_length.

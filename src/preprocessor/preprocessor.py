@@ -190,8 +190,8 @@ class BaselineKernelPreprocessor(Preprocessor):
             row["sequence_ids"] = sequence_ids
             # Set to None the offset_mapping that are not part of the context so it's easy to determine if a token
             # position is part of the context or not.
-            row["offset_mapping"][i] = [
-                (o if sequence_ids[k] == context_index else None)
+            row["offset_mapping"] = [
+                (o if token_type_ids[k] == context_index else (-1, -1))
                 for k, o in enumerate(offset_mapping)
             ]
             if is_test:

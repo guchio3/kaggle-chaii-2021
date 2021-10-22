@@ -44,7 +44,7 @@ def class_dec_timer(unit: str = "s") -> Callable:
         @functools.wraps(func)
         def _timer(s, *args, **kwargs):
             t0 = time.time()
-            start_str = f"[{func.__name__}] start"
+            start_str = f"[{s.__name__}.{func.__name__}] start"
             s.logger.info(start_str)
 
             # run the func
