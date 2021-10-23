@@ -154,23 +154,34 @@ class DataRepository(Repository):
         return checkpoint
 
     @class_dec_timer(unit="m")
-    def save_checkpoint(self, checkpoint: Checkpoint) -> None:
+    def save_checkpoint(self, checkpoint: Checkpoint, is_best: bool) -> None:
         if checkpoint.non_filled_mambers:
             raise Exception(
                 f"checkpoint members {checkpoint.non_filled_mambers} are not filled."
             )
-        filepath = self.__checkpoint_filename(
-            exp_id=checkpoint.exp_id,
-            fold=checkpoint.fold,
-            epoch=checkpoint.epoch,
-            val_loss=checkpoint.val_loss,
-            val_jaccard=checkpoint.val_jaccard,
-        )
+        if is_best:
+            filepath = self.__best_checkpoint_filename(
+                exp_id=checkpoint.exp_id,
+                fold=checkpoint.fold,
+                epoch=checkpoint.epoch,
+                val_loss=checkpoint.val_loss,
+                val_jaccard=checkpoint.val_jaccard,
+            )
+            gcs_mode = "mv"
+        else:
+            filepath = self.__checkpoint_filename(
+                exp_id=checkpoint.exp_id,
+                fold=checkpoint.fold,
+                epoch=checkpoint.epoch,
+                val_loss=checkpoint.val_loss,
+                val_jaccard=checkpoint.val_jaccard,
+            )
+            gcs_mode = "pass"
         self.save(
             save_obj=asdict(checkpoint),
             filepath=filepath,
             mode="pkl",
-            gcs_mode="pass",
+            gcs_mode=gcs_mode,
             force_save=True,
         )
 
@@ -224,24 +235,19 @@ class DataRepository(Repository):
         best_checkpoint = self.load_checkpoint_from_filepath(
             filepath=best_filepath, gcs_filepath=None, rm_local_after_load=False
         )
+        self.save_checkpoint(checkpoint=best_checkpoint, is_best=True)
+
+        # model state dict
         best_model_state_dict = best_checkpoint.model_state_dict
         if best_model_state_dict is None:
             raise Exception(f"model weight in {best_filepath} is None.")
-        # self.delete(best_prefix, delete_from_local=True, delete_from_gcs=False)
-
-        # save results
-        best_filename = f"{fold}_" + best_filepath.split("/")[-1]
-        best_checkpoint_filepath = (
-            f"data/checkpoint/{exp_id}/best_checkpoint/{best_filename}"
+        best_model_state_dict_filepath = self.__best_model_state_dict_filename(
+            exp_id=best_checkpoint.exp_id,
+            fold=best_checkpoint.fold,
+            epoch=best_checkpoint.epoch,
+            val_loss=best_checkpoint.val_loss,
+            val_jaccard=best_checkpoint.val_jaccard,
         )
-        self.save(
-            save_obj=best_checkpoint,
-            filepath=best_checkpoint_filepath,
-            mode="pkl",
-            gcs_mode="mv",
-            force_save=True,
-        )
-        best_model_state_dict_filepath = f"data/checkpoint/{exp_id}/best_model_state_dict/model_state_dict_{best_filename}"
         self.save(
             save_obj=best_model_state_dict,
             filepath=best_model_state_dict_filepath,

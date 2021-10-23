@@ -147,7 +147,9 @@ class TrainPredPipeline(Pipeline):
                     checkpoint=checkpoint,
                 )
                 if not self.debug:
-                    self.data_repository.save_checkpoint(checkpoint=checkpoint)
+                    self.data_repository.save_checkpoint(
+                        checkpoint=checkpoint, is_best=False
+                    )
 
             if not self.debug:
                 self.data_repository.extract_and_save_best_fold_epoch_model_state_dict(
@@ -184,7 +186,8 @@ class TrainPredPipeline(Pipeline):
             segmentation_positions = batch["segmentation_position"].to(self.device)
 
             start_logits, end_logits, segmentation_logits = model(
-                input_ids=input_ids, attention_masks=attention_masks,
+                input_ids=input_ids,
+                attention_masks=attention_masks,
             )
             loss = model.calc_loss(
                 start_logits=start_logits,
@@ -287,7 +290,8 @@ class TrainPredPipeline(Pipeline):
                 segmentation_positions = batch["segmentation_position"].to(self.device)
 
                 start_logits, end_logits, segmentation_logits = model(
-                    input_ids=input_ids, attention_masks=attention_masks,
+                    input_ids=input_ids,
+                    attention_masks=attention_masks,
                 )
                 loss = model.calc_loss(
                     start_logits=start_logits,
