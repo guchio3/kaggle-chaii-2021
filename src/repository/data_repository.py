@@ -1,6 +1,6 @@
 from dataclasses import asdict, dataclass
 from glob import glob
-from typing import List, Optional
+from typing import List
 
 from pandas import DataFrame
 
@@ -12,25 +12,26 @@ from src.timer import class_dec_timer
 @dataclass(frozen=True)
 class DataRepository(Repository):
     bucket_name: str = "kaggle-chaii-2021"
+    local_root_path: str = "."
 
-    def __train_df_filepath(self) -> str:
+    def __train_df_filepath_from_root(self) -> str:
         return "data/origin/train.csv"
 
-    def __test_df_filepath(self) -> str:
+    def __test_df_filepath_from_root(self) -> str:
         return "data/origin/test.csv"
 
-    def __sample_submission_filepath(self) -> str:
+    def __sample_submission_filepath_from_root(self) -> str:
         return "data/origin/sample_submission.csv"
 
-    def __preprocessed_df_filepath(self, ver: str) -> str:
+    def __preprocessed_df_filepath_from_root(self, ver: str) -> str:
         return f"data/preprocessed/{ver}.pkl"
 
-    def __checkpoint_filename(
+    def __checkpoint_filename_from_root(
         self, exp_id: str, fold: int, epoch: int, val_loss: float, val_jaccard: float
     ) -> str:
         return f"data/checkpoint/{exp_id}/{fold}/{epoch}_{val_loss:.4f}_{val_jaccard:.4f}.pkl"
 
-    def __best_checkpoint_filename(
+    def __best_checkpoint_filename_from_root(
         self, exp_id: str, fold: int, epoch: int, val_loss: float, val_jaccard: float
     ) -> str:
         return (
@@ -38,7 +39,7 @@ class DataRepository(Repository):
             f"{fold}_{epoch}_{val_loss:.4f}_{val_jaccard:.4f}.pkl"
         )
 
-    def __best_model_state_dict_filename(
+    def __best_model_state_dict_filename_from_root(
         self, exp_id: str, fold: int, epoch: int, val_loss: float, val_jaccard: float
     ) -> str:
         return (
@@ -50,68 +51,47 @@ class DataRepository(Repository):
         gcs_filepath = "/".join(gcs_fullpath.split("/")[3:])
         return gcs_filepath
 
-    def __checkpoint_filepath_to_val_jaccard(self, checkpoint_filepath: str) -> float:
+    def __checkpoint_filepath_from_root_to_val_jaccard(
+        self, checkpoint_filepath_from_root: str
+    ) -> float:
         score = float(
-            checkpoint_filepath.split("/")[-1].split("_")[2][:-4]
+            checkpoint_filepath_from_root.split("/")[-1].split("_")[2][:-4]
         )  # -4 to remove .pkl
         return score
 
     def load_train_df(self) -> DataFrame:
-        filepath = self.__train_df_filepath()
+        filepath_from_root = self.__train_df_filepath_from_root()
         df: DataFrame = self.load(
-            filepath=filepath,
-            gcs_filepath=filepath,
+            filepath_from_root=filepath_from_root,
             mode="dfcsv",
+            load_from_gcs=True,
             rm_local_after_load=False,
         )
         return df
 
     def load_test_df(self) -> DataFrame:
-        filepath = self.__test_df_filepath()
+        filepath_from_root = self.__test_df_filepath_from_root()
         df: DataFrame = self.load(
-            filepath=filepath,
-            gcs_filepath=filepath,
+            filepath_from_root=filepath_from_root,
             mode="dfcsv",
+            load_from_gcs=True,
             rm_local_after_load=False,
         )
         return df
 
     def load_sample_submission_df(self) -> DataFrame:
-        filepath = self.__sample_submission_filepath()
+        filepath_from_root = self.__sample_submission_filepath_from_root()
         df: DataFrame = self.load(
-            filepath=filepath,
-            gcs_filepath=filepath,
+            filepath_from_root=filepath_from_root,
             mode="dfcsv",
-            rm_local_after_load=False,
-        )
-        return df
-
-    def __sub_df_filepath(self, exp_id: str) -> str:
-        return f"data/submission/sub_{exp_id}.csv"
-
-    def save_sub_df(self, sub_df: DataFrame, exp_id: str) -> None:
-        filepath = self.__sub_df_filepath(exp_id=exp_id)
-        self.save(
-            save_obj=sub_df,
-            filepath=filepath,
-            mode="dfcsv",
-            gcs_mode="pass",
-            force_save=True,
-        )
-
-    def load_sub_df(self, exp_id: str) -> DataFrame:
-        filepath = self.__sub_df_filepath(exp_id=exp_id)
-        df = self.load(
-            filepath=filepath,
-            gcs_filepath=None,
-            mode="dfcsv",
+            load_from_gcs=True,
             rm_local_after_load=False,
         )
         return df
 
     def preprocessed_df_exists(self, ver: str) -> bool:
-        filepath = self.__preprocessed_df_filepath(ver=ver)
-        gcs_files = self.list_gcs_files(prefix=filepath)
+        filepath_from_root = self.__preprocessed_df_filepath_from_root(ver=ver)
+        gcs_files = self.list_gcs_files(prefix=filepath_from_root)
         if len(gcs_files) == 0:
             return False
         elif len(gcs_files) == 1:
@@ -120,34 +100,35 @@ class DataRepository(Repository):
             raise Exception("should not occur case.")
 
     def save_preprocessed_df(self, preprocessed_df: DataFrame, ver: str) -> None:
-        filepath = self.__preprocessed_df_filepath(ver=ver)
+        filepath_from_root = self.__preprocessed_df_filepath_from_root(ver=ver)
         self.save(
-            save_obj=preprocessed_df, filepath=filepath, mode="pkl", gcs_mode="cp",
+            save_obj=preprocessed_df,
+            filepath_from_root=filepath_from_root,
+            mode="pkl",
+            gcs_mode="cp",
         )
 
-    def load_preprocessed_df(
-        self, ver: str, gcs_filepath: Optional[str] = None
-    ) -> DataFrame:
-        filepath = self.__preprocessed_df_filepath(ver=ver)
+    def load_preprocessed_df(self, ver: str) -> DataFrame:
+        filepath_from_root = self.__preprocessed_df_filepath_from_root(ver=ver)
         df = self.load(
-            filepath=filepath,
-            gcs_filepath=gcs_filepath if gcs_filepath else filepath,
+            filepath_from_root=filepath_from_root,
             mode="pkl",
+            load_from_gcs=True,
             rm_local_after_load=False,
         )
         return df
 
     def load_checkpoint_from_filepath(
-        self, filepath: str, gcs_filepath: Optional[str], rm_local_after_load: bool
+        self, filepath_from_root: str, load_from_gcs: bool, rm_local_after_load: bool
     ) -> Checkpoint:
         """
         to fix the loading format for checkpoint
         """
         checkpoint = Checkpoint(
             **self.load(
-                filepath=filepath,
-                gcs_filepath=gcs_filepath,
+                filepath_from_root=filepath_from_root,
                 mode="pkl",
+                load_from_gcs=load_from_gcs,
                 rm_local_after_load=rm_local_after_load,
             )
         )
@@ -160,7 +141,7 @@ class DataRepository(Repository):
                 f"checkpoint members {checkpoint.non_filled_mambers} are not filled."
             )
         if is_best:
-            filepath = self.__best_checkpoint_filename(
+            filepath_from_root = self.__best_checkpoint_filename_from_root(
                 exp_id=checkpoint.exp_id,
                 fold=checkpoint.fold,
                 epoch=checkpoint.epoch,
@@ -169,7 +150,7 @@ class DataRepository(Repository):
             )
             gcs_mode = "mv"
         else:
-            filepath = self.__checkpoint_filename(
+            filepath_from_root = self.__checkpoint_filename_from_root(
                 exp_id=checkpoint.exp_id,
                 fold=checkpoint.fold,
                 epoch=checkpoint.epoch,
@@ -179,7 +160,7 @@ class DataRepository(Repository):
             gcs_mode = "pass"
         self.save(
             save_obj=asdict(checkpoint),
-            filepath=filepath,
+            filepath_from_root=filepath_from_root,
             mode="pkl",
             gcs_mode=gcs_mode,
             force_save=True,
@@ -187,12 +168,20 @@ class DataRepository(Repository):
 
     def load_checkpoint(self, exp_id: str, fold: int, epoch: int) -> Checkpoint:
         # filepaths = self.list_gcs_files(f"data/checkpoint/{exp_id}/{fold}/{epoch}_")
-        filepaths = glob(f"data/checkpoint/{exp_id}/{fold}/{epoch}_*")
-        if len(filepaths) != 1:
-            raise Exception(f"non-unique fold epoch checkpoint, {filepaths}.")
-        filepath = filepaths[0]
+        filepaths_with_local_root = glob(
+            self._filepath_with_local_root(
+                f"data/checkpoint/{exp_id}/{fold}/{epoch}_*"
+            )
+        )
+        if len(filepaths_with_local_root) != 1:
+            raise Exception(
+                f"non-unique fold epoch checkpoint, {filepaths_with_local_root}."
+            )
+        filepath_with_local_root = filepaths_with_local_root[0]
         checkpoint = self.load_checkpoint_from_filepath(
-            filepath=filepath, gcs_filepath=filepath, rm_local_after_load=True
+            filepath_from_root=filepath_with_local_root,
+            load_from_gcs=True,
+            rm_local_after_load=True,
         )
         return checkpoint
 
@@ -221,8 +210,8 @@ class DataRepository(Repository):
         best_score = -1.0
         best_filepath = None
         for filepath in filepaths:
-            score = self.__checkpoint_filepath_to_val_jaccard(
-                checkpoint_filepath=filepath
+            score = self.__checkpoint_filepath_from_root_to_val_jaccard(
+                checkpoint_filepath_from_root=filepath
             )
             if score > best_score:
                 best_score = score
@@ -233,7 +222,9 @@ class DataRepository(Repository):
         # load best checkpoint and model_state_dict
         # best_prefix = self.__gcs_filepath_to_prefix(gcs_filepath=best_gcs_filepath)
         best_checkpoint = self.load_checkpoint_from_filepath(
-            filepath=best_filepath, gcs_filepath=None, rm_local_after_load=False
+            filepath_from_root=best_filepath,
+            load_from_gcs=False,
+            rm_local_after_load=False,
         )
         self.save_checkpoint(checkpoint=best_checkpoint, is_best=True)
 
@@ -241,7 +232,7 @@ class DataRepository(Repository):
         best_model_state_dict = best_checkpoint.model_state_dict
         if best_model_state_dict is None:
             raise Exception(f"model weight in {best_filepath} is None.")
-        best_model_state_dict_filepath = self.__best_model_state_dict_filename(
+        best_model_state_dict_filepath = self.__best_model_state_dict_filename_from_root(
             exp_id=best_checkpoint.exp_id,
             fold=best_checkpoint.fold,
             epoch=best_checkpoint.epoch,
@@ -250,7 +241,7 @@ class DataRepository(Repository):
         )
         self.save(
             save_obj=best_model_state_dict,
-            filepath=best_model_state_dict_filepath,
+            filepath_from_root=best_model_state_dict_filepath,
             mode="pkl",
             gcs_mode="mv",
             force_save=True,
@@ -259,5 +250,7 @@ class DataRepository(Repository):
         # delete checkpoints
         for filepath in filepaths:
             self.delete(
-                filepath=filepath, delete_from_local=True, delete_from_gcs=False
+                filepath_from_root=filepath,
+                delete_from_local=True,
+                delete_from_gcs=False,
             )

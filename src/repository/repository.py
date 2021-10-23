@@ -2,7 +2,7 @@ import json
 import os
 import pickle
 from dataclasses import dataclass
-from typing import Any, List, Optional
+from typing import Any, List
 
 import numpy as np
 import pandas as pd
@@ -18,45 +18,52 @@ from src.log import myLogger
 class Repository:
     logger: myLogger
     bucket_name: str
+    local_root_path: str
+
+    def _filepath_with_local_root(self, filepath_from_root: str) -> str:
+        return self.local_root_path + "/" + filepath_from_root
 
     def save(
         self,
         save_obj: Any,
-        filepath: str,
+        filepath_from_root: str,
         mode: str,
         gcs_mode: str = "pass",
         force_save: bool = False,
     ) -> None:
-        if not force_save and self.list_gcs_files(prefix=filepath):
-            self.logger.info(f"{filepath} already exists.")
+        if not force_save and self.list_gcs_files(prefix=filepath_from_root):
+            self.logger.info(f"{filepath_from_root} already exists.")
             self.logger.info("please use force_save if you wanna save it.")
             return
 
-        file_dir = "/".join(filepath.split("/")[:-1])
+        filepath_with_local_root = self._filepath_with_local_root(filepath_from_root)
+        file_dir = "/".join(filepath_with_local_root.split("/")[:-1])
         if not os.path.exists(file_dir):
             os.makedirs(file_dir)
 
         if mode == "dfcsv":
-            self.__save_dfscv(df=save_obj, filepath=filepath)
+            self.__save_dfscv(df=save_obj, filepath=filepath_with_local_root)
         elif mode == "pkl":
-            self.__save_pickle(save_obj=save_obj, filepath=filepath)
+            self.__save_pickle(save_obj=save_obj, filepath=filepath_with_local_root)
         elif mode == "json":
-            self.__save_json(save_obj=save_obj, filepath=filepath)
+            self.__save_json(save_obj=save_obj, filepath=filepath_with_local_root)
         elif mode == "np":
-            self.__save_numpy(save_obj=save_obj, filepath=filepath)
+            self.__save_numpy(save_obj=save_obj, filepath=filepath_with_local_root)
         elif mode == "pt":
-            self.__save_torch(save_obj=save_obj, filepath=filepath)
+            self.__save_torch(save_obj=save_obj, filepath=filepath_with_local_root)
         else:
             raise NotImplementedError(f"mode {mode} is not supported.")
 
         if gcs_mode == "pass":
             pass
         elif gcs_mode in ["cp", "mv"]:
-            self.__upload_to_gcs(src_filepath=filepath, dst_filepath=filepath)
+            self.__upload_to_gcs(
+                src_filepath=filepath_with_local_root, dst_filepath=filepath_from_root
+            )
         else:
             raise NotImplementedError(f"gcs_mode {gcs_mode} is not supported.")
         if gcs_mode == "mv":
-            os.remove(filepath)
+            os.remove(filepath_with_local_root)
 
     def __upload_to_gcs(self, src_filepath: str, dst_filepath: str) -> None:
         self.logger.info(
@@ -87,37 +94,44 @@ class Repository:
 
     def load(
         self,
-        filepath: str,
-        gcs_filepath: Optional[str],
+        filepath_from_root: str,
         mode: str,
+        load_from_gcs: bool,
         rm_local_after_load: bool = False,
     ) -> Any:
-        if not os.path.exists(filepath):
-            if gcs_filepath:
-                self.__download_from_gcs(src_filepath=gcs_filepath, dst_filepath=filepath)
+        filepath_with_local_root = self._filepath_with_local_root(
+            filepath_from_root=filepath_from_root
+        )
+
+        if not os.path.exists(filepath_with_local_root):
+            if load_from_gcs:
+                self.__download_from_gcs(
+                    src_filepath=filepath_from_root,
+                    dst_filepath=filepath_with_local_root,
+                )
             else:
-                raise Exception(f"{filepath} does not exist in local.")
+                raise Exception(f"{filepath_with_local_root} does not exist in local.")
 
         if mode == "dfcsv":
-            res = self.__load_dfcsv(filepath)
+            res = self.__load_dfcsv(filepath_with_local_root)
         elif mode == "pkl":
-            res = self.__load_pickle(filepath)
+            res = self.__load_pickle(filepath_with_local_root)
         elif mode == "json":
-            res = self.__load_json(filepath)
+            res = self.__load_json(filepath_with_local_root)
         elif mode == "np":
-            res = self.__load_numpy(filepath)
+            res = self.__load_numpy(filepath_with_local_root)
         elif mode == "pt":
-            res = self.__load_torch(filepath)
+            res = self.__load_torch(filepath_with_local_root)
         else:
             raise NotImplementedError(f"mode {mode} is not supported.")
 
         if rm_local_after_load:
-            os.remove(filepath)
+            os.remove(filepath_with_local_root)
         return res
 
     def __download_from_gcs(self, src_filepath: str, dst_filepath: str) -> None:
         self.logger.info(
-            f"download {src_filepath} from gs://{self.bucket_name}/{dst_filepath}"
+            f"downloading {src_filepath} from gs://{self.bucket_name}/{dst_filepath}"
         )
         storage_client = storage.Client()
         bucket = storage_client.bucket(self.bucket_name)
@@ -158,22 +172,27 @@ class Repository:
 
         return res
 
-    def delete(self, filepath: str, delete_from_local: bool, delete_from_gcs: bool) -> None:
+    def delete(
+        self, filepath_from_root: str, delete_from_local: bool, delete_from_gcs: bool
+    ) -> None:
+        filepath_with_local_root = self._filepath_with_local_root(
+            filepath_from_root=filepath_from_root
+        )
         if delete_from_local:
-            if os.path.exists(filepath):
-                os.remove(filepath)
+            if os.path.exists(filepath_with_local_root):
+                os.remove(filepath_with_local_root)
             else:
                 self.logger.warn(
-                    f"ignore deleting local {filepath} because it does not exist."
+                    f"ignore deleting local {filepath_with_local_root} because it does not exist."
                 )
 
         if delete_from_gcs:
-            gcs_file = self.list_gcs_files(prefix=filepath)
+            gcs_file = self.list_gcs_files(prefix=filepath_from_root)
             if len(gcs_file) == 1:
-                self.delete_gcs_file(prefix=filepath)
+                self.delete_gcs_file(prefix=filepath_from_root)
             else:
                 self.logger.warn(
-                    f"ignore deleting gcs {filepath} because it does not exist."
+                    f"ignore deleting gcs {filepath_from_root} because it does not exist."
                 )
 
     def delete_gcs_file(self, prefix: str) -> None:

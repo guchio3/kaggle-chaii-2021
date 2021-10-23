@@ -134,8 +134,8 @@ class BaselineKernelPostprocessor(Postprocessor):
                 if (
                     start_index >= len(offset_mapping)
                     or end_index >= len(offset_mapping)
-                    or offset_mapping[start_index] == (-1, -1)
-                    or offset_mapping[end_index] == (-1, -1)
+                    or offset_mapping[start_index][0] == -1
+                    or offset_mapping[end_index][0] == -1
                 ):
                     continue
                 # Don't consider answers with a length that is either < 0 or > max_answer_length.
@@ -151,6 +151,7 @@ class BaselineKernelPostprocessor(Postprocessor):
                 extracted_text = context[start_char:end_char]
                 score = float(start_logit[start_index] + end_logit[end_index])
                 candidates.append({"extracted_text": extracted_text, "score": score})
+        self.logger.info(candidates)
         return candidates
 
     def _choose_best_candidate(self, candidates: List[Dict[str, Any]]) -> str:
