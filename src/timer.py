@@ -44,7 +44,7 @@ def class_dec_timer(unit: str = "s") -> Callable:
         @functools.wraps(func)
         def _timer(s, *args, **kwargs):
             t0 = time.time()
-            start_str = f"[{s.__name__}.{func.__name__}] start"
+            start_str = f"[{s.__class__.__name__}.{func.__name__}] start"
             s.logger.info(start_str)
 
             # run the func
@@ -58,7 +58,7 @@ def class_dec_timer(unit: str = "s") -> Callable:
                 duration = (time.time() - t0) / 3600
             else:
                 raise NotImplementedError()
-            end_str = f"[{func.__name__}] done in {duration:.1f} {unit}"
+            end_str = f"[{s.__class__.__name__}.{func.__name__}] done in {duration:.1f} {unit}"
             s.logger.info(end_str)
             return res
 
