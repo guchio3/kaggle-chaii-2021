@@ -1,8 +1,7 @@
 from dataclasses import asdict, dataclass
 from glob import glob
-from typing import Tuple
+from typing import List, Optional
 
-from numpy import ndarray
 from pandas import DataFrame
 
 from src.checkpoint.checkpoint import Checkpoint
@@ -26,17 +25,30 @@ class DataRepository(Repository):
     def __preprocessed_df_filepath(self, ver: str) -> str:
         return f"data/preprocessed/{ver}.pkl"
 
-    def __fold_idxes_filepath(self, exp_id: str, fold: int) -> str:
-        return f"data/fold/{exp_id}/{fold}.pkl"
-
     def __checkpoint_filename(
         self, exp_id: str, fold: int, epoch: int, val_loss: float, val_jaccard: float
     ) -> str:
         return f"data/checkpoint/{exp_id}/{fold}/{epoch}_{val_loss:.4f}_{val_jaccard:.4f}.pkl"
 
-    def __gcs_filepath_to_prefix(self, gcs_filepath: str) -> str:
-        prefix = "/".join(gcs_filepath.split("/")[3:])
-        return prefix
+    def __best_checkpoint_filename(
+        self, exp_id: str, fold: int, epoch: int, val_loss: float, val_jaccard: float
+    ) -> str:
+        return (
+            f"data/checkpoint/{exp_id}/best_checkpoint/"
+            f"{fold}_{epoch}_{val_loss:.4f}_{val_jaccard:.4f}.pkl"
+        )
+
+    def __best_model_state_dict_filename(
+        self, exp_id: str, fold: int, epoch: int, val_loss: float, val_jaccard: float
+    ) -> str:
+        return (
+            f"data/checkpoint/{exp_id}/best_model_state_dict/"
+            f"model_state_dict_{fold}_{epoch}_{val_loss:.4f}_{val_jaccard:.4f}.pkl"
+        )
+
+    def __gcs_fullpath_to_gcs_filepath(self, gcs_fullpath: str) -> str:
+        gcs_filepath = "/".join(gcs_fullpath.split("/")[3:])
+        return gcs_filepath
 
     def __checkpoint_filepath_to_val_jaccard(self, checkpoint_filepath: str) -> float:
         score = float(
@@ -48,8 +60,8 @@ class DataRepository(Repository):
         filepath = self.__train_df_filepath()
         df: DataFrame = self.load(
             filepath=filepath,
+            gcs_filepath=filepath,
             mode="dfcsv",
-            load_from_gcs=True,
             rm_local_after_load=False,
         )
         return df
@@ -58,8 +70,8 @@ class DataRepository(Repository):
         filepath = self.__test_df_filepath()
         df: DataFrame = self.load(
             filepath=filepath,
+            gcs_filepath=filepath,
             mode="dfcsv",
-            load_from_gcs=True,
             rm_local_after_load=False,
         )
         return df
@@ -68,8 +80,8 @@ class DataRepository(Repository):
         filepath = self.__sample_submission_filepath()
         df: DataFrame = self.load(
             filepath=filepath,
+            gcs_filepath=filepath,
             mode="dfcsv",
-            load_from_gcs=True,
             rm_local_after_load=False,
         )
         return df
@@ -91,8 +103,8 @@ class DataRepository(Repository):
         filepath = self.__sub_df_filepath(exp_id=exp_id)
         df = self.load(
             filepath=filepath,
+            gcs_filepath=None,
             mode="dfcsv",
-            load_from_gcs=False,
             rm_local_after_load=False,
         )
         return df
@@ -113,45 +125,30 @@ class DataRepository(Repository):
             save_obj=preprocessed_df, filepath=filepath, mode="pkl", gcs_mode="cp",
         )
 
-    def load_preprocessed_df(self, ver: str) -> DataFrame:
+    def load_preprocessed_df(
+        self, ver: str, gcs_filepath: Optional[str] = None
+    ) -> DataFrame:
         filepath = self.__preprocessed_df_filepath(ver=ver)
         df = self.load(
             filepath=filepath,
+            gcs_filepath=gcs_filepath if gcs_filepath else filepath,
             mode="pkl",
-            load_from_gcs=True,
             rm_local_after_load=False,
         )
         return df
 
-    def save_fold_idxes(
-        self, exp_id: str, fold: int, fold_idxes: Tuple[ndarray, ndarray]
-    ) -> None:
-        filepath = self.__fold_idxes_filepath(exp_id=exp_id, fold=fold)
-        self.save(
-            save_obj=fold_idxes,
-            filepath=filepath,
-            mode="pkl",
-            gcs_mode="cp",
-            force_save=False,
-        )
-
-    def load_fold_idxes(self, exp_id: str, fold: int) -> Tuple[ndarray, ndarray]:
-        filepath = self.__fold_idxes_filepath(exp_id=exp_id, fold=fold)
-        fold_idxes = self.load(
-            filepath=filepath, mode="pkl", load_from_gcs=True, rm_local_after_load=False
-        )
-        return fold_idxes
-
-    def __load_checkpoint_from_filepath(self, filepath: str) -> Checkpoint:
+    def load_checkpoint_from_filepath(
+        self, filepath: str, gcs_filepath: Optional[str], rm_local_after_load: bool
+    ) -> Checkpoint:
         """
         to fix the loading format for checkpoint
         """
         checkpoint = Checkpoint(
             **self.load(
                 filepath=filepath,
+                gcs_filepath=gcs_filepath,
                 mode="pkl",
-                load_from_gcs=False,
-                rm_local_after_load=False,
+                rm_local_after_load=rm_local_after_load,
             )
         )
         return checkpoint
@@ -183,13 +180,24 @@ class DataRepository(Repository):
         if len(filepaths) != 1:
             raise Exception(f"non-unique fold epoch checkpoint, {filepaths}.")
         filepath = filepaths[0]
-        checkpoint = self.__load_checkpoint_from_filepath(filepath=filepath)
+        checkpoint = self.load_checkpoint_from_filepath(
+            filepath=filepath, gcs_filepath=filepath, rm_local_after_load=True
+        )
         return checkpoint
+
+    def best_checkpoint_filepaths(self, exp_id: str) -> List[str]:
+        gcs_fullpaths = self.list_gcs_files(
+            f"data/checkpoint/{exp_id}/best_checkpoint/"
+        )
+        gcs_filepaths = [
+            self.__gcs_fullpath_to_gcs_filepath(filepath) for filepath in gcs_fullpaths
+        ]
+        return gcs_filepaths
 
     def clean_exp_checkpoint(self, exp_id: str) -> None:
         filepaths = self.list_gcs_files(f"data/checkpoint/{exp_id}/")
         for filepath in filepaths:
-            prefix = self.__gcs_filepath_to_prefix(gcs_filepath=filepath)
+            prefix = self.__gcs_fullpath_to_gcs_filepath(gcs_fullpath=filepath)
             self.delete(prefix, delete_from_local=True, delete_from_gcs=True)
 
     def extract_and_save_best_fold_epoch_model_state_dict(
@@ -213,7 +221,9 @@ class DataRepository(Repository):
 
         # load best checkpoint and model_state_dict
         # best_prefix = self.__gcs_filepath_to_prefix(gcs_filepath=best_gcs_filepath)
-        best_checkpoint = self.__load_checkpoint_from_filepath(filepath=best_filepath)
+        best_checkpoint = self.load_checkpoint_from_filepath(
+            filepath=best_filepath, gcs_filepath=None, rm_local_after_load=False
+        )
         best_model_state_dict = best_checkpoint.model_state_dict
         if best_model_state_dict is None:
             raise Exception(f"model weight in {best_filepath} is None.")

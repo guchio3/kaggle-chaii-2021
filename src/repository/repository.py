@@ -2,7 +2,7 @@ import json
 import os
 import pickle
 from dataclasses import dataclass
-from typing import Any, List
+from typing import Any, List, Optional
 
 import numpy as np
 import pandas as pd
@@ -88,15 +88,15 @@ class Repository:
     def load(
         self,
         filepath: str,
+        gcs_filepath: Optional[str],
         mode: str,
-        load_from_gcs: bool = False,
         rm_local_after_load: bool = False,
     ) -> Any:
         if not os.path.exists(filepath):
-            if load_from_gcs:
-                self.__download_from_gcs(src_filepath=filepath, dst_filepath=filepath)
+            if gcs_filepath:
+                self.__download_from_gcs(src_filepath=gcs_filepath, dst_filepath=filepath)
             else:
-                raise Exception(f"{filepath} does not exist int local.")
+                raise Exception(f"{filepath} does not exist in local.")
 
         if mode == "dfcsv":
             res = self.__load_dfcsv(filepath)
@@ -123,7 +123,7 @@ class Repository:
         bucket = storage_client.bucket(self.bucket_name)
         blob = bucket.blob(src_filepath)
         blob.download_to_filename(dst_filepath)
-        self.logger.info("done.")
+        self.logger.info("download done.")
 
     def __load_dfcsv(self, filepath: str) -> DataFrame:
         df: DataFrame = pd.read_csv(filepath)
