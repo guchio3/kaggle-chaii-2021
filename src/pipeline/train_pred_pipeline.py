@@ -6,11 +6,11 @@ import numpy as np
 import torch
 from pandas import DataFrame
 from torch import Tensor
-from torch.nn import DataParallel
+# from torch.nn import DataParallel
 from torch.nn.modules.loss import _Loss
 from torch.optim import Optimizer
 from torch.optim.lr_scheduler import _LRScheduler
-from torch.utils.data import DataLoader
+from torch.utils.data.dataloader import DataLoader
 from tqdm.auto import tqdm
 
 from src.checkpoint.checkpoint import Checkpoint
@@ -35,17 +35,19 @@ class TrainPredPipeline(Pipeline):
     def __init__(
         self,
         exp_id: str,
+        mode: str,
         config: Dict[str, Any],
         device: str,
+        enforce_preprocess: bool,
         debug: bool,
-        mode: str,
         logger: myLogger,
     ) -> None:
         super().__init__("train_pred", exp_id, logger)
+        self.mode = mode
         self.config = config
         self.device = device
+        self.enforce_preprocess = enforce_preprocess
         self.debug = debug
-        self.mode = mode
 
         self.data_repository = DataRepository(logger=logger)
 
@@ -89,16 +91,19 @@ class TrainPredPipeline(Pipeline):
 
         trn_df = self.data_repository.load_train_df()
         preprocessor = self.preprocessor_factory.create(
-            data_repository=self.data_repository, is_test=False
+            data_repository=self.data_repository
         )
-        trn_df = preprocessor(trn_df)
+        preprocessed_trn_df = preprocessor(
+            df=trn_df, enforce_preprocess=self.enforce_preprocess, is_test=False
+        )
 
         splitter = self.splitter_factory.create()
         folds = splitter.split(trn_df["id"], trn_df["language"], groups=None)
 
         for fold, (trn_idx, val_idx) in enumerate(folds):
             # fold data
-            fold_trn_df = trn_df.iloc[trn_idx]
+            trn_ids = trn_df.iloc[trn_idx]["id"].tolist()
+            fold_trn_df = preprocessed_trn_df.query(f"id in {trn_ids}")
             trn_loader = self._build_loader(
                 df=fold_trn_df,
                 sampler_type=self.config["sampler"]["trn_sampler_type"],
@@ -106,7 +111,8 @@ class TrainPredPipeline(Pipeline):
                 drop_last=True,
                 debug=self.debug,
             )
-            fold_val_df = trn_df.iloc[val_idx]
+            val_ids = trn_df.iloc[val_idx]["id"].tolist()
+            fold_val_df = preprocessed_trn_df.query(f"id in {val_ids}")
             val_loader = self._build_loader(
                 df=fold_val_df,
                 sampler_type=self.config["sampler"]["val_sampler_type"],
@@ -186,8 +192,7 @@ class TrainPredPipeline(Pipeline):
             segmentation_positions = batch["segmentation_position"].to(self.device)
 
             start_logits, end_logits, segmentation_logits = model(
-                input_ids=input_ids,
-                attention_masks=attention_masks,
+                input_ids=input_ids, attention_masks=attention_masks,
             )
             loss = model.calc_loss(
                 start_logits=start_logits,
@@ -290,8 +295,7 @@ class TrainPredPipeline(Pipeline):
                 segmentation_positions = batch["segmentation_position"].to(self.device)
 
                 start_logits, end_logits, segmentation_logits = model(
-                    input_ids=input_ids,
-                    attention_masks=attention_masks,
+                    input_ids=input_ids, attention_masks=attention_masks,
                 )
                 loss = model.calc_loss(
                     start_logits=start_logits,

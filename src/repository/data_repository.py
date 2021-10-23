@@ -106,6 +106,7 @@ class DataRepository(Repository):
             filepath_from_root=filepath_from_root,
             mode="pkl",
             gcs_mode="cp",
+            force_save=True,
         )
 
     def load_preprocessed_df(self, ver: str) -> DataFrame:
@@ -169,9 +170,7 @@ class DataRepository(Repository):
     def load_checkpoint(self, exp_id: str, fold: int, epoch: int) -> Checkpoint:
         # filepaths = self.list_gcs_files(f"data/checkpoint/{exp_id}/{fold}/{epoch}_")
         filepaths_with_local_root = glob(
-            self._filepath_with_local_root(
-                f"data/checkpoint/{exp_id}/{fold}/{epoch}_*"
-            )
+            self._filepath_with_local_root(f"data/checkpoint/{exp_id}/{fold}/{epoch}_*")
         )
         if len(filepaths_with_local_root) != 1:
             raise Exception(

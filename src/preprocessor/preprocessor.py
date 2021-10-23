@@ -1,6 +1,7 @@
 import itertools
 import os
 from abc import ABCMeta, abstractmethod
+from copy import deepcopy
 # from functools import partial
 # from multiprocessing import Pool
 from typing import List, Tuple
@@ -21,19 +22,19 @@ class Preprocessor(metaclass=ABCMeta):
         tokenizer: PreTrainedTokenizer,
         data_repository: DataRepository,
         max_length: int,
-        is_test: bool,
         debug: bool,
         logger: myLogger,
     ) -> None:
         self.tokenizer = tokenizer
         self.data_repository = data_repository
         self.max_length = max_length
-        self.is_test = is_test
         self.debug = debug
         self.logger = logger
 
     @abstractmethod
-    def __call__(self, df: DataFrame) -> DataFrame:
+    def __call__(
+        self, df: DataFrame, enforce_preprocess: bool, is_test: bool
+    ) -> DataFrame:
         raise NotImplementedError()
 
 
@@ -43,7 +44,6 @@ class BaselineKernelPreprocessor(Preprocessor):
         tokenizer: PreTrainedTokenizer,
         data_repository: DataRepository,
         max_length: int,
-        is_test: bool,
         pad_on_right: bool,
         stride: int,
         debug: bool,
@@ -53,7 +53,6 @@ class BaselineKernelPreprocessor(Preprocessor):
             tokenizer=tokenizer,
             data_repository=data_repository,
             max_length=max_length,
-            is_test=is_test,
             debug=debug,
             logger=logger,
         )
@@ -69,9 +68,13 @@ class BaselineKernelPreprocessor(Preprocessor):
         return ver
 
     @class_dec_timer(unit="m")
-    def __call__(self, df: DataFrame) -> DataFrame:
-        if not self.is_test and self.data_repository.preprocessed_df_exists(
-            ver=self.ver
+    def __call__(
+        self, df: DataFrame, enforce_preprocess: bool, is_test: bool
+    ) -> DataFrame:
+        if (
+            not enforce_preprocess
+            and not is_test
+            and self.data_repository.preprocessed_df_exists(ver=self.ver)
         ):
             self.logger.info("load preprocessed_df because it already exists.")
             res_df = self.data_repository.load_preprocessed_df(ver=self.ver)
@@ -90,7 +93,7 @@ class BaselineKernelPreprocessor(Preprocessor):
                             max_length=self.max_length,
                             pad_on_right=self.pad_on_right,
                             stride=self.stride,
-                            is_test=self.is_test,
+                            is_test=is_test,
                         )
                     )
             else:
@@ -103,7 +106,7 @@ class BaselineKernelPreprocessor(Preprocessor):
                             max_length=self.max_length,
                             pad_on_right=self.pad_on_right,
                             stride=self.stride,
-                            is_test=self.is_test,
+                            is_test=is_test,
                         )
                     )
                 # with Pool(os.cpu_count()) as p:
@@ -127,12 +130,12 @@ class BaselineKernelPreprocessor(Preprocessor):
             self.logger.info(
                 f"successed_ratio: {successed_cnt} / {len(sorted_res_pairs)}"
             )
-            if not self.debug and not self.is_test:
+            if not self.debug and not is_test:
                 self.data_repository.save_preprocessed_df(res_df, ver=self.ver)
             else:
                 self.logger.info(
                     "ignore save_preprocessed_df because either of "
-                    f"self.debug {self.debug} self.is_test {self.is_test}."
+                    f"self.debug {self.debug} is_test {is_test}."
                 )
             os.environ["TOKENIZERS_PARALLELISM"] = "false"
             self.logger.info("done.")
@@ -177,40 +180,41 @@ class BaselineKernelPreprocessor(Preprocessor):
                 tokenized_res["offset_mapping"],
             )
         ):
+            row_j = deepcopy(row)
             # special_tokens_mask: List[int] = tokenized_res["special_tokens_mask"]
             # sequence_ids: List[int] = tokenized_res["sequence_ids"]
             token_type_ids: List[int] = tokenized_res.sequence_ids(j)  # CAUTION!!!!!
             sequence_ids = [i for i in range(len(input_ids))]
 
             cls_index = input_ids.index(cls_token_id)
-            row["input_ids"] = input_ids
-            row["token_type_ids"] = token_type_ids
-            row["attention_mask"] = attention_mask
-            # row["special_tokens_mask"] = special_tokens_mask
-            row["sequence_ids"] = sequence_ids
+            row_j["input_ids"] = input_ids
+            row_j["token_type_ids"] = token_type_ids
+            row_j["attention_mask"] = attention_mask
+            # row_j["special_tokens_mask"] = special_tokens_mask
+            row_j["sequence_ids"] = sequence_ids
             # Set to None the offset_mapping that are not part of the context so it's easy to determine if a token
             # position is part of the context or not.
-            row["offset_mapping"] = [
+            row_j["offset_mapping"] = [
                 (o if token_type_ids[k] == context_index else (-1, -1))
                 for k, o in enumerate(offset_mapping)
             ]
             if is_test:
                 is_successed = False
-                row["start_position"] = cls_index
-                row["end_position"] = cls_index
-                row["segmentation_position"] = [1] + [0] * (len(offset_mapping) - 1)
+                row_j["start_position"] = cls_index
+                row_j["end_position"] = cls_index
+                row_j["segmentation_position"] = [1] + [0] * (len(offset_mapping) - 1)
             else:
-                start_char_index = int(row["answer_start"])
-                end_char_index = start_char_index + len(row["answer_text"])
+                start_char_index = int(row_j["answer_start"])
+                end_char_index = start_char_index + len(row_j["answer_text"])
 
                 # Start token index of the current span in the text.
                 token_start_index = 0
-                while token_type_ids[token_start_index] != 0:
+                while token_type_ids[token_start_index] != (1 if pad_on_right else 0):
                     token_start_index += 1
 
                 # End token index of the current span in the text.
                 token_end_index = len(input_ids) - 1
-                while token_type_ids[token_end_index] != 0:
+                while token_type_ids[token_end_index] != (1 if pad_on_right else 0):
                     token_end_index -= 1
 
                 # Detect if the answer is out of the span (in which case this feature is labeled with the CLS index).
@@ -219,9 +223,9 @@ class BaselineKernelPreprocessor(Preprocessor):
                     and offset_mapping[token_end_index][1] >= end_char_index
                 ):
                     is_successed = False
-                    row["start_position"] = cls_index
-                    row["end_position"] = cls_index
-                    row["segmentation_position"] = [1] + [0] * (len(offset_mapping) - 1)
+                    row_j["start_position"] = cls_index
+                    row_j["end_position"] = cls_index
+                    row_j["segmentation_position"] = [1] + [0] * (len(offset_mapping) - 1)
                 else:
                     # Otherwise move the token_start_index and token_end_index to the two ends of the answer.
                     # Note: we could go after the last offset if the answer is the last word (edge case).
@@ -230,19 +234,19 @@ class BaselineKernelPreprocessor(Preprocessor):
                         and offset_mapping[token_start_index][0] <= start_char_index
                     ):
                         token_start_index += 1
-                    row["start_position"] = (
+                    row_j["start_position"] = (
                         token_start_index - 1
                     )  # -1 because +1 even in == case
                     while offset_mapping[token_end_index][1] >= end_char_index:
                         token_end_index -= 1
-                    row["end_position"] = (
+                    row_j["end_position"] = (
                         token_end_index + 1
                     )  # +1 because even in == case
-                    row["segmentation_position"] = [
+                    row_j["segmentation_position"] = [
                         1
-                        if row["start_position"] <= i and i <= row["end_position"]
+                        if row_j["start_position"] <= i and i <= row_j["end_position"]
                         else 0
                         for i in range(len(offset_mapping))
                     ]
-            reses.append((i, j, row, is_successed))
+            reses.append((i, j, row_j, is_successed))
         return reses

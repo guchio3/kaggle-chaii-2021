@@ -42,6 +42,12 @@ def parse_args():
         default="none",
     )
     parser.add_argument(
+        "--enforce_preprocess",
+        help="even if the preprocessed result exists",
+        action="store_true",
+        default=False,
+    )
+    parser.add_argument(
         "--debug",
         help="whether or not to use debug mode",
         action="store_true",
@@ -60,6 +66,7 @@ def main():
         mode=args.mode,
         exp_id=args.exp_id,
         device=args.device,
+        enforce_preprocess=args.enforce_preprocess,
         debug=args.debug,
     )
     pipeline.run()

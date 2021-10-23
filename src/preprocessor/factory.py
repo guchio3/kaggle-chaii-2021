@@ -28,7 +28,7 @@ class PreprocessorFactory(Factory[Preprocessor]):
             logger=logger,
         )
 
-    def _create(self, data_repository: DataRepository, is_test: bool) -> Preprocessor:
+    def _create(self, data_repository: DataRepository) -> Preprocessor:
         tokenizer = AutoTokenizer.from_pretrained(self.tokenizer_type)
 
         if self.preprocessor_type.startswith("baseline_kernel"):
@@ -38,7 +38,6 @@ class PreprocessorFactory(Factory[Preprocessor]):
                 max_length=self.max_length,
                 pad_on_right=self.pad_on_right,
                 stride=self.stride,
-                is_test=is_test,
                 debug=self.debug,
                 logger=self.logger,
             )

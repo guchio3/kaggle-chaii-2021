@@ -12,7 +12,13 @@ from src.pipeline.train_pred_pipeline import TrainPredPipeline
 
 class PipelineFactory(Factory[Pipeline]):
     def _create(
-        self, pipeline_type: str, mode: str, exp_id: str, device: str, debug: bool
+        self,
+        pipeline_type: str,
+        mode: str,
+        exp_id: str,
+        device: str,
+        enforce_preprocess: bool,
+        debug: bool,
     ) -> Pipeline:
         config = self._load_config_from_yaml(pipeline_type, exp_id)
         default_config = self._load_config_from_yaml(pipeline_type, "e000")
@@ -33,16 +39,19 @@ class PipelineFactory(Factory[Pipeline]):
         )
 
         if pipeline_type == "train_pred":
-            return TrainPredPipeline(
+            pipeline = TrainPredPipeline(
                 exp_id=exp_id,
+                mode=mode,
                 config=config,
                 device=device,
+                enforce_preprocess=enforce_preprocess,
                 debug=debug,
-                mode=mode,
                 logger=logger,
             )
         else:
             raise NotImplementedError(f"pipeline {pipeline_type} is not supported yet.")
+
+        return pipeline
 
     def _use_wdb(self, pipeline_type: str, mode: str, debug: bool) -> bool:
         if debug:
