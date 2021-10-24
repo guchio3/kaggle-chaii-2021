@@ -9,7 +9,7 @@ from src.repository.repository import Repository
 from src.timer import class_dec_timer
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=False)
 class DataRepository(Repository):
     bucket_name: str = "kaggle-chaii-2021"
     local_root_path: str = "."
@@ -46,10 +46,6 @@ class DataRepository(Repository):
             f"data/checkpoint/{exp_id}/best_model_state_dict/"
             f"model_state_dict_{fold}_{epoch}_{val_loss:.4f}_{val_jaccard:.4f}.pkl"
         )
-
-    def __gcs_fullpath_to_gcs_filepath(self, gcs_fullpath: str) -> str:
-        gcs_filepath = "/".join(gcs_fullpath.split("/")[3:])
-        return gcs_filepath
 
     def __checkpoint_filepath_from_root_to_val_jaccard(
         self, checkpoint_filepath_from_root: str
@@ -91,7 +87,7 @@ class DataRepository(Repository):
 
     def preprocessed_df_exists(self, ver: str) -> bool:
         filepath_from_root = self.__preprocessed_df_filepath_from_root(ver=ver)
-        gcs_files = self.list_gcs_files(prefix=filepath_from_root)
+        gcs_files = self.list_gcs_filepaths_from_root(prefix=filepath_from_root)
         if len(gcs_files) == 0:
             return False
         elif len(gcs_files) == 1:
@@ -185,19 +181,29 @@ class DataRepository(Repository):
         return checkpoint
 
     def best_checkpoint_filepaths(self, exp_id: str) -> List[str]:
-        gcs_fullpaths = self.list_gcs_files(
+        filepaths = self.list_gcs_filepaths_from_root(
             f"data/checkpoint/{exp_id}/best_checkpoint/"
         )
-        gcs_filepaths = [
-            self.__gcs_fullpath_to_gcs_filepath(filepath) for filepath in gcs_fullpaths
-        ]
-        return gcs_filepaths
+        return filepaths
 
     def clean_exp_checkpoint(self, exp_id: str) -> None:
-        filepaths = self.list_gcs_files(f"data/checkpoint/{exp_id}/")
+        prefix = f"data/checkpoint/{exp_id}/"
+        self.logger.info(f"now cleaning files from {prefix} ...")
+        filepaths = self.list_gcs_filepaths_from_root(prefix)
         for filepath in filepaths:
-            prefix = self.__gcs_fullpath_to_gcs_filepath(gcs_fullpath=filepath)
-            self.delete(prefix, delete_from_local=True, delete_from_gcs=True)
+            self.delete(
+                filepath_from_root=filepath,
+                delete_from_local=True,
+                delete_from_gcs=True,
+            )
+        rest_local_filepaths = self.list_local_filepaths_from_root(prefix)
+        for rest_local_filepath in rest_local_filepaths:
+            self.delete(
+                filepath_from_root=rest_local_filepath,
+                delete_from_local=True,
+                delete_from_gcs=False,
+            )
+        self.logger.info("done.")
 
     def extract_and_save_best_fold_epoch_model_state_dict(
         self, exp_id: str, fold: int

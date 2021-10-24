@@ -14,14 +14,36 @@ from pandas import DataFrame
 from src.log import myLogger
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=False)
 class Repository:
     logger: myLogger
     bucket_name: str
     local_root_path: str
 
+    def __post_init__(self) -> None:
+        if len(self.local_root_path) == 0:
+            raise Exception("please set non-empty local_root_path.")
+        elif self.local_root_path[-1] == "/":
+            bef_local_root_path = self.local_root_path
+            while self.local_root_path[-1] == "/":
+                self.local_root_path = self.local_root_path[:-1]
+            self.logger.warn(
+                "removed end '/' from self.local_root_path. \n"
+                f"BEFORE: {bef_local_root_path} => AFTER {self.local_root_path}"
+            )
+
     def _filepath_with_local_root(self, filepath_from_root: str) -> str:
         return self.local_root_path + "/" + filepath_from_root
+
+    def __gcs_fullpath_to_gcs_filepath(self, gcs_fullpath: str) -> str:
+        gcs_filepath = "/".join(gcs_fullpath.split("/")[3:])
+        return gcs_filepath
+
+    def __filepath_with_local_root_to_from_root(self, filepath_from_root: str) -> str:
+        filepath_from_root = "/".join(
+            filepath_from_root.split("/")[len(self.local_root_path.split("/")) :]
+        )
+        return filepath_from_root
 
     def save(
         self,
@@ -31,7 +53,9 @@ class Repository:
         gcs_mode: str = "pass",
         force_save: bool = False,
     ) -> None:
-        if not force_save and self.list_gcs_files(prefix=filepath_from_root):
+        if not force_save and self.list_gcs_filepaths_from_root(
+            prefix=filepath_from_root
+        ):
             self.logger.info(f"{filepath_from_root} already exists.")
             self.logger.info("please use force_save if you wanna save it.")
             return
@@ -161,15 +185,26 @@ class Repository:
         res = torch.load(filepath)
         return res
 
-    def list_gcs_files(self, prefix: str) -> List[str]:
+    def list_local_filepaths_from_root(self, prefix: str) -> List[str]:
+        prefix_with_local_root = self._filepath_with_local_root(
+            filepath_from_root=prefix
+        )
+        filepaths_from_root = []
+        for cur_dir, _, filenames in os.walk(prefix_with_local_root):
+            for filename in filenames:
+                filepaths_from_root.append(cur_dir + "/" + filename)
+        filepaths_from_root = sorted(filepaths_from_root)
+        return filepaths_from_root
+
+    def list_gcs_filepaths_from_root(self, prefix: str) -> List[str]:
         storage_client = storage.Client()
 
         # Note: Client.list_blobs requires at least package version 1.17.0.
         blobs = storage_client.list_blobs(
             self.bucket_name, prefix=prefix, delimiter=None
         )
-        res = [f"gs://{self.bucket_name}/{blob.name}" for blob in blobs]
-
+        # res = [f"gs://{self.bucket_name}/{blob.name}" for blob in blobs]
+        res = [{blob.name} for blob in blobs]
         return res
 
     def delete(
@@ -187,7 +222,7 @@ class Repository:
                 )
 
         if delete_from_gcs:
-            gcs_file = self.list_gcs_files(prefix=filepath_from_root)
+            gcs_file = self.list_gcs_filepaths_from_root(prefix=filepath_from_root)
             if len(gcs_file) == 1:
                 self.delete_gcs_file(prefix=filepath_from_root)
             else:

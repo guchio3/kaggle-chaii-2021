@@ -1,6 +1,6 @@
 description: "train and pred base"
-num_epochs: 7
-accum_mod: 5
+num_epochs: 5
+accum_mod: 2
 trn_batch_size: 16
 val_batch_size: 32
 tst_batch_size: 32
