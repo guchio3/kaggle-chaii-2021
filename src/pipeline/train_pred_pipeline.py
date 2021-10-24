@@ -146,6 +146,7 @@ class TrainPredPipeline(Pipeline):
                     device=self.device,
                     fold=fold,
                     epoch=epoch,
+                    accum_mod=self.accum_mod,
                     model=model,
                     loader=val_loader,
                     fobj=fobj,
@@ -204,6 +205,7 @@ class TrainPredPipeline(Pipeline):
                 fobj=fobj,
                 segmentation_fobj=segmentation_fobj,
             )
+            loss = loss / accum_mod
             loss.backward()
             running_loss += loss.item()
             if (batch_i + 1) % accum_mod == 0:
@@ -263,6 +265,7 @@ class TrainPredPipeline(Pipeline):
         device: str,
         fold: int,
         epoch: int,
+        accum_mod: int,
         model: Model,
         loader: DataLoader,
         fobj: Optional[_Loss],
@@ -297,6 +300,14 @@ class TrainPredPipeline(Pipeline):
                 start_logits, end_logits, segmentation_logits = model(
                     input_ids=input_ids, attention_masks=attention_masks,
                 )
+                if start_logits.dim() == 1:
+                    self.logger.info(
+                        "fix the shape of logits because it contains just one elem."
+                    )
+                    start_logits = start_logits.reshape(1, -1)
+                    end_logits = end_logits.reshape(1, -1)
+                    segmentation_logits = segmentation_logits.reshape(1, -1)
+
                 loss = model.calc_loss(
                     start_logits=start_logits,
                     end_logits=end_logits,
@@ -307,6 +318,7 @@ class TrainPredPipeline(Pipeline):
                     fobj=fobj,
                     segmentation_fobj=segmentation_fobj,
                 )
+                loss = loss / accum_mod
 
                 start_logits.to("cpu")
                 end_logits.to("cpu")
