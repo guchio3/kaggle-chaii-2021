@@ -4,14 +4,27 @@ from src.postprocessor.postprocessor import BaselineKernelPostprocessor, Postpro
 
 
 class PostprocessorFactory(Factory[Postprocessor]):
-    def __init__(self, postprocessor_type: str, logger: myLogger,) -> None:
+    def __init__(
+        self,
+        postprocessor_type: str,
+        n_best_size: int,
+        max_answer_length: int,
+        logger: myLogger,
+    ) -> None:
         super().__init__(
-            postprocessor_type=postprocessor_type, logger=logger,
+            postprocessor_type=postprocessor_type,
+            logger=logger,
+            n_best_size=n_best_size,
+            max_answer_length=max_answer_length,
         )
 
     def _create(self) -> Postprocessor:
         if self.postprocessor_type == "baseline_kernel":
-            preprocessor = BaselineKernelPostprocessor(logger=self.logger,)
+            preprocessor = BaselineKernelPostprocessor(
+                n_best_size=self.n_best_size,
+                max_answer_length=self.max_answer_length,
+                logger=self.logger,
+            )
         else:
             raise NotImplementedError(
                 f"postprocessor_type {self.postprocessor_type} is not supported."

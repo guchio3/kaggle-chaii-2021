@@ -12,6 +12,8 @@ preprocessor:
     stride: 128
 postprocessor:
     postprocessor_type: baseline_kernel
+    n_best_size: 20
+    max_answer_length: 30
 splitter:
     splitter_type: kf
     split_num: 5

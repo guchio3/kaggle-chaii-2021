@@ -83,43 +83,18 @@ class BaselineKernelPreprocessor(Preprocessor):
             os.environ["TOKENIZERS_PARALLELISM"] = "true"
             # reset index to deal it correctly
             df.reset_index(drop=True, inplace=True)
-            if self.debug:
-                res_lists = []
-                for i, row in tqdm(df.iterrows(), total=len(df)):
-                    res_lists.append(
-                        self._prep_text_v1(
-                            row_pair=(i, row),
-                            tokenizer=self.tokenizer,
-                            max_length=self.max_length,
-                            pad_on_right=self.pad_on_right,
-                            stride=self.stride,
-                            is_test=is_test,
-                        )
+            res_lists = []
+            for i, row in tqdm(df.iterrows(), total=len(df)):
+                res_lists.append(
+                    self._prep_text_v1(
+                        row_pair=(i, row),
+                        tokenizer=self.tokenizer,
+                        max_length=self.max_length,
+                        pad_on_right=self.pad_on_right,
+                        stride=self.stride,
+                        is_test=is_test,
                     )
-            else:
-                res_lists = []
-                for i, row in tqdm(df.iterrows(), total=len(df)):
-                    res_lists.append(
-                        self._prep_text_v1(
-                            row_pair=(i, row),
-                            tokenizer=self.tokenizer,
-                            max_length=self.max_length,
-                            pad_on_right=self.pad_on_right,
-                            stride=self.stride,
-                            is_test=is_test,
-                        )
-                    )
-                # with Pool(os.cpu_count()) as p:
-                #     iter_func = partial(
-                #         _prep_text_v1,
-                #         tokenizer=self.tokenizer,
-                #         max_length=self.max_length,
-                #         is_test=self.is_test,
-                #     )
-                #     imap = p.imap_unordered(iter_func, df.iterrows())
-                #     res_pairs = list(tqdm(imap, total=len(df)))
-                #     p.close()
-                #     p.join()
+                )
             sorted_res_pairs = sorted(list(itertools.chain.from_iterable(res_lists)))
             res_df = pd.DataFrame(
                 [row.to_dict() for _, _, row, _ in sorted(sorted_res_pairs)]
@@ -190,7 +165,6 @@ class BaselineKernelPreprocessor(Preprocessor):
             row_j["input_ids"] = input_ids
             row_j["token_type_ids"] = token_type_ids
             row_j["attention_mask"] = attention_mask
-            # row_j["special_tokens_mask"] = special_tokens_mask
             row_j["sequence_ids"] = sequence_ids
             # Set to None the offset_mapping that are not part of the context so it's easy to determine if a token
             # position is part of the context or not.
