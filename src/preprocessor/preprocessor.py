@@ -61,11 +61,6 @@ class BaselineKernelPreprocessor(Preprocessor, metaclass=ABCMeta):
         self.stride = stride
         self.use_language_as_question = use_language_as_question
 
-    def build_ver(self, max_length: int, pad_on_right: bool, stride: int) -> str:
-        ver = f"BaselineKernel_max_length_{max_length}_pad_on_right_{pad_on_right}_stride_{stride}"
-        self.logger.info(f"ver => {ver}")
-        return ver
-
     @class_dec_timer(unit="m")
     def __call__(
         self, df: DataFrame, enforce_preprocess: bool, is_test: bool
@@ -79,6 +74,7 @@ class BaselineKernelPreprocessor(Preprocessor, metaclass=ABCMeta):
                 max_length=self.max_length,
                 pad_on_right=self.pad_on_right,
                 stride=self.stride,
+                use_language_as_question=self.use_language_as_question,
             )
         ):
             self.logger.info("load preprocessed_df because it already exists.")
@@ -88,6 +84,7 @@ class BaselineKernelPreprocessor(Preprocessor, metaclass=ABCMeta):
                 max_length=self.max_length,
                 pad_on_right=self.pad_on_right,
                 stride=self.stride,
+                use_language_as_question=self.use_language_as_question,
             )
         else:
             self.logger.info("now preprocessing df ...")
@@ -125,6 +122,7 @@ class BaselineKernelPreprocessor(Preprocessor, metaclass=ABCMeta):
                     max_length=self.max_length,
                     pad_on_right=self.pad_on_right,
                     stride=self.stride,
+                    use_language_as_question=self.use_language_as_question,
                 )
             else:
                 self.logger.info(

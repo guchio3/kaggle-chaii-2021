@@ -30,8 +30,12 @@ class DataRepository(Repository):
         max_length: int,
         pad_on_right: bool,
         stride: int,
+        use_language_as_question: bool,
     ) -> str:
-        return f"data/preprocessed/{class_name}_{tokenizer_name}_{max_length}_{pad_on_right}_{stride}.pkl"
+        return (
+            f"data/preprocessed/{class_name}_{tokenizer_name}_{max_length}_"
+            f"{pad_on_right}_{stride}_{use_language_as_question}.pkl"
+        )
 
     def __checkpoint_filename_from_root(
         self, exp_id: str, fold: int, epoch: int, val_loss: float, val_jaccard: float
@@ -99,6 +103,7 @@ class DataRepository(Repository):
         max_length: int,
         pad_on_right: bool,
         stride: int,
+        use_language_as_question: bool,
     ) -> bool:
         filepath_from_root = self.__preprocessed_df_filepath_from_root(
             class_name=class_name,
@@ -106,6 +111,7 @@ class DataRepository(Repository):
             max_length=max_length,
             pad_on_right=pad_on_right,
             stride=stride,
+            use_language_as_question=use_language_as_question,
         )
         gcs_files = self.list_gcs_filepaths_from_root(prefix=filepath_from_root)
         if len(gcs_files) == 0:
@@ -123,6 +129,7 @@ class DataRepository(Repository):
         max_length: int,
         pad_on_right: bool,
         stride: int,
+        use_language_as_question: bool,
     ) -> None:
         filepath_from_root = self.__preprocessed_df_filepath_from_root(
             class_name=class_name,
@@ -130,6 +137,7 @@ class DataRepository(Repository):
             max_length=max_length,
             pad_on_right=pad_on_right,
             stride=stride,
+            use_language_as_question=use_language_as_question,
         )
         self.save(
             save_obj=preprocessed_df,
@@ -146,6 +154,7 @@ class DataRepository(Repository):
         max_length: int,
         pad_on_right: bool,
         stride: int,
+        use_language_as_question: bool,
     ) -> DataFrame:
         filepath_from_root = self.__preprocessed_df_filepath_from_root(
             class_name=class_name,
@@ -153,6 +162,7 @@ class DataRepository(Repository):
             max_length=max_length,
             pad_on_right=pad_on_right,
             stride=stride,
+            use_language_as_question=use_language_as_question,
         )
         self.logger.info(f"loading {filepath_from_root} ...")
         df = self.load(
