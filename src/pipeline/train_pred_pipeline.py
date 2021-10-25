@@ -101,7 +101,7 @@ class TrainPredPipeline(Pipeline):
         splitter = self.splitter_factory.create()
         folds = splitter.split(trn_df["id"], trn_df["language"], groups=None)
 
-        val_jaccards = []
+        best_val_jaccards = []
         for fold, (trn_idx, val_idx) in enumerate(folds):
             if fold not in self.train_folds:
                 self.logger.info("skip fold {fold} because it's not in train_folds.")
@@ -130,6 +130,7 @@ class TrainPredPipeline(Pipeline):
             model, optimizer, scheduler = self._build_model()
             fobj = self.fobj_factory.create()
 
+            val_jaccards = []
             for epoch in range(self.num_epochs):
                 self._train_one_epoch(
                     device=self.device,
@@ -163,14 +164,18 @@ class TrainPredPipeline(Pipeline):
                     self.data_repository.save_checkpoint(
                         checkpoint=checkpoint, is_best=False
                     )
+            best_val_jaccards.append(max(val_jaccards))
 
             if not self.debug:
                 self.data_repository.extract_and_save_best_fold_epoch_model_state_dict(
                     exp_id=self.exp_id, fold=fold
                 )
 
-            val_jaccard_mean = np.mean(val_jaccards)
-            val_jaccard_std = np.std(val_jaccards)
+            val_jaccard_mean = np.mean(best_val_jaccards)
+            val_jaccard_std = np.std(best_val_jaccards)
+            self.logger.info(
+                f"val_jaccard_mean: {val_jaccard_mean} / val_jaccard_std: {val_jaccard_std}"
+            )
             self.logger.wdb_sum(
                 sum_dict={
                     "val_jaccard_mean": val_jaccard_mean,
