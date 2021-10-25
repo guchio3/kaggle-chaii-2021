@@ -13,7 +13,7 @@ class myLogger:
         log_filename: str,
         exp_id: str,
         wdb_prj_id: Optional[str],
-        exp_config: Dict[str, Dict[str, Any]],
+        exp_config: Dict[str, Any],
         use_wdb: bool,
     ) -> None:
         self.logger = getLogger(__name__)
@@ -86,12 +86,15 @@ class myLogger:
             self.logger.addHandler(handler)
 
     def _parse_exp_config_to_wdb_config(
-        self, exp_config: Dict[str, Dict[str, Any]]
+        self, exp_config: Dict[str, Any]
     ) -> Dict[str, Any]:
         wdb_config = {}
         for outer_key, outer_value in exp_config.items():
-            for inner_key, inner_value in outer_value.items():
-                wdb_config[f"{outer_key}_{inner_key}"] = inner_value
+            if isinstance(outer_value, dict):
+                for inner_key, inner_value in outer_value.items():
+                    wdb_config[f"{outer_key}_{inner_key}"] = inner_value
+            else:
+                wdb_config[outer_key] = outer_value
         return wdb_config
 
     def wdb_log(self, log_dict: Dict[str, Any]) -> None:
