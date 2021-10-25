@@ -108,4 +108,4 @@ class myLogger:
             self.warn("pass wdb_sum because debug mode.")
             return
         for key, value in sum_dict.items():
-            wandb.run.summery[key] = value
+            wandb.run.summary[key] = value

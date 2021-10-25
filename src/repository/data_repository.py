@@ -154,12 +154,14 @@ class DataRepository(Repository):
             pad_on_right=pad_on_right,
             stride=stride,
         )
+        self.logger.info(f"loading {filepath_from_root} ...")
         df = self.load(
             filepath_from_root=filepath_from_root,
             mode="pkl",
             load_from_gcs=True,
             rm_local_after_load=False,
         )
+        self.logger.info("done.")
         return df
 
     def load_checkpoint_from_filepath(
