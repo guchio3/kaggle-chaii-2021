@@ -58,9 +58,6 @@ class BaselineKernelPreprocessor(Preprocessor):
         )
         self.pad_on_right = pad_on_right
         self.stride = stride
-        self.ver = self.build_ver(
-            max_length=max_length, pad_on_right=pad_on_right, stride=stride
-        )
 
     def build_ver(self, max_length: int, pad_on_right: bool, stride: int) -> str:
         ver = f"BaselineKernel_max_length_{max_length}_pad_on_right_{pad_on_right}_stride_{stride}"
@@ -74,10 +71,22 @@ class BaselineKernelPreprocessor(Preprocessor):
         if (
             not enforce_preprocess
             and not is_test
-            and self.data_repository.preprocessed_df_exists(ver=self.ver)
+            and self.data_repository.preprocessed_df_exists(
+                class_name=self.__class__.__name__,
+                tokenizer_name=self.tokenizer.__class__.__name__,
+                max_length=self.max_length,
+                pad_on_right=self.pad_on_right,
+                stride=self.stride,
+            )
         ):
             self.logger.info("load preprocessed_df because it already exists.")
-            res_df = self.data_repository.load_preprocessed_df(ver=self.ver)
+            res_df = self.data_repository.load_preprocessed_df(
+                class_name=self.__class__.__name__,
+                tokenizer_name=self.tokenizer.__class__.__name__,
+                max_length=self.max_length,
+                pad_on_right=self.pad_on_right,
+                stride=self.stride,
+            )
         else:
             self.logger.info("now preprocessing df ...")
             os.environ["TOKENIZERS_PARALLELISM"] = "true"
@@ -106,7 +115,14 @@ class BaselineKernelPreprocessor(Preprocessor):
                 f"successed_ratio: {successed_cnt} / {len(sorted_res_pairs)}"
             )
             if not self.debug and not is_test:
-                self.data_repository.save_preprocessed_df(res_df, ver=self.ver)
+                self.data_repository.save_preprocessed_df(
+                    preprocessed_df=res_df,
+                    class_name=self.__class__.__name__,
+                    tokenizer_name=self.tokenizer.__class__.__name__,
+                    max_length=self.max_length,
+                    pad_on_right=self.pad_on_right,
+                    stride=self.stride,
+                )
             else:
                 self.logger.info(
                     "ignore save_preprocessed_df because either of "
@@ -199,7 +215,9 @@ class BaselineKernelPreprocessor(Preprocessor):
                     is_successed = False
                     row_j["start_position"] = cls_index
                     row_j["end_position"] = cls_index
-                    row_j["segmentation_position"] = [1] + [0] * (len(offset_mapping) - 1)
+                    row_j["segmentation_position"] = [1] + [0] * (
+                        len(offset_mapping) - 1
+                    )
                 else:
                     # Otherwise move the token_start_index and token_end_index to the two ends of the answer.
                     # Note: we could go after the last offset if the answer is the last word (edge case).

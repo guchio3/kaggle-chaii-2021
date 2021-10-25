@@ -23,8 +23,15 @@ class DataRepository(Repository):
     def __sample_submission_filepath_from_root(self) -> str:
         return "data/origin/sample_submission.csv"
 
-    def __preprocessed_df_filepath_from_root(self, ver: str) -> str:
-        return f"data/preprocessed/{ver}.pkl"
+    def __preprocessed_df_filepath_from_root(
+        self,
+        class_name: str,
+        tokenizer_name: str,
+        max_length: int,
+        pad_on_right: bool,
+        stride: int,
+    ) -> str:
+        return f"data/preprocessed/{class_name}_{tokenizer_name}_{max_length}_{pad_on_right}_{stride}.pkl"
 
     def __checkpoint_filename_from_root(
         self, exp_id: str, fold: int, epoch: int, val_loss: float, val_jaccard: float
@@ -85,8 +92,21 @@ class DataRepository(Repository):
         )
         return df
 
-    def preprocessed_df_exists(self, ver: str) -> bool:
-        filepath_from_root = self.__preprocessed_df_filepath_from_root(ver=ver)
+    def preprocessed_df_exists(
+        self,
+        class_name: str,
+        tokenizer_name: str,
+        max_length: int,
+        pad_on_right: bool,
+        stride: int,
+    ) -> bool:
+        filepath_from_root = self.__preprocessed_df_filepath_from_root(
+            class_name=class_name,
+            tokenizer_name=tokenizer_name,
+            max_length=max_length,
+            pad_on_right=pad_on_right,
+            stride=stride,
+        )
         gcs_files = self.list_gcs_filepaths_from_root(prefix=filepath_from_root)
         if len(gcs_files) == 0:
             return False
@@ -95,8 +115,22 @@ class DataRepository(Repository):
         else:
             raise Exception("should not occur case.")
 
-    def save_preprocessed_df(self, preprocessed_df: DataFrame, ver: str) -> None:
-        filepath_from_root = self.__preprocessed_df_filepath_from_root(ver=ver)
+    def save_preprocessed_df(
+        self,
+        preprocessed_df: DataFrame,
+        class_name: str,
+        tokenizer_name: str,
+        max_length: int,
+        pad_on_right: bool,
+        stride: int,
+    ) -> None:
+        filepath_from_root = self.__preprocessed_df_filepath_from_root(
+            class_name=class_name,
+            tokenizer_name=tokenizer_name,
+            max_length=max_length,
+            pad_on_right=pad_on_right,
+            stride=stride,
+        )
         self.save(
             save_obj=preprocessed_df,
             filepath_from_root=filepath_from_root,
@@ -105,8 +139,21 @@ class DataRepository(Repository):
             force_save=True,
         )
 
-    def load_preprocessed_df(self, ver: str) -> DataFrame:
-        filepath_from_root = self.__preprocessed_df_filepath_from_root(ver=ver)
+    def load_preprocessed_df(
+        self,
+        class_name: str,
+        tokenizer_name: str,
+        max_length: int,
+        pad_on_right: bool,
+        stride: int,
+    ) -> DataFrame:
+        filepath_from_root = self.__preprocessed_df_filepath_from_root(
+            class_name=class_name,
+            tokenizer_name=tokenizer_name,
+            max_length=max_length,
+            pad_on_right=pad_on_right,
+            stride=stride,
+        )
         df = self.load(
             filepath_from_root=filepath_from_root,
             mode="pkl",

@@ -1,1 +1,11 @@
 description: "baseline"
+train_folds: [0, 1, 2, 3, 4]
+accum_mode: 1
+trn_batch_size: 16
+val_batch_size: 48
+tst_batch_size: 48
+preprocessor:
+    tokenizer_type: data/dataset/deepset/xlm-roberta-large-squad2/
+model:
+    model_type: chaii-qa-xlmrb-1
+    pretrained_model_name_or_path: data/dataset/deepset/xlm-roberta-large-squad2/

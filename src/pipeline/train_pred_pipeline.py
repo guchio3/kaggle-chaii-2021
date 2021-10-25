@@ -101,6 +101,7 @@ class TrainPredPipeline(Pipeline):
         splitter = self.splitter_factory.create()
         folds = splitter.split(trn_df["id"], trn_df["language"], groups=None)
 
+        val_jaccards = []
         for fold, (trn_idx, val_idx) in enumerate(folds):
             if fold not in self.train_folds:
                 self.logger.info("skip fold {fold} because it's not in train_folds.")

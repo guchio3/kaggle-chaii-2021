@@ -13,7 +13,7 @@ class myLogger:
         log_filename: str,
         exp_id: str,
         wdb_prj_id: Optional[str],
-        exp_config: Dict[str, Any],
+        exp_config: Dict[str, Dict[str, Any]],
         use_wdb: bool,
     ) -> None:
         self.logger = getLogger(__name__)
@@ -24,12 +24,17 @@ class myLogger:
 
         self.use_wdb = use_wdb
         if self.use_wdb and wdb_prj_id:
-            self._wandb_init(wdb_prj_id=wdb_prj_id, exp_id=exp_id)
+            self._wandb_init(
+                exp_id=exp_id, wdb_prj_id=wdb_prj_id, exp_config=exp_config
+            )
         else:
             self.info("skip wandb init")
 
-    def _wandb_init(self, wdb_prj_id: str, exp_id: str) -> None:
-        wandb.init(project=wdb_prj_id, entity="guchio3")
+    def _wandb_init(
+        self, exp_id: str, wdb_prj_id: str, exp_config: Dict[str, Any]
+    ) -> None:
+        wdb_config = self._parse_exp_config_to_wdb_config(exp_config)
+        wandb.init(project=wdb_prj_id, entity="guchio3", config=wdb_config)
         wandb.run.name = exp_id
         wandb.run.save()
 
@@ -79,6 +84,15 @@ class myLogger:
             handler.setFormatter(log_fmt)
             self.logger.setLevel(DEBUG)
             self.logger.addHandler(handler)
+
+    def _parse_exp_config_to_wdb_config(
+        self, exp_config: Dict[str, Dict[str, Any]]
+    ) -> Dict[str, Any]:
+        wdb_config = {}
+        for outer_key, outer_value in exp_config.items():
+            for inner_key, inner_value in outer_value.items():
+                wdb_config[f"{outer_key}_{inner_key}"] = inner_value
+        return wdb_config
 
     def wdb_log(self, log_dict: Dict[str, Any]) -> None:
         if not self.use_wdb:
