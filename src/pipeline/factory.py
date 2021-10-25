@@ -61,9 +61,7 @@ class PipelineFactory(Factory[Pipeline]):
             f"invalid setting, pipeline_type: {pipeline_type} / mode: {mode} / debug: {debug}."
         )
 
-    def _load_config_from_yaml(
-        self, pipeline_type: str, exp_id: str
-    ) -> Dict[str, Any]:
+    def _load_config_from_yaml(self, pipeline_type: str, exp_id: str) -> Dict[str, Any]:
         yaml_filename = f"./configs/{pipeline_type}/{exp_id}.yml"
         with open(yaml_filename, "r") as fin:
             config: Dict[str, Any] = yaml.load(fin, Loader=yaml.FullLoader)
@@ -71,12 +69,16 @@ class PipelineFactory(Factory[Pipeline]):
         return config
 
     def _fill_config_by_default_config(
-        self,
-        config_dict: Dict[str, Any],
-        default_config_dict: Dict[str, Any],
+        self, config_dict: Dict[str, Any], default_config_dict: Dict[str, Any],
     ) -> None:
         for (d_key, d_value) in default_config_dict.items():
             if d_key not in config_dict:
                 config_dict[d_key] = d_value
             elif isinstance(d_value, dict):
                 self._fill_config_by_default_config(config_dict[d_key], d_value)
+
+        default_config_keys = set(default_config_dict.keys())
+        config_keys = set(config_dict.keys())
+        only_config_keys = config_keys - default_config_keys
+        if len(only_config_keys):
+            raise Exception(f"keys {only_config_keys} do not exist in default config.")

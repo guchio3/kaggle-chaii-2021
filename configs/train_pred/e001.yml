@@ -1,6 +1,6 @@
 description: "small model baseline"
 train_folds: [0, 1, 2, 3, 4]
-accum_mode: 1
+accum_mod: 2
 trn_batch_size: 16
 val_batch_size: 48
 tst_batch_size: 48
