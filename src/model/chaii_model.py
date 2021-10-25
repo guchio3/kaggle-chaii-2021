@@ -15,6 +15,7 @@ class ChaiiXLMRBModel1(Model):
     ) -> None:
         super().__init__(
             pretrained_model_name_or_path=pretrained_model_name_or_path,
+            model_type="model",
             warmup_keys=[
                 "pooler",
                 "classifier_dropout",
@@ -39,6 +40,45 @@ class ChaiiXLMRBModel1(Model):
         output = self.classifier_dropout(output)
         start_logits = self.classifier_conv_start(output).squeeze()
         end_logits = self.classifier_conv_end(output).squeeze()
+
+        return start_logits, end_logits, torch.zeros(start_logits.shape)
+
+    def calc_loss(
+        self,
+        start_logits: Tensor,
+        end_logits: Tensor,
+        segmentation_logits: Tensor,
+        start_positions: Tensor,
+        end_positions: Tensor,
+        segmentation_positions: Tensor,
+        fobj: Optional[_Loss],
+        segmentation_fobj: Optional[_Loss],
+    ) -> Tensor:
+        if fobj is None:
+            raise Exception("plz set fobj.")
+        loss = fobj(start_logits, start_positions)
+        loss += fobj(end_logits, end_positions)
+        return loss
+
+
+class ChaiiQAXLMRBModel1(Model):
+    def __init__(
+        self, pretrained_model_name_or_path: str, warmup_epoch: int, logger: myLogger
+    ) -> None:
+        super().__init__(
+            pretrained_model_name_or_path=pretrained_model_name_or_path,
+            model_type="qa_model",
+            warmup_keys=[],
+            warmup_epoch=warmup_epoch,
+            logger=logger,
+        )
+
+    def forward(
+        self, input_ids: Tensor, attention_masks: Tensor
+    ) -> Tuple[Tensor, Tensor, Tensor]:
+        output = self.model(input_ids=input_ids, attention_mask=attention_masks,)
+        start_logits = output.start_logits
+        end_logits = output.end_logits
 
         return start_logits, end_logits, torch.zeros(start_logits.shape)
 

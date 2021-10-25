@@ -204,7 +204,7 @@ class Repository:
             self.bucket_name, prefix=prefix, delimiter=None
         )
         # res = [f"gs://{self.bucket_name}/{blob.name}" for blob in blobs]
-        res = [{blob.name} for blob in blobs]
+        res = [blob.name for blob in blobs]
         return res
 
     def delete(

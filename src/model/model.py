@@ -4,7 +4,7 @@ from typing import Iterator, List, Optional, Tuple
 from torch import Tensor
 from torch.nn import Module
 from torch.nn.modules.loss import _Loss
-from transformers import AutoModel
+from transformers import AutoModel, AutoModelForQuestionAnswering
 
 from src.log import myLogger
 
@@ -13,16 +13,33 @@ class Model(Module, metaclass=ABCMeta):
     def __init__(
         self,
         pretrained_model_name_or_path: str,
+        model_type: str,
         warmup_keys: List[str],
         warmup_epoch: int,
         logger: myLogger,
     ) -> None:
         super().__init__()
         if isinstance(pretrained_model_name_or_path, str):
-            self.model = AutoModel.from_pretrained(pretrained_model_name_or_path)
+            if model_type == "model":
+                self.model = AutoModel.from_pretrained(pretrained_model_name_or_path)
+            elif model_type == "qa_model":
+                self.model = AutoModelForQuestionAnswering.from_pretrained(
+                    pretrained_model_name_or_path
+                )
+            else:
+                raise Exception("model_type {model_type} is not supported.")
         else:
             # for sub
             self.model = AutoModel(pretrained_model_name_or_path)
+            if model_type == "model":
+                self.model = AutoModel(pretrained_model_name_or_path)
+            elif model_type == "qa_model":
+                self.model = AutoModelForQuestionAnswering(
+                    pretrained_model_name_or_path
+                )
+            else:
+                raise Exception("model_type {model_type} is not supported.")
+
         self.warmup_keys = warmup_keys
         self.warmup_epoch = warmup_epoch
         self.logger = logger

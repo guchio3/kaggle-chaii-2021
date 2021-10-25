@@ -1,12 +1,12 @@
 description: "train and pred base"
 num_epochs: 5
-accum_mod: 2
-trn_batch_size: 16
-val_batch_size: 32
-tst_batch_size: 32
+accum_mod: 8
+trn_batch_size: 4
+val_batch_size: 4
+tst_batch_size: 4
 preprocessor:
     preprocessor_type: baseline_kernel
-    tokenizer_type: data/dataset/deepset/xlm-roberta-base-squad2/
+    tokenizer_type: data/dataset/deepset/xlm-roberta-large-squad2/
     max_length: 384
     pad_on_right: true
     stride: 128
@@ -28,9 +28,9 @@ sampler:
     val_sampler_type: sequential
     tst_sampler_type: sequential
 model:
-    model_type: chaii-xlmrb-1
-    pretrained_model_name_or_path: data/dataset/deepset/xlm-roberta-base-squad2/
-    warmup_epoch: 1
+    model_type: chaii-qa-xlmrb-1
+    pretrained_model_name_or_path: data/dataset/deepset/xlm-roberta-large-squad2/
+    warmup_epoch: 0
 optimizer:
     optimizer_type: adam
     learning_rate: 0.00003

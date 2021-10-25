@@ -101,6 +101,63 @@ class TrainPredPipeline(Pipeline):
         folds = splitter.split(trn_df["id"], trn_df["language"], groups=None)
 
         for fold, (trn_idx, val_idx) in enumerate(folds):
+            ##########################
+            trn_ids = trn_df.iloc[trn_idx]["id"].tolist()
+            fold_trn_df = preprocessed_trn_df.query(f"id in {trn_ids}")
+            val_ids = trn_df.iloc[val_idx]["id"].tolist()
+            fold_val_df = preprocessed_trn_df.query(f"id in {val_ids}")
+            trn_ds = self.dataset_factory.create(df=fold_trn_df)
+            val_ds = self.dataset_factory.create(df=fold_val_df)
+            from transformers import AutoModelForQuestionAnswering, TrainingArguments, Trainer
+            model = AutoModelForQuestionAnswering.from_pretrained("./data/dataset/deepset/xlm-roberta-large-squad2")
+            args = TrainingArguments(
+                f"chaii-qa",
+                evaluation_strategy = "epoch",
+                save_strategy = "epoch",
+                learning_rate=3e-5,
+                warmup_ratio=0.1,
+                gradient_accumulation_steps=2,
+                per_device_train_batch_size=4,
+                per_device_eval_batch_size=4,
+                num_train_epochs=2,
+                weight_decay=0.01,
+                # log_level="info"
+            )
+            from transformers import default_data_collator
+            data_collator = default_data_collator
+            from transformers import AutoTokenizer
+            tokenizer = AutoTokenizer.from_pretrained("./data/dataset/deepset/xlm-roberta-large-squad2")
+            ###### model.load_state_dict(torch.load("./chaii-qa/checkpoint-370/pytorch_model.bin"))
+            trainer = Trainer(
+                model,
+                args,
+                train_dataset=trn_ds,
+                eval_dataset=val_ds,
+                data_collator=data_collator,
+                tokenizer=tokenizer,
+            )
+            print(trainer.train())
+            val_ds.mode = "pred"
+            val_ds_small = val_ds  # .map(lambda example: example, remove_columns=['start_positions', 'end_positions'])
+            raw_predictions = trainer.predict(val_ds_small)
+            start_logits, end_logits = raw_predictions.predictions
+            postprocessor = self.postprocessor_factory.create()
+            from torch import Tensor
+            pospro_ids, pospro_answer_texts, pospro_answer_preds = postprocessor(
+                ids=fold_val_df["id"].tolist(),
+                contexts=fold_val_df["context"].tolist(),
+                answer_texts=fold_val_df["answer_text"].tolist(),
+                offset_mappings=fold_val_df["offset_mapping"].tolist(),
+                start_logits=start_logits,
+                end_logits=end_logits,
+                segmentation_logits=end_logits,
+            )
+            val_jaccard = calc_jaccard_mean(
+                text_trues=pospro_answer_texts, text_preds=pospro_answer_preds
+            )
+            print(val_jaccard)
+            exit(0)
+            # #################################
             # fold data
             trn_ids = trn_df.iloc[trn_idx]["id"].tolist()
             fold_trn_df = preprocessed_trn_df.query(f"id in {trn_ids}")
@@ -183,6 +240,7 @@ class TrainPredPipeline(Pipeline):
         #     model = DataParallel(model)
         self._to_device(device=self.device, model=model, optimizer=optimizer)
         model.train()
+        model.zero_grad()
 
         running_loss = 0.0
         for batch_i, batch in enumerate(tqdm(loader)):
@@ -207,10 +265,12 @@ class TrainPredPipeline(Pipeline):
             )
             loss = loss / accum_mod
             loss.backward()
+            loss.detach()
             running_loss += loss.item()
             if (batch_i + 1) % accum_mod == 0:
                 optimizer.step()
-                optimizer.zero_grad()
+                # optimizer.zero_grad()
+                model.zero_grad()
 
         scheduler.step()
 

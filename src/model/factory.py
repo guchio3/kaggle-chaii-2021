@@ -1,6 +1,6 @@
 from src.factory import Factory
 from src.log import myLogger
-from src.model.chaii_model import ChaiiXLMRBModel1
+from src.model.chaii_model import ChaiiQAXLMRBModel1, ChaiiXLMRBModel1
 from src.model.model import Model
 
 
@@ -22,6 +22,12 @@ class ModelFactory(Factory[Model]):
     def _create(self,) -> Model:
         if self.model_type == "chaii-xlmrb-1":
             model = ChaiiXLMRBModel1(
+                pretrained_model_name_or_path=self.pretrained_model_name_or_path,
+                warmup_epoch=self.warmup_epoch,
+                logger=self.logger,
+            )
+        elif self.model_type == "chaii-qa-xlmrb-1":
+            model = ChaiiQAXLMRBModel1(
                 pretrained_model_name_or_path=self.pretrained_model_name_or_path,
                 warmup_epoch=self.warmup_epoch,
                 logger=self.logger,
