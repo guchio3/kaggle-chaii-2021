@@ -158,6 +158,7 @@ class TrainPredPipeline(Pipeline):
                     segmentation_fobj=None,
                     checkpoint=checkpoint,
                 )
+                val_jaccards.append(checkpoint.val_jaccard)
                 if not self.debug:
                     self.data_repository.save_checkpoint(
                         checkpoint=checkpoint, is_best=False
@@ -167,6 +168,15 @@ class TrainPredPipeline(Pipeline):
                 self.data_repository.extract_and_save_best_fold_epoch_model_state_dict(
                     exp_id=self.exp_id, fold=fold
                 )
+
+            val_jaccard_mean = np.mean(val_jaccards)
+            val_jaccard_std = np.std(val_jaccards)
+            self.logger.wdb_sum(
+                sum_dict={
+                    "val_jaccard_mean": val_jaccard_mean,
+                    "val_jaccard_std": val_jaccard_std,
+                }
+            )
 
     @class_dec_timer(unit="m")
     def _train_one_epoch(
@@ -186,17 +196,17 @@ class TrainPredPipeline(Pipeline):
         model.warmup(epoch)
         # if device != "cpu":
         #     model = DataParallel(model)
-        self._to_device(device=self.device, model=model, optimizer=optimizer)
+        self._to_device(device=device, model=model, optimizer=optimizer)
         model.train()
         model.zero_grad()
 
         running_loss = 0.0
         for batch_i, batch in enumerate(tqdm(loader)):
-            input_ids = batch["input_ids"].to(self.device)
-            attention_masks = batch["attention_mask"].to(self.device)
-            start_positions = batch["start_position"].to(self.device)
-            end_positions = batch["end_position"].to(self.device)
-            segmentation_positions = batch["segmentation_position"].to(self.device)
+            input_ids = batch["input_ids"].to(device)
+            attention_masks = batch["attention_mask"].to(device)
+            start_positions = batch["start_position"].to(device)
+            end_positions = batch["end_position"].to(device)
+            segmentation_positions = batch["segmentation_position"].to(device)
 
             start_logits, end_logits, segmentation_logits = model(
                 input_ids=input_ids, attention_masks=attention_masks,
@@ -299,11 +309,11 @@ class TrainPredPipeline(Pipeline):
                 contexts = batch["context"]
                 answer_text = batch["answer_text"]
                 offset_mappings = batch["offset_mapping"]
-                input_ids = batch["input_ids"].to(self.device)
-                attention_masks = batch["attention_mask"].to(self.device)
-                start_positions = batch["start_position"].to(self.device)
-                end_positions = batch["end_position"].to(self.device)
-                segmentation_positions = batch["segmentation_position"].to(self.device)
+                input_ids = batch["input_ids"].to(device)
+                attention_masks = batch["attention_mask"].to(device)
+                start_positions = batch["start_position"].to(device)
+                end_positions = batch["end_position"].to(device)
+                segmentation_positions = batch["segmentation_position"].to(device)
 
                 start_logits, end_logits, segmentation_logits = model(
                     input_ids=input_ids, attention_masks=attention_masks,
