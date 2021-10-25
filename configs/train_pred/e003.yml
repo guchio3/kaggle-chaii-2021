@@ -1,7 +1,7 @@
 description: "e001 w/ 512 length"
 train_folds: [0, 1, 2, 3, 4]
-accum_mod: 4
-trn_batch_size: 16
+accum_mod: 6
+trn_batch_size: 8
 val_batch_size: 48
 tst_batch_size: 48
 preprocessor:
