@@ -38,7 +38,7 @@ class Preprocessor(metaclass=ABCMeta):
         raise NotImplementedError()
 
 
-class BaselineKernelPreprocessor(Preprocessor):
+class BaselineKernelPreprocessor(Preprocessor, metaclass=ABCMeta):
     def __init__(
         self,
         tokenizer: PreTrainedTokenizer,
@@ -46,6 +46,7 @@ class BaselineKernelPreprocessor(Preprocessor):
         max_length: int,
         pad_on_right: bool,
         stride: int,
+        use_language_as_question: bool,
         debug: bool,
         logger: myLogger,
     ):
@@ -58,6 +59,7 @@ class BaselineKernelPreprocessor(Preprocessor):
         )
         self.pad_on_right = pad_on_right
         self.stride = stride
+        self.use_language_as_question = use_language_as_question
 
     def build_ver(self, max_length: int, pad_on_right: bool, stride: int) -> str:
         ver = f"BaselineKernel_max_length_{max_length}_pad_on_right_{pad_on_right}_stride_{stride}"
@@ -101,6 +103,7 @@ class BaselineKernelPreprocessor(Preprocessor):
                         max_length=self.max_length,
                         pad_on_right=self.pad_on_right,
                         stride=self.stride,
+                        use_language_as_question=self.use_language_as_question,
                         is_test=is_test,
                     )
                 )
@@ -139,6 +142,7 @@ class BaselineKernelPreprocessor(Preprocessor):
         max_length: int,
         pad_on_right: bool,
         stride: int,
+        use_language_as_question: bool,
         is_test: bool,
     ) -> List[Tuple[int, int, Series, bool]]:
         is_successed = True
@@ -149,10 +153,13 @@ class BaselineKernelPreprocessor(Preprocessor):
         context_index = 1 if pad_on_right else 0
 
         i, row = row_pair
-        row["question"] = str(row["question"]).lstrip()
+        context = str(row["context"])
+        question = self._prep_question(
+            row=row, use_language_as_question=use_language_as_question
+        )
         tokenized_res = tokenizer.encode_plus(
-            text=str(row["question" if pad_on_right else "context"]),
-            text_pair=str(row["context" if pad_on_right else "question"]),
+            text=question if pad_on_right else context,
+            text_pair=context if pad_on_right else question,
             padding="max_length",
             truncation="only_second" if pad_on_right else "only_first",
             max_length=max_length,
@@ -194,7 +201,7 @@ class BaselineKernelPreprocessor(Preprocessor):
                 row_j["end_position"] = cls_index
                 row_j["segmentation_position"] = [1] + [0] * (len(offset_mapping) - 1)
             else:
-                start_char_index = int(row_j["answer_start"])
+                start_char_index = self._start_char_index(row=row_j)
                 end_char_index = start_char_index + len(row_j["answer_text"])
 
                 # Start token index of the current span in the text.
@@ -242,3 +249,31 @@ class BaselineKernelPreprocessor(Preprocessor):
                     ]
             reses.append((i, j, row_j, is_successed))
         return reses
+
+    def _prep_question(
+        self,
+        row: Series,
+        # tokenizer: PreTrainedTokenizer,
+        use_language_as_question: bool,
+    ) -> str:
+        question = str(row["question"]).lstrip()
+        if use_language_as_question:
+            # tokenizer.add_tokens(["<l>", "</l>"])
+            language = str(row["language"].lstrip())
+            question = f"{language} </s> {question}"
+        return question
+
+    @abstractmethod
+    def _start_char_index(self, row: Series) -> int:
+        raise NotImplementedError()
+
+
+class BaselineKernelPreprocessorV1(BaselineKernelPreprocessor):
+    def _start_char_index(self, row: Series) -> int:
+        start_char_index = int(row["answer_start"])
+        return start_char_index
+
+
+class BaselineKernelPreprocessorV2(BaselineKernelPreprocessor):
+    def _start_char_index(self, row: Series) -> int:
+        raise NotImplementedError()

@@ -1,5 +1,3 @@
-import re
-
 from torch.nn import BCEWithLogitsLoss, CrossEntropyLoss
 from torch.nn.modules.loss import _Loss
 

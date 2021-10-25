@@ -1,0 +1,12 @@
+description: "e001 w/ 512 length"
+train_folds: [0, 1, 2, 3, 4]
+accum_mod: 4
+trn_batch_size: 16
+val_batch_size: 48
+tst_batch_size: 48
+preprocessor:
+    tokenizer_type: data/dataset/deepset/xlm-roberta-base-squad2/
+    max_length: 512
+model:
+    model_type: chaii-qa-xlmrb-1
+    pretrained_model_name_or_path: data/dataset/deepset/xlm-roberta-base-squad2/

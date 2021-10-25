@@ -221,10 +221,10 @@ class TrainPredPipeline(Pipeline):
                 fobj=fobj,
                 segmentation_fobj=segmentation_fobj,
             )
+            running_loss += loss.item()  # runnig_loss uses non scaled loss
             loss = loss / accum_mod
             loss.backward()
             loss.detach()
-            running_loss += loss.item()
             if (batch_i + 1) % accum_mod == 0:
                 optimizer.step()
                 # optimizer.zero_grad()
@@ -336,7 +336,7 @@ class TrainPredPipeline(Pipeline):
                     fobj=fobj,
                     segmentation_fobj=segmentation_fobj,
                 )
-                loss = loss / accum_mod
+                loss = loss
 
                 start_logits.to("cpu")
                 end_logits.to("cpu")

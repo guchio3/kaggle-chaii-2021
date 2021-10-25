@@ -254,6 +254,7 @@ class DataRepository(Repository):
             )
         self.logger.info("done.")
 
+    @class_dec_timer(unit="m")
     def extract_and_save_best_fold_epoch_model_state_dict(
         self, exp_id: str, fold: int
     ) -> None:

@@ -7,11 +7,12 @@ trn_batch_size: 4
 val_batch_size: 4
 tst_batch_size: 4
 preprocessor:
-    preprocessor_type: baseline_kernel
+    preprocessor_type: baseline_kernel_v1
     tokenizer_type: data/dataset/deepset/xlm-roberta-large-squad2/
     max_length: 384
     pad_on_right: true
     stride: 128
+    use_language_as_question: false
 postprocessor:
     postprocessor_type: baseline_kernel
     n_best_size: 20
