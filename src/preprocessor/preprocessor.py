@@ -1,5 +1,6 @@
 import itertools
 import os
+import re
 from abc import ABCMeta, abstractmethod
 from copy import deepcopy
 # from functools import partial
@@ -257,7 +258,7 @@ class BaselineKernelPreprocessor(Preprocessor, metaclass=ABCMeta):
         question = str(row["question"]).lstrip()
         if use_language_as_question:
             # tokenizer.add_tokens(["<l>", "</l>"])
-            language = str(row["language"].lstrip())
+            language = str(row["language"]).lstrip()
             question = f"{language} </s> {question}"
         return question
 
@@ -274,4 +275,11 @@ class BaselineKernelPreprocessorV1(BaselineKernelPreprocessor):
 
 class BaselineKernelPreprocessorV2(BaselineKernelPreprocessor):
     def _start_char_index(self, row: Series) -> int:
-        raise NotImplementedError()
+        context = str(row["context"])
+        answer_text = str(row["answer_text"])
+        search_res = re.search(answer_text, context)
+        if search_res is None:
+            start_char_index = int(row["answer_start"])
+        else:
+            start_char_index = int(search_res.span()[0])
+        return start_char_index
