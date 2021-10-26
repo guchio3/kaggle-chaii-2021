@@ -60,9 +60,17 @@ class myLogger:
     def warning(self) -> Callable:
         return self.logger.warning
 
+    @property
+    def error(self) -> Callable:
+        return self.logger.error
+
+    @property
+    def exception(self) -> Callable:
+        return self.logger.exception
+
     def send_line_notification(self, message: str) -> None:
         self.logger.info(message)
-        line_token = ""
+        line_token = "ePl2U8InRqYz5TfP3LN4d6RWrFocrs4rG8QqeYYsGGz"
         endpoint = "https://notify-api.line.me/api/notify"
         message = "\n{}".format(message)
         payload = {"message": message}

@@ -15,6 +15,7 @@ from tqdm.auto import tqdm
 
 from src.checkpoint.checkpoint import Checkpoint
 from src.dataset.factory import DatasetFactory
+from src.error_handling import class_error_line_notification
 from src.fobj.factory import FobjFactory
 from src.log import myLogger
 from src.metrics.jaccard import calc_jaccard_mean
@@ -76,7 +77,6 @@ class TrainPredPipeline(Pipeline):
             **config["scheduler"], logger=self.logger
         )
 
-    @class_dec_timer(unit="m")
     def run(self) -> None:
         if self.mode == "train":
             self._train()
@@ -85,6 +85,7 @@ class TrainPredPipeline(Pipeline):
         else:
             raise NotImplementedError(f"mode {self.mode} is not supported.")
 
+    @class_error_line_notification(add_traceback=True)
     @class_dec_timer(unit="m")
     def _train(self) -> None:
         # clean best model weights
@@ -173,9 +174,12 @@ class TrainPredPipeline(Pipeline):
 
         val_jaccard_mean = np.mean(best_val_jaccards)
         val_jaccard_std = np.std(best_val_jaccards)
-        self.logger.info(
+        result_stats = (
+            f"finish run for {self.exp_id} !!!\n"
             f"val_jaccard_mean: {val_jaccard_mean} / val_jaccard_std: {val_jaccard_std}"
         )
+        self.logger.info(result_stats)
+        self.logger.send_line_notification(message=result_stats)
         self.logger.wdb_sum(
             sum_dict={
                 "val_jaccard_mean": val_jaccard_mean,
