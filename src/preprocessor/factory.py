@@ -3,6 +3,7 @@ from transformers.models.auto.tokenization_auto import AutoTokenizer
 from src.factory import Factory
 from src.log import myLogger
 from src.preprocessor.preprocessor import (BaselineKernelPreprocessorV1,
+                                           BaselineKernelPreprocessorV2,
                                            Preprocessor)
 from src.repository.data_repository import DataRepository
 
@@ -45,7 +46,7 @@ class PreprocessorFactory(Factory[Preprocessor]):
                 logger=self.logger,
             )
         elif self.preprocessor_type == "baseline_kernel_v2":
-            preprocessor = BaselineKernelPreprocessorV1(
+            preprocessor = BaselineKernelPreprocessorV2(
                 tokenizer=tokenizer,
                 data_repository=data_repository,
                 max_length=self.max_length,
