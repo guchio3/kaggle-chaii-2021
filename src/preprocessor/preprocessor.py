@@ -276,10 +276,22 @@ class BaselineKernelPreprocessorV1(BaselineKernelPreprocessor):
 class BaselineKernelPreprocessorV2(BaselineKernelPreprocessor):
     def _start_char_index(self, row: Series) -> int:
         context = str(row["context"])
+
+        context_start_index = len(context)
+        context_end_index = 0
+        for offset_s, offset_e in row["offset_mapping"]:
+            if offset_s == -1:
+                continue
+            context_start_index = min(offset_s, context_start_index)
+            context_end_index = max(offset_e, context_end_index)
+        if context_start_index == len(context) or context_end_index == 0:
+            raise Exception("failed to search context_part.")
+        context_part = context[context_start_index:context_end_index]
+
         answer_text = str(row["answer_text"])
-        search_res = re.search(answer_text, context)
+        search_res = re.search(answer_text, context_part)
         if search_res is None:
             start_char_index = int(row["answer_start"])
         else:
-            start_char_index = int(search_res.span()[0])
+            start_char_index = context_start_index + int(search_res.span()[0])
         return start_char_index
