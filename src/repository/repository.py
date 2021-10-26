@@ -91,7 +91,7 @@ class Repository:
 
     def __upload_to_gcs(self, src_filepath: str, dst_filepath: str) -> None:
         self.logger.info(
-            f"upload {src_filepath} to gs://{self.bucket_name}/{dst_filepath}"
+            f"uploading {src_filepath} to gs://{self.bucket_name}/{dst_filepath}"
         )
         storage_client = storage.Client()
         bucket = storage_client.bucket(self.bucket_name)
