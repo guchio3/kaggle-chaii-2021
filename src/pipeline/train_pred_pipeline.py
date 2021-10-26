@@ -165,7 +165,11 @@ class TrainPredPipeline(Pipeline):
                     self.data_repository.save_checkpoint(
                         checkpoint=checkpoint, is_best=False
                     )
-            best_val_jaccards.append(max(val_jaccards))
+            best_val_jaccard = max(val_jaccards)
+            best_val_jaccards.append(best_val_jaccard)
+            fold_result_stat = f"best_val_jaccard for exp_id {self.exp_id} fold {fold} : {best_val_jaccard:.5f}"
+            self.logger.info(fold_result_stat)
+            self.logger.send_line_notification(fold_result_stat)
 
             if not self.debug:
                 self.data_repository.extract_and_save_best_fold_epoch_model_state_dict(
