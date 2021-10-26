@@ -178,18 +178,18 @@ class TrainPredPipeline(Pipeline):
 
         val_jaccard_mean = np.mean(best_val_jaccards)
         val_jaccard_std = np.std(best_val_jaccards)
-        result_stats = (
-            f"finish run for {self.exp_id} !!!\n"
-            f"val_jaccard_mean: {val_jaccard_mean} / val_jaccard_std: {val_jaccard_std}"
-        )
-        self.logger.info(result_stats)
-        self.logger.send_line_notification(message=result_stats)
         self.logger.wdb_sum(
             sum_dict={
                 "val_jaccard_mean": val_jaccard_mean,
                 "val_jaccard_std": val_jaccard_std,
             }
         )
+        result_stats = (
+            f"finish train for {self.exp_id} !!!\n"
+            f"val_jaccard_mean: {val_jaccard_mean} / val_jaccard_std: {val_jaccard_std}"
+        )
+        self.logger.info(result_stats)
+        self.logger.send_line_notification(message=result_stats)
 
     @class_dec_timer(unit="m")
     def _train_one_epoch(
