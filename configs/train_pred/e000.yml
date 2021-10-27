@@ -43,5 +43,5 @@ fobj:
     fobj_type: ce
 scheduler:
     scheduler_type: cosine
-    max_epoch: 20
+    max_epoch: 5
     cosine_eta_min: 0.000001
