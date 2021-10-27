@@ -263,6 +263,7 @@ class TrainPredPipeline(Pipeline):
             loss.backward()
             loss.detach()
             if (batch_i + 1) % accum_mod == 0:
+                model.clip_grad_norm()
                 optimizer.step()
                 # optimizer.zero_grad()
                 model.zero_grad()

@@ -15,6 +15,7 @@ class ChaiiXLMRBModel1(Model):
         self,
         pretrained_model_name_or_path: str,
         warmup_epoch: int,
+        max_grad_norm: Optional[float],
         start_loss_weight: float,
         end_loss_weight: float,
         segmentation_loss_weight: float,
@@ -36,6 +37,7 @@ class ChaiiXLMRBModel1(Model):
                 "classifier_conv_end",
             ],
             warmup_epoch=warmup_epoch,
+            max_grad_norm=max_grad_norm,
             start_loss_weight=start_loss_weight,
             end_loss_weight=end_loss_weight,
             segmentation_loss_weight=segmentation_loss_weight,
@@ -82,6 +84,7 @@ class ChaiiQAXLMRBModel1(Model):
         self,
         pretrained_model_name_or_path: str,
         warmup_epoch: int,
+        max_grad_norm: Optional[float],
         start_loss_weight: float,
         end_loss_weight: float,
         segmentation_loss_weight: float,
@@ -98,6 +101,7 @@ class ChaiiQAXLMRBModel1(Model):
             model_type="qa_model",
             warmup_keys=[],
             warmup_epoch=warmup_epoch,
+            max_grad_norm=max_grad_norm,
             start_loss_weight=start_loss_weight,
             end_loss_weight=end_loss_weight,
             segmentation_loss_weight=segmentation_loss_weight,
@@ -136,6 +140,7 @@ class ChaiiQASegXLMRBModel1(Model):
         self,
         pretrained_model_name_or_path: str,
         warmup_epoch: int,
+        max_grad_norm: Optional[float],
         start_loss_weight: float,
         end_loss_weight: float,
         segmentation_loss_weight: float,
@@ -151,6 +156,7 @@ class ChaiiQASegXLMRBModel1(Model):
             model_type="qa_model",
             warmup_keys=[],
             warmup_epoch=warmup_epoch,
+            max_grad_norm=max_grad_norm,
             start_loss_weight=start_loss_weight,
             end_loss_weight=end_loss_weight,
             segmentation_loss_weight=segmentation_loss_weight,
@@ -183,9 +189,9 @@ class ChaiiQASegXLMRBModel1(Model):
         loss = self.start_loss_weight * fobj(start_logits, start_positions)
         loss += self.end_loss_weight * fobj(end_logits, end_positions)
 
-        start_cumsumed = self.solfmax(start_logits).cumsum(dim=1)
+        start_cumsumed = self.softmax(start_logits).cumsum(dim=1)
         end_cumsumed = (
-            self.solfmax(end_logits).flip(dims=[1]).cumsum(dim=1).flip(dims=[1])
+            self.softmax(end_logits).flip(dims=[1]).cumsum(dim=1).flip(dims=[1])
         )
 
         segementation_pred_proba = start_cumsumed * end_cumsumed

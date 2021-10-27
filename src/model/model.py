@@ -1,7 +1,7 @@
 from abc import ABCMeta, abstractmethod
 from typing import Iterator, List, Optional, Tuple
 
-from torch import Tensor
+from torch import Tensor, nn
 from torch.nn import Module
 from torch.nn.modules.loss import _Loss
 from transformers import AutoModel, AutoModelForQuestionAnswering
@@ -16,6 +16,7 @@ class Model(Module, metaclass=ABCMeta):
         model_type: str,
         warmup_keys: List[str],
         warmup_epoch: int,
+        max_grad_norm: Optional[float],
         start_loss_weight: float,
         end_loss_weight: float,
         segmentation_loss_weight: float,
@@ -45,6 +46,7 @@ class Model(Module, metaclass=ABCMeta):
 
         self.warmup_keys = warmup_keys
         self.warmup_epoch = warmup_epoch
+        self.max_grad_norm = max_grad_norm
 
         self.start_loss_weight = start_loss_weight
         self.end_loss_weight = end_loss_weight
@@ -80,6 +82,12 @@ class Model(Module, metaclass=ABCMeta):
             for name, child in self.named_children():
                 for param in child.parameters():
                     param.requires_grad = True
+
+    def clip_grad_norm(self) -> None:
+        if self.max_grad_norm is not None:
+            nn.utils.clip_grad_norm_(
+                self.parameters(), self.max_grad_norm,
+            )
 
     def named_children(self) -> Iterator[Tuple[str, "Module"]]:
         named_children = {
