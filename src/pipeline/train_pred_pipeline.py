@@ -3,6 +3,7 @@ import os
 from typing import Any, Dict, Optional, Tuple
 
 import numpy as np
+import pandas as pd
 import torch
 from pandas import DataFrame
 from torch import Tensor
@@ -58,6 +59,7 @@ class TrainPredPipeline(Pipeline):
         self.trn_batch_size = config["trn_batch_size"]
         self.val_batch_size = config["val_batch_size"]
         self.tst_batch_size = config["tst_batch_size"]
+        self.booster_trn_data = config["booster_trn_data"]
 
         self.preprocessor_factory = PreprocessorFactory(
             **config["preprocessor"], debug=debug, logger=logger
@@ -92,12 +94,31 @@ class TrainPredPipeline(Pipeline):
         self.data_repository.clean_exp_checkpoint(exp_id=self.exp_id)
 
         trn_df = self.data_repository.load_train_df()
+        booster_train_dfs = self.data_repository.load_booster_train_dfs(
+            self.booster_trn_data
+        )
         preprocessor = self.preprocessor_factory.create(
             data_repository=self.data_repository
         )
         preprocessed_trn_df = preprocessor(
-            df=trn_df, enforce_preprocess=self.enforce_preprocess, is_test=False
+            df=trn_df,
+            dataset_name="train",
+            enforce_preprocess=self.enforce_preprocess,
+            is_test=False,
         )
+        preprocessed_booster_train_dfs = []
+        for booster_dataset_name, booster_train_df in booster_train_dfs.items():
+            preprocessed_booster_train_dfs.append(
+                preprocessor(
+                    df=booster_train_df,
+                    dataset_name=booster_dataset_name,
+                    enforce_preprocess=self.enforce_preprocess,
+                    is_test=False,
+                )
+            )
+        preprocessed_booster_train_df = pd.concat(
+            preprocessed_booster_train_dfs, axis=0
+        ).reset_index(drop=True)
 
         splitter = self.splitter_factory.create()
         folds = splitter.split(trn_df["id"], trn_df["language"], groups=None)
@@ -110,6 +131,9 @@ class TrainPredPipeline(Pipeline):
             # fold data
             trn_ids = trn_df.iloc[trn_idx]["id"].tolist()
             fold_trn_df = preprocessed_trn_df.query(f"id in {trn_ids}")
+            fold_trn_df = pd.concat(
+                [fold_trn_df, preprocessed_booster_train_df], axis=0
+            ).reset_index(drop=True)
             trn_loader = self._build_loader(
                 df=fold_trn_df,
                 sampler_type=self.config["sampler"]["trn_sampler_type"],

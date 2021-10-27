@@ -34,7 +34,7 @@ class Preprocessor(metaclass=ABCMeta):
 
     @abstractmethod
     def __call__(
-        self, df: DataFrame, enforce_preprocess: bool, is_test: bool
+        self, df: DataFrame, dataset_name: str, enforce_preprocess: bool, is_test: bool
     ) -> DataFrame:
         raise NotImplementedError()
 
@@ -64,12 +64,13 @@ class BaselineKernelPreprocessor(Preprocessor, metaclass=ABCMeta):
 
     @class_dec_timer(unit="m")
     def __call__(
-        self, df: DataFrame, enforce_preprocess: bool, is_test: bool
+        self, df: DataFrame, dataset_name: str, enforce_preprocess: bool, is_test: bool
     ) -> DataFrame:
         if (
             not enforce_preprocess
             and not is_test
             and self.data_repository.preprocessed_df_exists(
+                dataset_name=dataset_name,
                 class_name=self.__class__.__name__,
                 tokenizer_name=self.tokenizer.__class__.__name__,
                 max_length=self.max_length,
@@ -80,6 +81,7 @@ class BaselineKernelPreprocessor(Preprocessor, metaclass=ABCMeta):
         ):
             self.logger.info("load preprocessed_df because it already exists.")
             res_df = self.data_repository.load_preprocessed_df(
+                dataset_name=dataset_name,
                 class_name=self.__class__.__name__,
                 tokenizer_name=self.tokenizer.__class__.__name__,
                 max_length=self.max_length,
@@ -117,6 +119,7 @@ class BaselineKernelPreprocessor(Preprocessor, metaclass=ABCMeta):
             )
             if not self.debug and not is_test:
                 self.data_repository.save_preprocessed_df(
+                    dataset_name=dataset_name,
                     preprocessed_df=res_df,
                     class_name=self.__class__.__name__,
                     tokenizer_name=self.tokenizer.__class__.__name__,
@@ -144,7 +147,6 @@ class BaselineKernelPreprocessor(Preprocessor, metaclass=ABCMeta):
         use_language_as_question: bool,
         is_test: bool,
     ) -> List[Tuple[int, int, Series, bool]]:
-        is_successed = True
         if tokenizer.cls_token_id is not None:
             cls_token_id = tokenizer.cls_token_id
         else:
@@ -177,6 +179,7 @@ class BaselineKernelPreprocessor(Preprocessor, metaclass=ABCMeta):
                 tokenized_res["offset_mapping"],
             )
         ):
+            is_successed = True
             row_j = deepcopy(row)
             # special_tokens_mask: List[int] = tokenized_res["special_tokens_mask"]
             # sequence_ids: List[int] = tokenized_res["sequence_ids"]
@@ -247,6 +250,7 @@ class BaselineKernelPreprocessor(Preprocessor, metaclass=ABCMeta):
                         for i in range(len(offset_mapping))
                     ]
             reses.append((i, j, row_j, is_successed))
+        reses = self._pre_postprocess(preprocessed_results=reses)
         return reses
 
     def _prep_question(
@@ -265,6 +269,11 @@ class BaselineKernelPreprocessor(Preprocessor, metaclass=ABCMeta):
     @abstractmethod
     def _start_char_index(self, row: Series) -> int:
         raise NotImplementedError()
+
+    def _pre_postprocess(
+        self, preprocessed_results: List[Tuple[int, int, Series, bool]]
+    ) -> List[Tuple[int, int, Series, bool]]:
+        return preprocessed_results
 
 
 class BaselineKernelPreprocessorV1(BaselineKernelPreprocessor):
@@ -289,9 +298,56 @@ class BaselineKernelPreprocessorV2(BaselineKernelPreprocessor):
         context_part = context[context_start_index:context_end_index]
 
         answer_text = str(row["answer_text"])
-        search_res = re.search(answer_text, context_part)
+        try:
+            search_res = re.search(answer_text, context_part)
+        except Exception as e:
+            self.logger.warn(e)
+            search_res = None
+        # no match or exception case
         if search_res is None:
             start_char_index = int(row["answer_start"])
         else:
             start_char_index = context_start_index + int(search_res.span()[0])
         return start_char_index
+
+
+class BaselineKernelPreprocessorV3(BaselineKernelPreprocessorV2):
+    def _pre_postprocess(
+        self, preprocessed_results: List[Tuple[int, int, Series, bool]]
+    ) -> List[Tuple[int, int, Series, bool]]:
+        cls_index = 0
+        res_preprocessed_results = []
+        id_succeeded_cnt = 0
+        for i, j, row, is_successed in preprocessed_results:
+            if is_successed:
+                id_succeeded_cnt += 1
+            if id_succeeded_cnt > 10:
+                is_successed = False
+                row["start_position"] = cls_index
+                row["end_position"] = cls_index
+                row["segmentation_position"] = [1] + [0] * (
+                    len(row["offset_mapping"]) - 1
+                )
+            res_preprocessed_results.append((i, j, row, is_successed))
+        return preprocessed_results
+
+
+class BaselineKernelPreprocessorV4(BaselineKernelPreprocessorV2):
+    def _pre_postprocess(
+        self, preprocessed_results: List[Tuple[int, int, Series, bool]]
+    ) -> List[Tuple[int, int, Series, bool]]:
+        cls_index = 0
+        res_preprocessed_results = []
+        id_succeeded_cnt = 0
+        for i, j, row, is_successed in preprocessed_results:
+            if is_successed:
+                id_succeeded_cnt += 1
+            if id_succeeded_cnt > 2:
+                is_successed = False
+                row["start_position"] = cls_index
+                row["end_position"] = cls_index
+                row["segmentation_position"] = [1] + [0] * (
+                    len(row["offset_mapping"]) - 1
+                )
+            res_preprocessed_results.append((i, j, row, is_successed))
+        return preprocessed_results

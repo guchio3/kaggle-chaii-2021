@@ -1,6 +1,6 @@
 from dataclasses import asdict, dataclass
 from glob import glob
-from typing import List
+from typing import Dict, List
 
 from pandas import DataFrame
 
@@ -23,8 +23,14 @@ class DataRepository(Repository):
     def __sample_submission_filepath_from_root(self) -> str:
         return "data/origin/sample_submission.csv"
 
+    def __filepath_to_filename_wo_extension(self, filepath: str) -> str:
+        filename = filepath.split("/")[-1]
+        filename_wo_extension = filename.split(".")[0]
+        return filename_wo_extension
+
     def __preprocessed_df_filepath_from_root(
         self,
+        dataset_name: str,
         class_name: str,
         tokenizer_name: str,
         max_length: int,
@@ -33,7 +39,7 @@ class DataRepository(Repository):
         use_language_as_question: bool,
     ) -> str:
         return (
-            f"data/preprocessed/{class_name}_{tokenizer_name}_{max_length}_"
+            f"data/preprocessed/{dataset_name}_{class_name}_{tokenizer_name}_{max_length}_"
             f"{pad_on_right}_{stride}_{use_language_as_question}.pkl"
         )
 
@@ -96,8 +102,25 @@ class DataRepository(Repository):
         )
         return df
 
+    def load_booster_train_dfs(
+        self, booster_train_filepaths: List[str]
+    ) -> Dict[str, DataFrame]:
+        booster_train_dfs = {}
+        for booster_train_filepath in booster_train_filepaths:
+            booster_train_filename = self.__filepath_to_filename_wo_extension(
+                booster_train_filepath
+            )
+            booster_train_dfs[booster_train_filename] = self.load(
+                filepath_from_root=booster_train_filepath,
+                mode="dfcsv",
+                load_from_gcs=True,
+                rm_local_after_load=False,
+            )
+        return booster_train_dfs
+
     def preprocessed_df_exists(
         self,
+        dataset_name: str,
         class_name: str,
         tokenizer_name: str,
         max_length: int,
@@ -106,6 +129,7 @@ class DataRepository(Repository):
         use_language_as_question: bool,
     ) -> bool:
         filepath_from_root = self.__preprocessed_df_filepath_from_root(
+            dataset_name=dataset_name,
             class_name=class_name,
             tokenizer_name=tokenizer_name,
             max_length=max_length,
@@ -123,6 +147,7 @@ class DataRepository(Repository):
 
     def save_preprocessed_df(
         self,
+        dataset_name: str,
         preprocessed_df: DataFrame,
         class_name: str,
         tokenizer_name: str,
@@ -132,6 +157,7 @@ class DataRepository(Repository):
         use_language_as_question: bool,
     ) -> None:
         filepath_from_root = self.__preprocessed_df_filepath_from_root(
+            dataset_name=dataset_name,
             class_name=class_name,
             tokenizer_name=tokenizer_name,
             max_length=max_length,
@@ -149,6 +175,7 @@ class DataRepository(Repository):
 
     def load_preprocessed_df(
         self,
+        dataset_name: str,
         class_name: str,
         tokenizer_name: str,
         max_length: int,
@@ -157,6 +184,7 @@ class DataRepository(Repository):
         use_language_as_question: bool,
     ) -> DataFrame:
         filepath_from_root = self.__preprocessed_df_filepath_from_root(
+            dataset_name=dataset_name,
             class_name=class_name,
             tokenizer_name=tokenizer_name,
             max_length=max_length,

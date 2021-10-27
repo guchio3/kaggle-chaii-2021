@@ -1,0 +1,15 @@
+description: "e001 w/ booster train data w/ prepv2 (re.search) label for id"
+train_folds: [0, 1, 2, 3, 4]
+accum_mod: 4
+trn_batch_size: 16
+val_batch_size: 48
+tst_batch_size: 48
+booster_trn_data:
+  - data/dataset/mlqa-hindi-processed/mlqa_hindi.csv
+  - data/dataset/mlqa-hindi-processed/xquad.csv
+preprocessor:
+    preprocessor_type: baseline_kernel_v2
+    tokenizer_type: data/dataset/deepset/xlm-roberta-base-squad2/
+model:
+    model_type: chaii-qa-xlmrb-1
+    pretrained_model_name_or_path: data/dataset/deepset/xlm-roberta-base-squad2/
