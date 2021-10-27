@@ -6,6 +6,7 @@ from src.preprocessor.preprocessor import (BaselineKernelPreprocessorV1,
                                            BaselineKernelPreprocessorV2,
                                            BaselineKernelPreprocessorV3,
                                            BaselineKernelPreprocessorV4,
+                                           BaselineKernelPreprocessorV5,
                                            Preprocessor)
 from src.repository.data_repository import DataRepository
 
@@ -71,6 +72,17 @@ class PreprocessorFactory(Factory[Preprocessor]):
             )
         elif self.preprocessor_type == "baseline_kernel_v4":
             preprocessor = BaselineKernelPreprocessorV4(
+                tokenizer=tokenizer,
+                data_repository=data_repository,
+                max_length=self.max_length,
+                pad_on_right=self.pad_on_right,
+                stride=self.stride,
+                use_language_as_question=self.use_language_as_question,
+                debug=self.debug,
+                logger=self.logger,
+            )
+        elif self.preprocessor_type == "baseline_kernel_v5":
+            preprocessor = BaselineKernelPreprocessorV5(
                 tokenizer=tokenizer,
                 data_repository=data_repository,
                 max_length=self.max_length,

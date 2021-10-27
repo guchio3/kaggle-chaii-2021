@@ -351,3 +351,24 @@ class BaselineKernelPreprocessorV4(BaselineKernelPreprocessorV2):
                 )
             res_preprocessed_results.append((i, j, row, is_successed))
         return preprocessed_results
+
+
+class BaselineKernelPreprocessorV5(BaselineKernelPreprocessorV2):
+    def _pre_postprocess(
+        self, preprocessed_results: List[Tuple[int, int, Series, bool]]
+    ) -> List[Tuple[int, int, Series, bool]]:
+        cls_index = 0
+        res_preprocessed_results = []
+        id_succeeded_cnt = 0
+        for i, j, row, is_successed in preprocessed_results:
+            if is_successed:
+                id_succeeded_cnt += 1
+            if id_succeeded_cnt > 1:
+                is_successed = False
+                row["start_position"] = cls_index
+                row["end_position"] = cls_index
+                row["segmentation_position"] = [1] + [0] * (
+                    len(row["offset_mapping"]) - 1
+                )
+            res_preprocessed_results.append((i, j, row, is_successed))
+        return preprocessed_results
