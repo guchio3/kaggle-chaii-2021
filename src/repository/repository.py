@@ -160,6 +160,9 @@ class Repository:
         storage_client = storage.Client()
         bucket = storage_client.bucket(self.bucket_name)
         blob = bucket.blob(src_filepath)
+        file_dir = "/".join(dst_filepath.split("/")[:-1])
+        if not os.path.exists(file_dir):
+            os.makedirs(file_dir)
         blob.download_to_filename(dst_filepath)
         self.logger.info("download done.")
 
