@@ -2,17 +2,30 @@ from typing import Optional, Tuple
 
 import torch
 from torch import Tensor
-from torch.nn import Conv1d, Dropout
+from torch.nn import Conv1d, Dropout, Softmax
 from torch.nn.modules.loss import _Loss
 
 from src.log import myLogger
+from src.loss import lovasz_hinge
 from src.model.model import Model
 
 
 class ChaiiXLMRBModel1(Model):
     def __init__(
-        self, pretrained_model_name_or_path: str, warmup_epoch: int, logger: myLogger
+        self,
+        pretrained_model_name_or_path: str,
+        warmup_epoch: int,
+        start_loss_weight: float,
+        end_loss_weight: float,
+        segmentation_loss_weight: float,
+        logger: myLogger,
     ) -> None:
+        if segmentation_loss_weight != 0.0:
+            raise Exception(
+                f"segmentation_loss_weight for {self.__class__.__name__} should be 0,"
+                f"{segmentation_loss_weight} was found."
+            )
+
         super().__init__(
             pretrained_model_name_or_path=pretrained_model_name_or_path,
             model_type="model",
@@ -23,6 +36,9 @@ class ChaiiXLMRBModel1(Model):
                 "classifier_conv_end",
             ],
             warmup_epoch=warmup_epoch,
+            start_loss_weight=start_loss_weight,
+            end_loss_weight=end_loss_weight,
+            segmentation_loss_weight=segmentation_loss_weight,
             logger=logger,
         )
         self.classifier_dropout = Dropout(0.2)
@@ -56,20 +72,35 @@ class ChaiiXLMRBModel1(Model):
     ) -> Tensor:
         if fobj is None:
             raise Exception("plz set fobj.")
-        loss = fobj(start_logits, start_positions)
-        loss += fobj(end_logits, end_positions)
+        loss = self.start_loss_weight * fobj(start_logits, start_positions)
+        loss += self.end_loss_weight * fobj(end_logits, end_positions)
         return loss
 
 
 class ChaiiQAXLMRBModel1(Model):
     def __init__(
-        self, pretrained_model_name_or_path: str, warmup_epoch: int, logger: myLogger
+        self,
+        pretrained_model_name_or_path: str,
+        warmup_epoch: int,
+        start_loss_weight: float,
+        end_loss_weight: float,
+        segmentation_loss_weight: float,
+        logger: myLogger,
     ) -> None:
+        if segmentation_loss_weight != 0:
+            raise Exception(
+                f"segmentation_loss_weight for {self.__class__.__name__} should be 0,"
+                f"{segmentation_loss_weight} was found."
+            )
+
         super().__init__(
             pretrained_model_name_or_path=pretrained_model_name_or_path,
             model_type="qa_model",
             warmup_keys=[],
             warmup_epoch=warmup_epoch,
+            start_loss_weight=start_loss_weight,
+            end_loss_weight=end_loss_weight,
+            segmentation_loss_weight=segmentation_loss_weight,
             logger=logger,
         )
 
@@ -95,6 +126,74 @@ class ChaiiQAXLMRBModel1(Model):
     ) -> Tensor:
         if fobj is None:
             raise Exception("plz set fobj.")
-        loss = fobj(start_logits, start_positions)
-        loss += fobj(end_logits, end_positions)
+        loss = self.start_loss_weight * fobj(start_logits, start_positions)
+        loss += self.end_loss_weight * fobj(end_logits, end_positions)
+        return loss
+
+
+class ChaiiQASegXLMRBModel1(Model):
+    def __init__(
+        self,
+        pretrained_model_name_or_path: str,
+        warmup_epoch: int,
+        start_loss_weight: float,
+        end_loss_weight: float,
+        segmentation_loss_weight: float,
+        logger: myLogger,
+    ) -> None:
+        if segmentation_loss_weight == 0:
+            raise Exception(
+                f"segmentation_loss_weight for {self.__class__.__name__} should not be 0."
+            )
+
+        super().__init__(
+            pretrained_model_name_or_path=pretrained_model_name_or_path,
+            model_type="qa_model",
+            warmup_keys=[],
+            warmup_epoch=warmup_epoch,
+            start_loss_weight=start_loss_weight,
+            end_loss_weight=end_loss_weight,
+            segmentation_loss_weight=segmentation_loss_weight,
+            logger=logger,
+        )
+        self.softmax = Softmax(dim=1)
+
+    def forward(
+        self, input_ids: Tensor, attention_masks: Tensor
+    ) -> Tuple[Tensor, Tensor, Tensor]:
+        output = self.model(input_ids=input_ids, attention_mask=attention_masks,)
+        start_logits = output.start_logits
+        end_logits = output.end_logits
+
+        return start_logits, end_logits, torch.zeros(start_logits.shape)
+
+    def calc_loss(
+        self,
+        start_logits: Tensor,
+        end_logits: Tensor,
+        segmentation_logits: Tensor,
+        start_positions: Tensor,
+        end_positions: Tensor,
+        segmentation_positions: Tensor,
+        fobj: Optional[_Loss],
+        segmentation_fobj: Optional[_Loss],
+    ) -> Tensor:
+        if fobj is None:
+            raise Exception("plz set fobj.")
+        loss = self.start_loss_weight * fobj(start_logits, start_positions)
+        loss += self.end_loss_weight * fobj(end_logits, end_positions)
+
+        start_cumsumed = self.solfmax(start_logits).cumsum(dim=1)
+        end_cumsumed = (
+            self.solfmax(end_logits).flip(dims=[1]).cumsum(dim=1).flip(dims=[1])
+        )
+
+        segementation_pred_proba = start_cumsumed * end_cumsumed
+        segmentation_logits = torch.log(
+            (segementation_pred_proba + 1e-10) / (1 - segementation_pred_proba + 1e-10)
+        )
+        loss += self.segmentation_loss_weight * lovasz_hinge(
+            segmentation_logits, segmentation_positions, ignore=-1
+        )
+
         return loss

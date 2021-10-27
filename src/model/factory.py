@@ -1,6 +1,7 @@
 from src.factory import Factory
 from src.log import myLogger
-from src.model.chaii_model import ChaiiQAXLMRBModel1, ChaiiXLMRBModel1
+from src.model.chaii_model import (ChaiiQASegXLMRBModel1, ChaiiQAXLMRBModel1,
+                                   ChaiiXLMRBModel1)
 from src.model.model import Model
 
 
@@ -10,12 +11,18 @@ class ModelFactory(Factory[Model]):
         model_type: str,
         pretrained_model_name_or_path: str,
         warmup_epoch: int,
+        start_loss_weight: float,
+        end_loss_weight: float,
+        segmentation_loss_weight: float,
         logger: myLogger,
     ):
         super().__init__(
             model_type=model_type,
             pretrained_model_name_or_path=pretrained_model_name_or_path,
             warmup_epoch=warmup_epoch,
+            start_loss_weight=start_loss_weight,
+            end_loss_weight=end_loss_weight,
+            segmentation_loss_weight=segmentation_loss_weight,
             logger=logger,
         )
 
@@ -24,12 +31,27 @@ class ModelFactory(Factory[Model]):
             model = ChaiiXLMRBModel1(
                 pretrained_model_name_or_path=self.pretrained_model_name_or_path,
                 warmup_epoch=self.warmup_epoch,
+                start_loss_weight=self.start_loss_weight,
+                end_loss_weight=self.end_loss_weight,
+                segmentation_loss_weight=self.segmentation_loss_weight,
                 logger=self.logger,
             )
         elif self.model_type == "chaii-qa-xlmrb-1":
             model = ChaiiQAXLMRBModel1(
                 pretrained_model_name_or_path=self.pretrained_model_name_or_path,
                 warmup_epoch=self.warmup_epoch,
+                start_loss_weight=self.start_loss_weight,
+                end_loss_weight=self.end_loss_weight,
+                segmentation_loss_weight=self.segmentation_loss_weight,
+                logger=self.logger,
+            )
+        elif self.model_type == "chaii-qa-seg-xlmrb-1":
+            model = ChaiiQASegXLMRBModel1(
+                pretrained_model_name_or_path=self.pretrained_model_name_or_path,
+                warmup_epoch=self.warmup_epoch,
+                start_loss_weight=self.start_loss_weight,
+                end_loss_weight=self.end_loss_weight,
+                segmentation_loss_weight=self.segmentation_loss_weight,
                 logger=self.logger,
             )
         else:

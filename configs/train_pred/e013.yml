@@ -1,0 +1,17 @@
+description: "e007 cumax 1 : 1 : 1"
+train_folds: [0, 1, 2, 3, 4]
+accum_mod: 4
+trn_batch_size: 16
+val_batch_size: 48
+tst_batch_size: 48
+booster_trn_data:
+  - data/dataset/mlqa-hindi-processed/mlqa_hindi.csv
+  - data/dataset/mlqa-hindi-processed/xquad.csv
+preprocessor:
+    tokenizer_type: data/dataset/deepset/xlm-roberta-base-squad2/
+model:
+    model_type: chaii-qa-seg-xlmrb-1
+    pretrained_model_name_or_path: data/dataset/deepset/xlm-roberta-base-squad2/
+    start_loss_weight: 1.0
+    end_loss_weight: 1.0
+    segmentation_loss_weight: 1.0

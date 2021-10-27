@@ -35,6 +35,9 @@ model:
     model_type: chaii-qa-xlmrb-1
     pretrained_model_name_or_path: data/dataset/deepset/xlm-roberta-large-squad2/
     warmup_epoch: 0
+    start_loss_weight: 1.0
+    end_loss_weight: 1.0
+    segmentation_loss_weight: 0.0
 optimizer:
     optimizer_type: adamw
     learning_rate: 0.00003

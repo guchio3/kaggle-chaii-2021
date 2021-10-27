@@ -16,6 +16,9 @@ class Model(Module, metaclass=ABCMeta):
         model_type: str,
         warmup_keys: List[str],
         warmup_epoch: int,
+        start_loss_weight: float,
+        end_loss_weight: float,
+        segmentation_loss_weight: float,
         logger: myLogger,
     ) -> None:
         super().__init__()
@@ -42,6 +45,11 @@ class Model(Module, metaclass=ABCMeta):
 
         self.warmup_keys = warmup_keys
         self.warmup_epoch = warmup_epoch
+
+        self.start_loss_weight = start_loss_weight
+        self.end_loss_weight = end_loss_weight
+        self.segmentation_loss_weight = segmentation_loss_weight
+
         self.logger = logger
 
     @abstractmethod
