@@ -87,7 +87,7 @@ class TrainPredPipeline(Pipeline):
         else:
             raise NotImplementedError(f"mode {self.mode} is not supported.")
 
-    @class_error_line_notification(add_traceback=True)
+    @class_error_line_notification(add_traceback=True, return_value=None)
     @class_dec_timer(unit="m")
     def _train(self) -> None:
         # clean best model weights
