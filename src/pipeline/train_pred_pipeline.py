@@ -106,7 +106,7 @@ class TrainPredPipeline(Pipeline):
         )
         preprocessed_trn_df = preprocessor(
             df=trn_df,
-            dataset_name="train",
+            dataset_name="cleaned_train" if self.cleaned_train else "train",
             enforce_preprocess=self.enforce_preprocess,
             is_test=False,
         )
