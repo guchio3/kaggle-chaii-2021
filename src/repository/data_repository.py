@@ -17,6 +17,9 @@ class DataRepository(Repository):
     def __train_df_filepath_from_root(self) -> str:
         return "data/origin/train.csv"
 
+    def __cleaned_train_df_filepath_from_root(self) -> str:
+        return "data/dataset/cleaned-data-for-chaii/cleaned_train.csv"
+
     def __test_df_filepath_from_root(self) -> str:
         return "data/origin/test.csv"
 
@@ -74,6 +77,16 @@ class DataRepository(Repository):
 
     def load_train_df(self) -> DataFrame:
         filepath_from_root = self.__train_df_filepath_from_root()
+        df: DataFrame = self.load(
+            filepath_from_root=filepath_from_root,
+            mode="dfcsv",
+            load_from_gcs=True,
+            rm_local_after_load=False,
+        )
+        return df
+
+    def load_cleaned_train_df(self) -> DataFrame:
+        filepath_from_root = self.__cleaned_train_df_filepath_from_root()
         df: DataFrame = self.load(
             filepath_from_root=filepath_from_root,
             mode="dfcsv",

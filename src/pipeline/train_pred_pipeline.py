@@ -53,6 +53,7 @@ class TrainPredPipeline(Pipeline):
 
         self.data_repository = DataRepository(logger=logger)
 
+        self.cleaned_train = config["cleaned_train"]
         self.num_epochs = config["num_epochs"]
         self.train_folds = config["train_folds"]
         self.accum_mod = config["accum_mod"]
@@ -93,7 +94,10 @@ class TrainPredPipeline(Pipeline):
         # clean best model weights
         self.data_repository.clean_exp_checkpoint(exp_id=self.exp_id)
 
-        trn_df = self.data_repository.load_train_df()
+        if self.cleaned_train:
+            trn_df = self.data_repository.load_cleaned_train_df()
+        else:
+            trn_df = self.data_repository.load_train_df()
         booster_train_dfs = self.data_repository.load_booster_train_dfs(
             self.booster_trn_data
         )
