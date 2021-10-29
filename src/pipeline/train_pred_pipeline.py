@@ -92,7 +92,7 @@ class TrainPredPipeline(Pipeline):
     @class_dec_timer(unit="m")
     def _train(self) -> None:
         # clean best model weights
-        self.data_repository.clean_exp_checkpoint(exp_id=self.exp_id)
+        self.data_repository.clean_exp_checkpoint(exp_id=self.exp_id, delete_from_gcs=True)
 
         if self.cleaned_train:
             trn_df = self.data_repository.load_cleaned_train_df()
