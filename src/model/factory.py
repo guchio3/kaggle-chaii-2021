@@ -30,7 +30,9 @@ class ModelFactory(Factory[Model]):
             logger=logger,
         )
 
-    def _create(self,) -> Model:
+    def _create(
+        self,
+    ) -> Model:
         if self.model_type == "chaii-xlmrb-1":
             model = ChaiiXLMRBModel1(
                 pretrained_model_name_or_path=self.pretrained_model_name_or_path,

@@ -1,9 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Dict
-
-import yaml
-
+from src.config import ConfigLoader
 from src.factory import Factory
 from src.log import myLogger
 from src.pipeline.pipeline import Pipeline
@@ -18,15 +15,17 @@ class PipelineFactory(Factory[Pipeline]):
         exp_id: str,
         device: str,
         enforce_preprocess: bool,
+        local_root_path: str,
         debug: bool,
     ) -> Pipeline:
-        config = self._load_config_from_yaml(pipeline_type, exp_id)
-        default_config = self._load_config_from_yaml(pipeline_type, "e000")
-        self._fill_config_by_default_config(config, default_config)
+        config_loader = ConfigLoader(local_root_path=local_root_path)
+        config = config_loader.load(
+            pipeline_type=pipeline_type, exp_id=exp_id, default_exp_id="e000"
+        )
 
         use_wdb = self._use_wdb(pipeline_type=pipeline_type, mode=mode, debug=debug)
         logger = myLogger(
-            log_filename=f"./logs/{pipeline_type}/{exp_id}.log",
+            log_filename=f"{local_root_path}/logs/{pipeline_type}/{exp_id}.log",
             exp_id=exp_id,
             wdb_prj_id="kaggle-chaii-2021",
             exp_config=config,
@@ -60,25 +59,3 @@ class PipelineFactory(Factory[Pipeline]):
         raise Exception(
             f"invalid setting, pipeline_type: {pipeline_type} / mode: {mode} / debug: {debug}."
         )
-
-    def _load_config_from_yaml(self, pipeline_type: str, exp_id: str) -> Dict[str, Any]:
-        yaml_filename = f"./configs/{pipeline_type}/{exp_id}.yml"
-        with open(yaml_filename, "r") as fin:
-            config: Dict[str, Any] = yaml.load(fin, Loader=yaml.FullLoader)
-
-        return config
-
-    def _fill_config_by_default_config(
-        self, config_dict: Dict[str, Any], default_config_dict: Dict[str, Any],
-    ) -> None:
-        for (d_key, d_value) in default_config_dict.items():
-            if d_key not in config_dict:
-                config_dict[d_key] = d_value
-            elif isinstance(d_value, dict):
-                self._fill_config_by_default_config(config_dict[d_key], d_value)
-
-        default_config_keys = set(default_config_dict.keys())
-        config_keys = set(config_dict.keys())
-        only_config_keys = config_keys - default_config_keys
-        if len(only_config_keys):
-            raise Exception(f"keys {only_config_keys} do not exist in default config.")

@@ -1,6 +1,7 @@
 import argparse
 
 from pytorch_lightning.utilities.seed import seed_everything
+
 from src.pipeline.factory import PipelineFactory
 
 
@@ -67,6 +68,7 @@ def main():
         exp_id=args.exp_id,
         device=args.device,
         enforce_preprocess=args.enforce_preprocess,
+        local_root_path=".",
         debug=args.debug,
     )
     pipeline.run()

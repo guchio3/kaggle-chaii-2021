@@ -13,18 +13,22 @@ from src.timer import class_dec_timer
 class DataRepository(Repository):
     bucket_name: str = "kaggle-chaii-2021"
     local_root_path: str = "."
+    origin_root_path: str = "data/origin"
+    dataset_root_path: str = "data/dataset"
+    preprocessed_root_path: str = "data/preprocessed"
+    checkpoint_root_path: str = "data/checkpoint"
 
     def __train_df_filepath_from_root(self) -> str:
-        return "data/origin/train.csv"
-
-    def __cleaned_train_df_filepath_from_root(self) -> str:
-        return "data/dataset/cleaned-data-for-chaii/cleaned_train.csv"
+        return f"{self.origin_root_path}/train.csv"
 
     def __test_df_filepath_from_root(self) -> str:
-        return "data/origin/test.csv"
+        return f"{self.origin_root_path}/test.csv"
 
     def __sample_submission_filepath_from_root(self) -> str:
-        return "data/origin/sample_submission.csv"
+        return f"{self.origin_root_path}/sample_submission.csv"
+
+    def __cleaned_train_df_filepath_from_root(self) -> str:
+        return f"{self.dataset_root_path}/cleaned-data-for-chaii/cleaned_train.csv"
 
     def __filepath_to_filename_wo_extension(self, filepath: str) -> str:
         filename = filepath.split("/")[-1]
@@ -42,20 +46,24 @@ class DataRepository(Repository):
         use_language_as_question: bool,
     ) -> str:
         return (
-            f"data/preprocessed/{dataset_name}_{class_name}_{tokenizer_name}_{max_length}_"
-            f"{pad_on_right}_{stride}_{use_language_as_question}.pkl"
+            f"{self.preprocessed_root_path}/{dataset_name}_{class_name}_"
+            f"{tokenizer_name}_{max_length}_{pad_on_right}_"
+            f"{stride}_{use_language_as_question}.pkl"
         )
 
     def __checkpoint_filename_from_root(
         self, exp_id: str, fold: int, epoch: int, val_loss: float, val_jaccard: float
     ) -> str:
-        return f"data/checkpoint/{exp_id}/{fold}/{epoch}_{val_loss:.4f}_{val_jaccard:.4f}.pkl"
+        return (
+            f"{self.checkpoint_root_path}/{exp_id}/{fold}/"
+            f"{epoch}_{val_loss:.4f}_{val_jaccard:.4f}.pkl"
+        )
 
     def __best_checkpoint_filename_from_root(
         self, exp_id: str, fold: int, epoch: int, val_loss: float, val_jaccard: float
     ) -> str:
         return (
-            f"data/checkpoint/{exp_id}/best_checkpoint/"
+            f"{self.checkpoint_root_path}/{exp_id}/best_checkpoint/"
             f"{fold}_{epoch}_{val_loss:.4f}_{val_jaccard:.4f}.pkl"
         )
 
@@ -63,7 +71,7 @@ class DataRepository(Repository):
         self, exp_id: str, fold: int, epoch: int, val_loss: float, val_jaccard: float
     ) -> str:
         return (
-            f"data/checkpoint/{exp_id}/best_model_state_dict/"
+            f"{self.checkpoint_root_path}/{exp_id}/best_model_state_dict/"
             f"model_state_dict_{fold}_{epoch}_{val_loss:.4f}_{val_jaccard:.4f}.pkl"
         )
 
@@ -74,6 +82,9 @@ class DataRepository(Repository):
             checkpoint_filepath_from_root.split("/")[-1].split("_")[2][:-4]
         )  # -4 to remove .pkl
         return score
+
+    def filepath_with_dataset_root(self, filepath_from_dataset_root: str) -> str:
+        return f"{self.dataset_root_path}/{filepath_from_dataset_root}"
 
     def load_train_df(self) -> DataFrame:
         filepath_from_root = self.__train_df_filepath_from_root()
@@ -265,8 +276,11 @@ class DataRepository(Repository):
 
     def load_checkpoint(self, exp_id: str, fold: int, epoch: int) -> Checkpoint:
         # filepaths = self.list_gcs_files(f"data/checkpoint/{exp_id}/{fold}/{epoch}_")
+        # TODO: must use list_local_filepaths_from_root, and add _ to _filepath_with_local_root
         filepaths_with_local_root = glob(
-            self._filepath_with_local_root(f"data/checkpoint/{exp_id}/{fold}/{epoch}_*")
+            self._filepath_with_local_root(
+                f"{self.checkpoint_root_path}/{exp_id}/{fold}/{epoch}_*"
+            )
         )
         if len(filepaths_with_local_root) != 1:
             raise Exception(
@@ -282,12 +296,12 @@ class DataRepository(Repository):
 
     def best_checkpoint_filepaths(self, exp_id: str) -> List[str]:
         filepaths = self.list_gcs_filepaths_from_root(
-            f"data/checkpoint/{exp_id}/best_checkpoint/"
+            f"{self.checkpoint_root_path}/{exp_id}/best_checkpoint/"
         )
         return filepaths
 
     def clean_exp_checkpoint(self, exp_id: str) -> None:
-        prefix = f"data/checkpoint/{exp_id}/"
+        prefix = f"{self.checkpoint_root_path}/{exp_id}/"
         self.logger.info(f"now cleaning files from {prefix} ...")
         filepaths = self.list_gcs_filepaths_from_root(prefix)
         for filepath in filepaths:
@@ -310,7 +324,7 @@ class DataRepository(Repository):
         self, exp_id: str, fold: int
     ) -> None:
         # gcs_filepaths = self.list_gcs_files(f"data/checkpoint/{exp_id}/{fold}/")
-        filepaths = glob(f"data/checkpoint/{exp_id}/{fold}/*")
+        filepaths = glob(f"{self.checkpoint_root_path}/{exp_id}/{fold}/*")
         if len(filepaths) == 0:
             raise Exception("no checkpoints for exp_id:{exp_id} fold: {fold}.")
         best_score = -1.0
@@ -338,12 +352,14 @@ class DataRepository(Repository):
         best_model_state_dict = best_checkpoint.model_state_dict
         if best_model_state_dict is None:
             raise Exception(f"model weight in {best_filepath} is None.")
-        best_model_state_dict_filepath = self.__best_model_state_dict_filename_from_root(
-            exp_id=best_checkpoint.exp_id,
-            fold=best_checkpoint.fold,
-            epoch=best_checkpoint.epoch,
-            val_loss=best_checkpoint.val_loss,
-            val_jaccard=best_checkpoint.val_jaccard,
+        best_model_state_dict_filepath = (
+            self.__best_model_state_dict_filename_from_root(
+                exp_id=best_checkpoint.exp_id,
+                fold=best_checkpoint.fold,
+                epoch=best_checkpoint.epoch,
+                val_loss=best_checkpoint.val_loss,
+                val_jaccard=best_checkpoint.val_jaccard,
+            )
         )
         self.save(
             save_obj=best_model_state_dict,

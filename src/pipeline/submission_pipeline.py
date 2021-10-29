@@ -1,66 +1,51 @@
 import itertools
 import os
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, Optional
 
 import numpy as np
 import pandas as pd
 import torch
 from pandas import DataFrame
-from torch import Tensor
-# from torch.nn import DataParallel
 from torch.nn.modules.loss import _Loss
-from torch.optim import Optimizer
-from torch.optim.lr_scheduler import _LRScheduler
 from torch.utils.data.dataloader import DataLoader
 from tqdm.auto import tqdm
 
 from src.checkpoint.checkpoint import Checkpoint
+from src.config import ConfigLoader
 from src.dataset.factory import DatasetFactory
-from src.error_handling import class_error_line_notification
-from src.fobj.factory import FobjFactory
 from src.log import myLogger
 from src.metrics.jaccard import calc_jaccard_mean
 from src.model.factory import ModelFactory
 from src.model.model import Model
-from src.optimizer.factory import OptimizerFactory
 from src.pipeline.pipeline import Pipeline
 from src.postprocessor.factory import PostprocessorFactory
 from src.preprocessor.factory import PreprocessorFactory
 from src.repository.data_repository import DataRepository
 from src.sampler.factory import SamplerFactory
-from src.scheduler.factory import SchedulerFactory
-from src.splitter.factory import SplitterFactory
 from src.timer import class_dec_timer
 
 
-class TrainPredPipeline(Pipeline):
+class SubmissionPipeline(Pipeline):
     def __init__(
         self,
         exp_id: str,
-        mode: str,
         config: Dict[str, Any],
         device: str,
-        enforce_preprocess: bool,
+        data_origin_root_path: str,
+        config_local_root_path: str,
         debug: bool,
         logger: myLogger,
     ) -> None:
         super().__init__("train_pred", exp_id, logger)
-        self.mode = mode
         self.config = config
         self.device = device
-        self.enforce_preprocess = enforce_preprocess
         self.debug = debug
 
-        self.data_repository = DataRepository(logger=logger)
+        self.data_repository = DataRepository(origin_root_path=data_origin_root_path, logger=logger)
+        self.config_loader = ConfigLoader(local_root_path=config_local_root_path)
 
-        self.cleaned_train = config["cleaned_train"]
-        self.num_epochs = config["num_epochs"]
-        self.train_folds = config["train_folds"]
-        self.accum_mod = config["accum_mod"]
-        self.trn_batch_size = config["trn_batch_size"]
-        self.val_batch_size = config["val_batch_size"]
         self.tst_batch_size = config["tst_batch_size"]
-        self.booster_trn_data = config["booster_trn_data"]
+        self. = config[""]
 
         self.preprocessor_factory = PreprocessorFactory(
             **config["preprocessor"], debug=debug, logger=logger
@@ -68,66 +53,28 @@ class TrainPredPipeline(Pipeline):
         self.postprocessor_factory = PostprocessorFactory(
             **config["postprocessor"], logger=logger
         )
-        self.splitter_factory = SplitterFactory(**config["splitter"], logger=logger)
         self.dataset_factory = DatasetFactory(**config["dataset"], logger=logger)
         self.sampler_factory = SamplerFactory(**config["sampler"], logger=logger)
         self.model_factory = ModelFactory(**config["model"], logger=logger)
-        self.optimizer_factory = OptimizerFactory(
-            **config["optimizer"], logger=self.logger
-        )
-        self.fobj_factory = FobjFactory(**config["fobj"], logger=logger)
-        self.scheduler_factory = SchedulerFactory(
-            **config["scheduler"], logger=self.logger
-        )
 
     def run(self) -> None:
-        if self.mode == "train":
-            self._train()
-        elif self.mode == "pred":
-            self._pred()
-        else:
-            raise NotImplementedError(f"mode {self.mode} is not supported.")
+        self._create_submission()
 
-    @class_error_line_notification(add_traceback=True, return_value=None)
     @class_dec_timer(unit="m")
-    def _train(self) -> None:
-        # clean best model weights
-        self.data_repository.clean_exp_checkpoint(exp_id=self.exp_id)
-
-        if self.cleaned_train:
-            trn_df = self.data_repository.load_cleaned_train_df()
-        else:
-            trn_df = self.data_repository.load_train_df()
-        booster_train_dfs = self.data_repository.load_booster_train_dfs(
-            self.booster_trn_data
-        )
+    def _create_submission(self) -> None:
+        tst_df = self.data_repository.load_test_df()
         preprocessor = self.preprocessor_factory.create(
             data_repository=self.data_repository
         )
         preprocessed_trn_df = preprocessor(
-            df=trn_df,
-            dataset_name="cleaned_train" if self.cleaned_train else "train",
-            enforce_preprocess=self.enforce_preprocess,
-            is_test=False,
+            df=tst_df,
+            dataset_name="test",
+            enforce_preprocess=False,
+            is_test=True,
         )
-        preprocessed_booster_train_dfs = []
-        for booster_dataset_name, booster_train_df in booster_train_dfs.items():
-            preprocessed_booster_train_dfs.append(
-                preprocessor(
-                    df=booster_train_df,
-                    dataset_name=booster_dataset_name,
-                    enforce_preprocess=self.enforce_preprocess,
-                    is_test=False,
-                )
-            )
-        preprocessed_booster_train_df = pd.concat(
-            preprocessed_booster_train_dfs, axis=0
-        ).reset_index(drop=True)
 
-        splitter = self.splitter_factory.create()
-        folds = splitter.split(trn_df["id"], trn_df["language"], groups=None)
+        for exp_id in self.ensemble_exp_ids:
 
-        best_val_jaccards = []
         for fold, (trn_idx, val_idx) in enumerate(folds):
             if fold not in self.train_folds:
                 self.logger.info("skip fold {fold} because it's not in train_folds.")
@@ -181,6 +128,7 @@ class TrainPredPipeline(Pipeline):
                     device=self.device,
                     fold=fold,
                     epoch=epoch,
+                    accum_mod=self.accum_mod,
                     model=model,
                     loader=val_loader,
                     fobj=fobj,
@@ -218,69 +166,6 @@ class TrainPredPipeline(Pipeline):
         self.logger.info(result_stats)
         self.logger.send_line_notification(message=result_stats)
 
-    @class_dec_timer(unit="m")
-    def _train_one_epoch(
-        self,
-        device: str,
-        fold: int,
-        epoch: int,
-        accum_mod: int,
-        loader: DataLoader,
-        model: Model,
-        optimizer: Optimizer,
-        scheduler: _LRScheduler,
-        fobj: Optional[_Loss],
-        segmentation_fobj: Optional[_Loss],
-    ) -> None:
-        # init for train
-        model.warmup(epoch)
-        # if device != "cpu":
-        #     model = DataParallel(model)
-        self._to_device(device=device, model=model, optimizer=optimizer)
-        model.train()
-        model.zero_grad()
-
-        running_loss = 0.0
-        for batch_i, batch in enumerate(tqdm(loader)):
-            input_ids = batch["input_ids"].to(device)
-            attention_masks = batch["attention_mask"].to(device)
-            start_positions = batch["start_position"].to(device)
-            end_positions = batch["end_position"].to(device)
-            segmentation_positions = batch["segmentation_position"].to(device)
-
-            start_logits, end_logits, segmentation_logits = model(
-                input_ids=input_ids, attention_masks=attention_masks,
-            )
-            loss = model.calc_loss(
-                start_logits=start_logits,
-                end_logits=end_logits,
-                segmentation_logits=segmentation_logits,
-                start_positions=start_positions,
-                end_positions=end_positions,
-                segmentation_positions=segmentation_positions,
-                fobj=fobj,
-                segmentation_fobj=segmentation_fobj,
-            )
-            running_loss += loss.item()  # runnig_loss uses non scaled loss
-            loss = loss / accum_mod
-            loss.backward()
-            loss.detach()
-            if (batch_i + 1) % accum_mod == 0:
-                model.clip_grad_norm()
-                optimizer.step()
-                # optimizer.zero_grad()
-                model.zero_grad()
-
-        scheduler.step()
-
-        trn_loss = running_loss / len(loader)
-        self.logger.info(f"fold: {fold} / epoch: {epoch} / trn_loss: {trn_loss:.4f}")
-        self.logger.wdb_log({"epoch": epoch, f"train/fold_{fold}_loss": trn_loss})
-
-        # if device != "cpu":
-        #     model = model.module
-        self._to_device(device="cpu", model=model, optimizer=optimizer)
-
     def _build_loader(
         self,
         df: DataFrame,
@@ -312,12 +197,6 @@ class TrainPredPipeline(Pipeline):
         )
         return loader
 
-    def _build_model(self) -> Tuple[Model, Optimizer, _LRScheduler]:
-        model = self.model_factory.create()
-        optimizer = self.optimizer_factory.create(model=model)
-        scheduler = self.scheduler_factory.create(optimizer=optimizer)
-        return model, optimizer, scheduler
-
     @class_dec_timer(unit="m")
     def _valid(
         self,
@@ -330,8 +209,6 @@ class TrainPredPipeline(Pipeline):
         segmentation_fobj: Optional[_Loss],
         checkpoint: Checkpoint,
     ) -> None:
-        # if device != "cpu":
-        #     model = DataParallel(model)
         model.to(device)
         model.eval()
 
@@ -447,13 +324,4 @@ class TrainPredPipeline(Pipeline):
                 }
             )
 
-        # if device != "cpu":
-        #     model = model.module
         model.to("cpu")
-
-    def _to_device(self, device: str, model: Model, optimizer: Optimizer) -> None:
-        model.to(device)
-        for state in optimizer.state.values():
-            for k, v in state.items():
-                if isinstance(v, Tensor):
-                    state[k] = v.to(device)
