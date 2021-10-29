@@ -67,11 +67,14 @@ class DataRepository(Repository):
             f"{fold}_{epoch}_{val_loss:.4f}_{val_jaccard:.4f}.pkl"
         )
 
+    def __best_model_state_dict_directory_from_root(self, exp_id: str) -> str:
+        return f"{self.checkpoint_root_path}/{exp_id}/best_model_state_dict"
+
     def __best_model_state_dict_filename_from_root(
         self, exp_id: str, fold: int, epoch: int, val_loss: float, val_jaccard: float
     ) -> str:
         return (
-            f"{self.checkpoint_root_path}/{exp_id}/best_model_state_dict/"
+            f"{self.__best_model_state_dict_directory_from_root(exp_id=exp_id)}/"
             f"model_state_dict_{fold}_{epoch}_{val_loss:.4f}_{val_jaccard:.4f}.pkl"
         )
 
@@ -226,6 +229,12 @@ class DataRepository(Repository):
         self.logger.info("done.")
         return df
 
+    def download_best_model_state_dicts(self, exp_id: str) -> None:
+        target_dir = self.__best_model_state_dict_directory_from_root(exp_id=exp_id)
+        filepaths_from_root = self.list_gcs_filepaths_from_root(prefix=target_dir)
+        for filepath_from_root in filepaths_from_root:
+            self.download(filepath_from_root=filepath_from_root)
+
     def load_checkpoint_from_filepath(
         self, filepath_from_root: str, load_from_gcs: bool, rm_local_after_load: bool
     ) -> Checkpoint:
@@ -300,7 +309,7 @@ class DataRepository(Repository):
         )
         return filepaths
 
-    def clean_exp_checkpoint(self, exp_id: str) -> None:
+    def clean_exp_checkpoint(self, exp_id: str, delete_from_gcs: bool) -> None:
         prefix = f"{self.checkpoint_root_path}/{exp_id}/"
         self.logger.info(f"now cleaning files from {prefix} ...")
         filepaths = self.list_gcs_filepaths_from_root(prefix)
@@ -308,7 +317,7 @@ class DataRepository(Repository):
             self.delete(
                 filepath_from_root=filepath,
                 delete_from_local=True,
-                delete_from_gcs=True,
+                delete_from_gcs=delete_from_gcs,
             )
         rest_local_filepaths = self.list_local_filepaths_from_root(prefix)
         for rest_local_filepath in rest_local_filepaths:

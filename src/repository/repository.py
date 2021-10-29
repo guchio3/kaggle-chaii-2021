@@ -153,6 +153,15 @@ class Repository:
             os.remove(filepath_with_local_root)
         return res
 
+    def download(self, filepath_from_root: str) -> None:
+        filepath_with_local_root = self._filepath_with_local_root(
+            filepath_from_root=filepath_from_root
+        )
+        self.__download_from_gcs(
+            src_filepath=filepath_from_root,
+            dst_filepath=filepath_with_local_root,
+        )
+
     def __download_from_gcs(self, src_filepath: str, dst_filepath: str) -> None:
         self.logger.info(
             f"downloading {src_filepath} from gs://{self.bucket_name}/{dst_filepath}"
