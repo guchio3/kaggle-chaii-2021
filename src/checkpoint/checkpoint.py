@@ -58,5 +58,5 @@ class Checkpoint:
 
     def extend_tensor_val_info(self, key: str, val_info: Optional[Tensor]) -> None:
         if val_info is not None:
-            val_info.to("cpu")
+            val_info = val_info.to("cpu")
             getattr(self, key).extend(val_info.tolist())
