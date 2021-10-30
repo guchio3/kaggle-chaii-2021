@@ -249,8 +249,9 @@ class DataRepository(Repository):
         model_state_dict_dir = self.__best_kaggle_kernel_model_state_dict_directory_from_root(
             exp_id=exp_id
         )
+        print(f"model_state_dict_dir: {model_state_dict_dir}")
         model_state_dict_filenames = self.list_local_filepaths_from_root(
-            model_state_dict_dir
+            prefix=model_state_dict_dir
         )
         for model_state_dict_filename in model_state_dict_filenames:
             yield self.load(
