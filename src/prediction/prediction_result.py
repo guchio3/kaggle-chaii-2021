@@ -38,7 +38,8 @@ class PredictionResult:
     def extend_by_tensor(self, key: str, val_info: Optional[Tensor]) -> None:
         if val_info is not None:
             val_info.to("cpu")
-            getattr(self, key).extend(val_info.tolist())
+            getattr(self, key).extend([val_info_i for val_info_i in val_info])
+            # getattr(self, key).extend(val_info.tolist())
 
     def convert_elems_to_char_level(self) -> None:
         new_offset_mappings = []
