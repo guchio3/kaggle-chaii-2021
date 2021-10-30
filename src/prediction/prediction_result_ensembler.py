@@ -30,18 +30,21 @@ class PredictionResultEnsembler:
                 )
             else:
                 if res_prediction_result.ids != prediction_result.ids:
-                    raise Exception("res_prediction_result.ids != prediction_result.ids")
+                    raise Exception(
+                        "res_prediction_result.ids != prediction_result.ids"
+                    )
                 for i in range(len(prediction_result)):
                     res_prediction_result.start_logits[i] += (
                         prediction_result.ensemble_weight
-                        * prediction_result.start_logits
+                        * prediction_result.start_logits[i]
                     )
                     res_prediction_result.end_logits[i] += (
-                        prediction_result.ensemble_weight * prediction_result.end_logits
+                        prediction_result.ensemble_weight
+                        * prediction_result.end_logits[i]
                     )
                     res_prediction_result.segmentation_logits[i] += (
                         prediction_result.ensemble_weight
-                        * prediction_result.segmentation_logits
+                        * prediction_result.segmentation_logits[i]
                     )
         res_prediction_result.convert_elems_to_larger_level_as_possible()
         return res_prediction_result
