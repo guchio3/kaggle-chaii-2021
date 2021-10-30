@@ -16,8 +16,8 @@ class PredictionResultEnsembler:
         res_prediction_result = PredictionResult(ensemble_weight=0)
         self.logger.info(f"now ensembling ...")
         for prediction_result in tqdm(prediction_results):
-            prediction_result.convert_elems_to_char_level()
-            prediction_result.sort_values_based_on_ids()
+            ##### prediction_result.convert_elems_to_char_level()
+            ##### prediction_result.sort_values_based_on_ids()
             if len(res_prediction_result) == 0:
                 res_prediction_result.ids = prediction_result.ids
                 res_prediction_result.offset_mappings = (
@@ -46,5 +46,5 @@ class PredictionResultEnsembler:
                         prediction_result.ensemble_weight
                         * prediction_result.segmentation_logits[i]
                     )
-        res_prediction_result.convert_elems_to_larger_level_as_possible()
+        ##### res_prediction_result.convert_elems_to_larger_level_as_possible()
         return res_prediction_result
