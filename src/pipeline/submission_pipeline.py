@@ -192,7 +192,7 @@ class SubmissionPipeline(Pipeline):
 
                 prediction_result.extend_by_value_list(key="ids", value_list=ids)
                 prediction_result.extend_by_value_list(
-                    key="offset_mapping", value_list=offset_mappings
+                    key="offset_mappings", value_list=offset_mappings
                 )
                 prediction_result.extend_by_tensor(
                     key="val_start_logits", val_info=start_logits
