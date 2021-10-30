@@ -57,7 +57,7 @@ class SubmissionPipeline(Pipeline):
         )
 
         self.local_to_kaggle_kernel = {
-            "data/dataset/deepset/xlm-roberta-large-squad2/": "data/dataset/deepset/xlm-roberta-large-squad2/"
+            "data/dataset/deepset/xlm-roberta-large-squad2/": "../input/deepset/xlm-roberta-large-squad2/"
         }
 
     def run(self) -> None:
@@ -235,3 +235,33 @@ class SubmissionPipeline(Pipeline):
             pin_memory=True,
         )
         return loader
+
+
+if __name__ == "__main__":
+    logger = myLogger(
+        log_filename="./logs/sub_log.log",
+        exp_id="",
+        wdb_prj_id="",
+        exp_config={},
+        use_wdb=False,
+    )
+    config = {
+        "train_exp_ids": ["e016"],
+        "tst_batch_size": 16,
+        "ensemble_weights": {"e016": 1.0},
+        "postprocessor": {
+            "postprocessor_type": "baseline_kernel",
+            "n_best_size": 20,
+            "max_answer_length": 30,
+        },
+    }
+    submission_pipeline = SubmissionPipeline(
+        exp_id="",
+        config=config,
+        device="cuda",
+        data_origin_root_path="data/origin",
+        data_dataset_root_path="data/dataset",
+        config_local_root_path="configs",
+        debug=False,
+        logger=logger,
+    )
