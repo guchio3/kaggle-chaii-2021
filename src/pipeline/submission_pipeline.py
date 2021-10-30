@@ -143,7 +143,7 @@ class SubmissionPipeline(Pipeline):
             .reset_index(drop=True)
             .tolist()
         )
-        answer_texts = ["*"] * len(contexts)
+        answer_texts = [""] * len(contexts)
         pospro_ids, _, pospro_answer_preds = postprocessor(
             ids=ensembled_prediction_result.ids,
             contexts=contexts,

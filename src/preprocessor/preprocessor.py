@@ -199,6 +199,7 @@ class BaselineKernelPreprocessor(Preprocessor, metaclass=ABCMeta):
             ]
             if is_test:
                 is_successed = False
+                row_j["answer_text"] = ""
                 row_j["start_position"] = cls_index
                 row_j["end_position"] = cls_index
                 row_j["segmentation_position"] = [1] + [0] * (len(offset_mapping) - 1)
