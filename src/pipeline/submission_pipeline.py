@@ -52,15 +52,9 @@ class SubmissionPipeline(Pipeline):
         self.tst_batch_size = config["tst_batch_size"]
         self.ensemble_weights = config["ensemble_weights"]
 
-        self.preprocessor_factory = PreprocessorFactory(
-            **config["preprocessor"], debug=debug, logger=logger
-        )
         self.postprocessor_factory = PostprocessorFactory(
             **config["postprocessor"], logger=logger
         )
-        self.dataset_factory = DatasetFactory(**config["dataset"], logger=logger)
-        self.sampler_factory = SamplerFactory(**config["sampler"], logger=logger)
-        self.model_factory = ModelFactory(**config["model"], logger=logger)
 
         self.local_to_kaggle_kernel = {
             "data/dataset/deepset/xlm-roberta-large-squad2/": "data/dataset/deepset/xlm-roberta-large-squad2/"
@@ -79,32 +73,48 @@ class SubmissionPipeline(Pipeline):
                 pipeline_type="train_pred", exp_id=train_exp_id, default_exp_id="e000"
             )
 
+            # preprocessor
             exp_train_config["preprocessor"][
                 "tokenizer_type"
             ] = self.local_to_kaggle_kernel[
                 exp_train_config["preprocessor"]["tokenizer_type"]
             ]
-            preprocessor = self.preprocessor_factory.create(
+            preprocessor_factory = PreprocessorFactory(
+                **exp_train_config["preprocessor"], debug=self.debug, logger=self.logger
+            )
+            preprocessor = preprocessor_factory.create(
                 data_repository=self.data_repository,
-                order_settings=exp_train_config["preprocessor"],
             )
             preprocessed_trn_df = preprocessor(
                 df=tst_df, dataset_name="test", enforce_preprocess=False, is_test=True,
             )
+            # loader
+            dataset_factory = DatasetFactory(
+                **exp_train_config["dataset"], logger=self.logger
+            )
+            sampler_factory = SamplerFactory(
+                **exp_train_config["sampler"], logger=self.logger
+            )
             tst_loader = self._build_loader(
                 df=preprocessed_trn_df,
+                dataset_factory=dataset_factory,
+                sampler_factory=sampler_factory,
                 sampler_type="sequential",
                 batch_size=self.tst_batch_size,
                 drop_last=False,
                 debug=self.debug,
             )
 
+            # model
             exp_train_config["model"][
                 "pretrained_model_name_or_path"
             ] = self.local_to_kaggle_kernel[
                 exp_train_config["model"]["pretrained_model_name_or_path"]
             ]
-            model = self.model_factory.create(order_settings=exp_train_config["model"])
+            model_factory = ModelFactory(
+                **exp_train_config["model"], logger=self.logger
+            )
+            model = model_factory.create(order_settings=exp_train_config["model"])
 
             for (
                 best_model_state_dict
@@ -197,6 +207,8 @@ class SubmissionPipeline(Pipeline):
     def _build_loader(
         self,
         df: DataFrame,
+        dataset_factory: DatasetFactory,
+        sampler_factory: SamplerFactory,
         sampler_type: str,
         batch_size: int,
         drop_last: bool,
@@ -204,8 +216,8 @@ class SubmissionPipeline(Pipeline):
     ) -> DataLoader:
         if debug:
             df = df.iloc[: batch_size * 3]
-        dataset = self.dataset_factory.create(df=df)
-        sampler = self.sampler_factory.create(
+        dataset = dataset_factory.create(df=df)
+        sampler = sampler_factory.create(
             dataset=dataset, order_settings={"sampler_type": sampler_type}
         )
         _cpu_count = os.cpu_count()
