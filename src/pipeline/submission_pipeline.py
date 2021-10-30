@@ -1,3 +1,4 @@
+import gc
 import os
 from typing import Any, Dict
 
@@ -131,6 +132,8 @@ class SubmissionPipeline(Pipeline):
                     loader=tst_loader,
                 )
                 prediction_results.append(prediction_result)
+                del best_model_state_dict
+                gc.collect()
 
         pre = PredictionResultEnsembler(logger=self.logger)
         ensembled_prediction_result = pre.ensemble(
