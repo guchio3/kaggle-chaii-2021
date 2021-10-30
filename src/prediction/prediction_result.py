@@ -114,5 +114,75 @@ class PredictionResult:
         self.end_logits = new_end_logits
         self.segmentation_logits = new_segmentation_logits
 
-    def convert_elems_to_larger_level_as_possible() -> None:
-        1
+    def convert_elems_to_larger_level_as_possible(self) -> None:
+        new_offset_mappings = []
+        new_start_logits = []
+        new_end_logits = []
+        new_segmentation_logits = []
+
+        for i in range(len(self.ids)):
+            (
+                new_offset_mapping,
+                new_start_logit,
+                new_end_logit,
+                new_segmentation_logit,
+            ) = self._convert_elem_to_char_level(
+                offset_mapping=self.offset_mappings[i],
+                start_logit=self.start_logits[i],
+                end_logit=self.end_logits[i],
+                segmentation_logit=self.segmentation_logits[i],
+            )
+            new_offset_mappings.append(new_offset_mapping)
+            new_start_logits.append(new_start_logit)
+            new_end_logits.append(new_end_logit)
+            new_segmentation_logits.append(new_segmentation_logit)
+
+        self.offset_mappings = new_offset_mappings
+        self.start_logits = new_start_logits
+        self.end_logits = new_end_logits
+        self.segmentation_logits = new_segmentation_logits
+
+    def _convert_elems_to_as_larger_level_as_possible(
+        self,
+        offset_mapping: List[Tuple[int, int]],
+        start_logit: Tensor,
+        end_logit: Tensor,
+        segmentation_logit: Tensor,
+    ) -> Tuple[List[Tuple[int, int]], Tensor, Tensor, Tensor]:
+        new_offset_mapping = []
+        new_start_logit = []
+        new_end_logit = []
+        new_segmentation_logit = []
+
+        cur_s, cur_e = offset_mapping[0]
+        bef_start_logit_i = start_logit[0]
+        bef_end_logit_i = end_logit[0]
+        bef_segmentation_logit_i = segmentation_logit[0]
+        for i, (s, e) in enumerate(offset_mapping[1:]):
+            start_logit_i = start_logit[i]
+            end_logit_i = end_logit[i]
+            segmentation_logit_i = segmentation_logit[i]
+            if start_logit_i != bef_start_logit_i:
+                new_offset_mapping.append((cur_s, cur_e))
+                new_start_logit.append(bef_start_logit_i)
+                new_end_logit.append(bef_end_logit_i)
+                new_segmentation_logit.append(bef_segmentation_logit_i)
+
+                cur_s = s
+                bef_start_logit_i = start_logit_i
+                bef_end_logit_i = end_logit_i
+                bef_segmentation_logit_i = segmentation_logit_i
+
+            cur_e = e
+        else:
+            new_offset_mapping.append((cur_s, cur_e))
+            new_start_logit.append(bef_start_logit_i)
+            new_end_logit.append(bef_end_logit_i)
+            new_segmentation_logit.append(bef_segmentation_logit_i)
+
+        return (
+            new_offset_mapping,
+            Tensor(new_start_logit),
+            Tensor(new_end_logit),
+            Tensor(new_segmentation_logit),
+        )

@@ -218,7 +218,6 @@ class SubmissionPipeline(Pipeline):
             batch_size=batch_size,
             sampler=sampler,
             num_workers=num_workers,
-            # num_workers=1,
             worker_init_fn=lambda _: np.random.seed(),
             drop_last=drop_last,
             pin_memory=True,
