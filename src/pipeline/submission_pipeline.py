@@ -195,13 +195,13 @@ class SubmissionPipeline(Pipeline):
                     key="offset_mappings", value_list=offset_mappings
                 )
                 prediction_result.extend_by_tensor(
-                    key="val_start_logits", val_info=start_logits
+                    key="start_logits", val_info=start_logits
                 )
                 prediction_result.extend_by_tensor(
-                    key="val_end_logits", val_info=end_logits
+                    key="end_logits", val_info=end_logits
                 )
                 prediction_result.extend_by_tensor(
-                    key="val_segmentation_logits", val_info=segmentation_logits
+                    key="segmentation_logits", val_info=segmentation_logits
                 )
 
         model.to("cpu")
