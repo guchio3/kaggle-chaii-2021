@@ -1,6 +1,9 @@
+from typing import Optional
+
 from src.factory import Factory
 from src.log import myLogger
-from src.postprocessor.postprocessor import BaselineKernelPostprocessor, Postprocessor
+from src.postprocessor.postprocessor import (BaselineKernelPostprocessor,
+                                             Postprocessor)
 
 
 class PostprocessorFactory(Factory[Postprocessor]):
@@ -9,6 +12,7 @@ class PostprocessorFactory(Factory[Postprocessor]):
         postprocessor_type: str,
         n_best_size: int,
         max_answer_length: int,
+        text_postprocess: Optional[str],
         logger: myLogger,
     ) -> None:
         super().__init__(
@@ -16,6 +20,7 @@ class PostprocessorFactory(Factory[Postprocessor]):
             logger=logger,
             n_best_size=n_best_size,
             max_answer_length=max_answer_length,
+            text_postprocess=text_postprocess,
         )
 
     def _create(self) -> Postprocessor:
@@ -23,6 +28,7 @@ class PostprocessorFactory(Factory[Postprocessor]):
             preprocessor = BaselineKernelPostprocessor(
                 n_best_size=self.n_best_size,
                 max_answer_length=self.max_answer_length,
+                text_postprocess=self.text_postprocess,
                 logger=self.logger,
             )
         else:

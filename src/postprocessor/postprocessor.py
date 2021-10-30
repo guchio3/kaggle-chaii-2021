@@ -2,7 +2,7 @@ import os
 from abc import ABCMeta, abstractmethod
 from functools import partial
 from multiprocessing import Pool
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 from numpy import ndarray
@@ -15,7 +15,11 @@ from src.log import myLogger
 
 class Postprocessor(metaclass=ABCMeta):
     def __init__(
-        self, n_best_size: int, max_answer_length: int, logger: myLogger,
+        self,
+        n_best_size: int,
+        max_answer_length: int,
+        text_postprocess: Optional[str],
+        logger: myLogger,
     ) -> None:
         self.n_best_size = n_best_size
         self.max_answer_length = max_answer_length
@@ -28,9 +32,9 @@ class Postprocessor(metaclass=ABCMeta):
         contexts: List[str],
         answer_texts: List[str],
         offset_mappings: List[List[Tuple[int, int]]],
-        start_logits: List[Tensor], #####  Tensor,
-        end_logits: List[Tensor], #####  Tensor,
-        segmentation_logits: List[Tensor], #####Tensor,
+        start_logits: List[Tensor],  #####  Tensor,
+        end_logits: List[Tensor],  #####  Tensor,
+        segmentation_logits: List[Tensor],  #####Tensor,
     ) -> Tuple[List[str], List[str], List[str]]:
         raise NotImplementedError()
 
@@ -42,9 +46,9 @@ class BaselineKernelPostprocessor(Postprocessor):
         contexts: List[str],
         answer_texts: List[str],
         offset_mappings: List[List[Tuple[int, int]]],
-        start_logits: List[Tensor], #####Tensor,
-        end_logits: List[Tensor], #####Tensor,
-        segmentation_logits: List[Tensor], #####Tensor,
+        start_logits: List[Tensor],  #####Tensor,
+        end_logits: List[Tensor],  #####Tensor,
+        segmentation_logits: List[Tensor],  #####Tensor,
     ) -> Tuple[List[str], List[str], List[str]]:
         self.logger.info("start postprocessing")
 
@@ -70,15 +74,16 @@ class BaselineKernelPostprocessor(Postprocessor):
         raw_df["context"] = contexts
         raw_df["answer_text"] = answer_texts
         raw_df["offset_mapping"] = offset_mappings
-        raw_df["start_logit"] = start_logits #####.tolist()
-        raw_df["end_logit"] = end_logits #####.tolist()
-        raw_df["segmentation_logit"] = segmentation_logits #####.tolist()
+        raw_df["start_logit"] = start_logits  #####.tolist()
+        raw_df["end_logit"] = end_logits  #####.tolist()
+        raw_df["segmentation_logit"] = segmentation_logits  #####.tolist()
 
         with Pool(os.cpu_count()) as p:
             iter_func = partial(
                 _apply_extract_best_answer_pred,
                 n_best_size=self.n_best_size,
                 max_answer_length=self.max_answer_length,
+                text_postprocess=self.text_postprocess,
             )
             imap = p.imap_unordered(iter_func, raw_df.groupby("id"))
             res_sets = list(tqdm(imap, total=raw_df["id"].nunique()))
@@ -98,7 +103,10 @@ class BaselineKernelPostprocessor(Postprocessor):
 
 
 def _apply_extract_best_answer_pred(
-    grp_pair: Tuple[str, DataFrame], n_best_size: int, max_answer_length
+    grp_pair: Tuple[str, DataFrame],
+    n_best_size: int,
+    max_answer_length,
+    text_postprocess: Optional[str],
 ) -> Tuple[str, str, str]:
     id, grp_df = grp_pair
     answer_text = grp_df["answer_text"].iloc[0]
@@ -113,6 +121,7 @@ def _apply_extract_best_answer_pred(
         end_logits=grp_df["end_logit"].tolist(),
         n_best_size=n_best_size,
         max_answer_length=max_answer_length,
+        text_postprocess=text_postprocess,
     )
     return id, answer_text, answer_pred
 
@@ -124,6 +133,7 @@ def _extract_best_answer_pred(
     end_logits: List[List[float]],
     n_best_size: int,
     max_answer_length: int,
+    text_postprocess: Optional[str],
 ) -> str:
     candidates = []
     for context, offset_mapping, start_logit, end_logit in zip(
@@ -140,7 +150,48 @@ def _extract_best_answer_pred(
             )
         )
     best_candidate = _choose_best_candidate(candidates=candidates)
+    if text_postprocess == "baseline_kernel1":
+        best_candidate = baseline_kernel1_text_postprocess(
+            answer_text=best_candidate, context=contexts[0]
+        )
     return best_candidate
+
+
+def baseline_kernel1_text_postprocess(answer_text: str, context: str) -> str:
+    bad_starts = [".", ",", "(", ")", "-", "–", ",", ";"]
+    bad_endings = ["...", "-", "(", ")", "–", ",", ";"]
+
+    tamil_ad = "கி.பி"
+    tamil_bc = "கி.மு"
+    tamil_km = "கி.மீ"
+    hindi_ad = "ई"
+    hindi_bc = "ई.पू"
+
+    if answer_text == "":
+        return answer_text
+    while any([answer_text.startswith(y) for y in bad_starts]):
+        answer_text = answer_text[1:]
+    while any([answer_text.endswith(y) for y in bad_endings]):
+        if answer_text.endswith("..."):
+            answer_text = answer_text[:-3]
+        else:
+            answer_text = answer_text[:-1]
+    if answer_text.endswith("..."):
+        answer_text = answer_text[:-3]
+    if (
+        any(
+            [
+                answer_text.endswith(tamil_ad),
+                answer_text.endswith(tamil_bc),
+                answer_text.endswith(tamil_km),
+                answer_text.endswith(hindi_ad),
+                answer_text.endswith(hindi_bc),
+            ]
+        )
+        and answer_text + "." in context
+    ):
+        answer_text = answer_text + "."
+    return answer_text
 
 
 def _extract_candidate_answer_preds(
