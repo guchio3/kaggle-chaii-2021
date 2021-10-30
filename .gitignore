@@ -3,6 +3,7 @@
 tags
 *__pycache__*
 wandb/
+.kaggle/
 
 logs/*
 data/*/*

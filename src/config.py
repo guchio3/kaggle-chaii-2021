@@ -5,7 +5,7 @@ import yaml
 
 class ConfigLoader:
     def __init__(
-        self, local_root_path: str, config_root_path: str = "config"
+        self, local_root_path: str, config_root_path: str = "configs"
     ) -> None:
         self.local_root_path = local_root_path
         self.config_root_path = config_root_path

@@ -31,6 +31,8 @@ def parse_args():
 
 
 def create_dataset(exp_id: str):
+    os.system("cp -r .kaggle ~")
+    os.system("chmod 600 ~/.kaggle/kaggle.json")
     # download
     logger = myLogger(
         log_filename="./logs/create_best_weight_kaggle_dataset.log",
@@ -48,9 +50,10 @@ def create_dataset(exp_id: str):
     with open(f"{exp_checkpoint_root_path}/dataset-metadata.json", "r") as fin:
         dataset_metadata = json.load(fin)
     dataset_metadata["title"] = f"{exp_id}_best_weights"
-    dataset_metadata["id"] = f"guchio3/{exp_id}_best_weights"
+    dataset_metadata["id"] = f"guchio3/{exp_id}-best-weights"
     with open(f"{exp_checkpoint_root_path}/dataset-metadata.json", "w") as fout:
         json.dump(dataset_metadata, fout)
+    os.system(f"kaggle datasets create -p {exp_checkpoint_root_path} -r tar")
 
     # remove
     dr.clean_exp_checkpoint(exp_id=exp_id, delete_from_gcs=False)

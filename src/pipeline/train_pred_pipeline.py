@@ -376,7 +376,6 @@ class TrainPredPipeline(Pipeline):
                     fobj=fobj,
                     segmentation_fobj=segmentation_fobj,
                 )
-                loss = loss
 
                 start_logits.to("cpu")
                 end_logits.to("cpu")
