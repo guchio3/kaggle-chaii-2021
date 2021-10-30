@@ -23,6 +23,7 @@ class Postprocessor(metaclass=ABCMeta):
     ) -> None:
         self.n_best_size = n_best_size
         self.max_answer_length = max_answer_length
+        self.text_postprocess = text_postprocess
         self.logger = logger
 
     @abstractmethod
