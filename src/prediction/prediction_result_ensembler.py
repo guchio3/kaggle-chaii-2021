@@ -14,12 +14,12 @@ class PredictionResultEnsembler:
     @class_dec_timer(unit="m")
     def ensemble(self, prediction_results: List[PredictionResult]) -> PredictionResult:
         res_prediction_result = PredictionResult(ensemble_weight=0)
-        res_prediction_result.ids = prediction_results[0].ids
         self.logger.info(f"now ensembling ...")
         for prediction_result in tqdm(prediction_results):
             prediction_result.convert_elems_to_char_level()
             prediction_result.sort_values_based_on_ids()
             if len(res_prediction_result) == 0:
+                res_prediction_result.ids = prediction_result.ids
                 res_prediction_result.offset_mappings = (
                     prediction_result.offset_mappings
                 )
@@ -29,6 +29,8 @@ class PredictionResultEnsembler:
                     prediction_result.segmentation_logits
                 )
             else:
+                if res_prediction_result.ids != prediction_result.ids:
+                    raise Exception("res_prediction_result.ids != prediction_result.ids")
                 for i in range(len(prediction_result)):
                     res_prediction_result.start_logits[i] += (
                         prediction_result.ensemble_weight
