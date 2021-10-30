@@ -125,6 +125,8 @@ class SubmissionPipeline(Pipeline):
                 exp_id=train_exp_id
             ):
                 model.load_state_dict(best_model_state_dict)
+                del best_model_state_dict
+                gc.collect()
                 prediction_result = self._predict(
                     device=self.device,
                     ensemble_weight=self.ensemble_weights[train_exp_id],
@@ -132,8 +134,8 @@ class SubmissionPipeline(Pipeline):
                     loader=tst_loader,
                 )
                 prediction_results.append(prediction_result)
-                del best_model_state_dict
-                gc.collect()
+            del model
+            gc.collect()
 
         pre = PredictionResultEnsembler(logger=self.logger)
         ensembled_prediction_result = pre.ensemble(

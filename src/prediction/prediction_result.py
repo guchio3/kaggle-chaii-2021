@@ -22,11 +22,11 @@ class PredictionResult:
             or len(self.end_logits) != len(self.segmentation_logits)
         ):
             raise Exception(
-                "len of elems are different."
-                f"ids: {len(self.ids)}"
-                f"offset_mappings: {len(self.offset_mappings)}"
-                f"start_logits: {len(self.start_logits)}"
-                f"end_logits: {len(self.end_logits)}"
+                "len of elems are different. "
+                f"ids: {len(self.ids)} "
+                f"offset_mappings: {len(self.offset_mappings)} "
+                f"start_logits: {len(self.start_logits)} "
+                f"end_logits: {len(self.end_logits)} "
                 f"segmentation_logits: {len(self.segmentation_logits)}"
             )
         return len(self.ids)

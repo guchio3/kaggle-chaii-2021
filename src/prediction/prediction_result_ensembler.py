@@ -14,6 +14,7 @@ class PredictionResultEnsembler:
     @class_dec_timer(unit="m")
     def ensemble(self, prediction_results: List[PredictionResult]) -> PredictionResult:
         res_prediction_result = PredictionResult(ensemble_weight=0)
+        res_prediction_result.ids = prediction_results[0].ids
         self.logger.info(f"now ensembling ...")
         for prediction_result in tqdm(prediction_results):
             prediction_result.convert_elems_to_char_level()
