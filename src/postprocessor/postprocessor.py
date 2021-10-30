@@ -28,9 +28,9 @@ class Postprocessor(metaclass=ABCMeta):
         contexts: List[str],
         answer_texts: List[str],
         offset_mappings: List[List[Tuple[int, int]]],
-        start_logits: Tensor,
-        end_logits: Tensor,
-        segmentation_logits: Tensor,
+        start_logits: List[Tensor], #####  Tensor,
+        end_logits: List[Tensor], #####  Tensor,
+        segmentation_logits: List[Tensor], #####Tensor,
     ) -> Tuple[List[str], List[str], List[str]]:
         raise NotImplementedError()
 
@@ -42,9 +42,9 @@ class BaselineKernelPostprocessor(Postprocessor):
         contexts: List[str],
         answer_texts: List[str],
         offset_mappings: List[List[Tuple[int, int]]],
-        start_logits: Tensor,
-        end_logits: Tensor,
-        segmentation_logits: Tensor,
+        start_logits: List[Tensor], #####Tensor,
+        end_logits: List[Tensor], #####Tensor,
+        segmentation_logits: List[Tensor], #####Tensor,
     ) -> Tuple[List[str], List[str], List[str]]:
         self.logger.info("start postprocessing")
 
@@ -70,9 +70,9 @@ class BaselineKernelPostprocessor(Postprocessor):
         raw_df["context"] = contexts
         raw_df["answer_text"] = answer_texts
         raw_df["offset_mapping"] = offset_mappings
-        raw_df["start_logit"] = start_logits.tolist()
-        raw_df["end_logit"] = end_logits.tolist()
-        raw_df["segmentation_logit"] = segmentation_logits.tolist()
+        raw_df["start_logit"] = start_logits #####.tolist()
+        raw_df["end_logit"] = end_logits #####.tolist()
+        raw_df["segmentation_logit"] = segmentation_logits #####.tolist()
 
         with Pool(os.cpu_count()) as p:
             iter_func = partial(

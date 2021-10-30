@@ -154,11 +154,9 @@ class SubmissionPipeline(Pipeline):
             contexts=contexts,
             answer_texts=answer_texts,
             offset_mappings=ensembled_prediction_result.offset_mappings,
-            start_logits=torch.cat(ensembled_prediction_result.start_logits, dim=1),
-            end_logits=torch.cat(ensembled_prediction_result.end_logits, dim=1),
-            segmentation_logits=torch.cat(
-                ensembled_prediction_result.segmentation_logits, dim=1
-            ),
+            start_logits=ensembled_prediction_result.start_logits,
+            end_logits=ensembled_prediction_result.end_logits,
+            segmentation_logits=ensembled_prediction_result.segmentation_logits,
         )
         sub_df = pd.DataFrame()
         sub_df["id"] = pospro_ids
