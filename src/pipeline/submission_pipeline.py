@@ -32,6 +32,7 @@ class SubmissionPipeline(Pipeline):
         device: str,
         data_origin_root_path: str,
         data_dataset_root_path: str,
+        data_checkpoint_root_path: str,
         config_local_root_path: str,
         debug: bool,
         logger: myLogger,
@@ -44,6 +45,7 @@ class SubmissionPipeline(Pipeline):
         self.data_repository = DataRepository(
             origin_root_path=data_origin_root_path,
             dataset_root_path=data_dataset_root_path,
+            checkpoint_root_path=data_checkpoint_root_path,
             logger=logger,
         )
         self.config_loader = ConfigLoader(local_root_path=config_local_root_path)
@@ -149,7 +151,9 @@ class SubmissionPipeline(Pipeline):
             offset_mappings=ensembled_prediction_result.offset_mappings,
             start_logits=torch.cat(ensembled_prediction_result.start_logits),
             end_logits=torch.cat(ensembled_prediction_result.end_logits),
-            segmentation_logits=torch.cat(ensembled_prediction_result.segmentation_logits),
+            segmentation_logits=torch.cat(
+                ensembled_prediction_result.segmentation_logits
+            ),
         )
         sub_df = pd.DataFrame()
         sub_df["id"] = pospro_ids

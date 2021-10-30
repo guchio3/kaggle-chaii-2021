@@ -201,7 +201,6 @@ class Repository:
         prefix_with_local_root = self._filepath_with_local_root(
             filepath_from_root=prefix
         )
-        print(f"prefix_with_local_root: {prefix_with_local_root}")
         filepaths_from_root = []
         for cur_dir, _, filenames in os.walk(prefix_with_local_root):
             for filename in filenames:
