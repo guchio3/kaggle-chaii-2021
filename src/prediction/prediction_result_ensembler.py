@@ -129,13 +129,15 @@ class PredictionResultEnsembler:
                 max_count = int(count.max())
                 count[zero_cnt_index] = max_count
                 start_min_value = float(self.body[id]["start_logit"].min())
-                self.body[id]["start_logit"][count] = start_min_value
+                self.body[id]["start_logit"][zero_cnt_index] = start_min_value
                 end_min_value = float(self.body[id]["end_logit"].min())
-                self.body[id]["end_logit"][count] = end_min_value
+                self.body[id]["end_logit"][zero_cnt_index] = end_min_value
                 segmentation_min_value = float(
                     self.body[id]["segmentation_logit"].min()
                 )
-                self.body[id]["segmentation_logit"][count] = segmentation_min_value
+                self.body[id]["segmentation_logit"][
+                    zero_cnt_index
+                ] = segmentation_min_value
 
             res_prediction_result.ids.append(id)
             id_context_len = self.id_to_context_len[id]
