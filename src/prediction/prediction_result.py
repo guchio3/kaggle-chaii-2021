@@ -31,6 +31,15 @@ class PredictionResult:
             )
         return len(self.ids)
 
+    def get(self, i: int) -> Tuple[str, List[Tuple[int, int]], Tensor, Tensor, Tensor]:
+        return (
+            self.ids[i],
+            self.offset_mappings[i],
+            self.start_logits[i],
+            self.end_logits[i],
+            self.segmentation_logits[i],
+        )
+
     def extend_by_value_list(self, key: str, value_list: Optional[List[str]]) -> None:
         if value_list is not None:
             getattr(self, key).extend(value_list)
@@ -41,59 +50,59 @@ class PredictionResult:
             getattr(self, key).extend([val_info_i for val_info_i in val_info])
             # getattr(self, key).extend(val_info.tolist())
 
-    def convert_elems_to_char_level(self) -> None:
-        new_offset_mappings = []
-        new_start_logits = []
-        new_end_logits = []
-        new_segmentation_logits = []
+    # def convert_elems_to_char_level(self) -> None:
+    #     new_offset_mappings = []
+    #     new_start_logits = []
+    #     new_end_logits = []
+    #     new_segmentation_logits = []
 
-        for i in range(len(self.ids)):
-            (
-                new_offset_mapping,
-                new_start_logit,
-                new_end_logit,
-                new_segmentation_logit,
-            ) = self._convert_elem_to_char_level(
-                offset_mapping=self.offset_mappings[i],
-                start_logit=self.start_logits[i],
-                end_logit=self.end_logits[i],
-                segmentation_logit=self.segmentation_logits[i],
-            )
-            new_offset_mappings.append(new_offset_mapping)
-            new_start_logits.append(new_start_logit)
-            new_end_logits.append(new_end_logit)
-            new_segmentation_logits.append(new_segmentation_logit)
+    #     for i in range(len(self.ids)):
+    #         (
+    #             new_offset_mapping,
+    #             new_start_logit,
+    #             new_end_logit,
+    #             new_segmentation_logit,
+    #         ) = self._convert_elem_to_char_level(
+    #             offset_mapping=self.offset_mappings[i],
+    #             start_logit=self.start_logits[i],
+    #             end_logit=self.end_logits[i],
+    #             segmentation_logit=self.segmentation_logits[i],
+    #         )
+    #         new_offset_mappings.append(new_offset_mapping)
+    #         new_start_logits.append(new_start_logit)
+    #         new_end_logits.append(new_end_logit)
+    #         new_segmentation_logits.append(new_segmentation_logit)
 
-        self.offset_mappings = new_offset_mappings
-        self.start_logits = new_start_logits
-        self.end_logits = new_end_logits
-        self.segmentation_logits = new_segmentation_logits
+    #     self.offset_mappings = new_offset_mappings
+    #     self.start_logits = new_start_logits
+    #     self.end_logits = new_end_logits
+    #     self.segmentation_logits = new_segmentation_logits
 
-    def _convert_elem_to_char_level(
-        self,
-        offset_mapping: List[Tuple[int, int]],
-        start_logit: Tensor,
-        end_logit: Tensor,
-        segmentation_logit: Tensor,
-    ) -> Tuple[List[Tuple[int, int]], Tensor, Tensor, Tensor]:
-        new_offset_mapping = []
-        new_start_logit = []
-        new_end_logit = []
-        new_segmentation_logit = []
-        for i, (s, e) in enumerate(offset_mapping):
-            if s == -1:
-                continue
-            for j in range(s, e):
-                new_offset_mapping.append((j, j + 1))
-                new_start_logit.append(start_logit[i])
-                new_end_logit.append(end_logit[i])
-                new_segmentation_logit.append(segmentation_logit[i])
-        return (
-            new_offset_mapping,
-            Tensor(new_start_logit),
-            Tensor(new_end_logit),
-            Tensor(new_segmentation_logit),
-        )
+    # def _convert_elem_to_char_level(
+    #     self,
+    #     offset_mapping: List[Tuple[int, int]],
+    #     start_logit: Tensor,
+    #     end_logit: Tensor,
+    #     segmentation_logit: Tensor,
+    # ) -> Tuple[List[Tuple[int, int]], Tensor, Tensor, Tensor]:
+    #     new_offset_mapping = []
+    #     new_start_logit = []
+    #     new_end_logit = []
+    #     new_segmentation_logit = []
+    #     for i, (s, e) in enumerate(offset_mapping):
+    #         if s == -1:
+    #             continue
+    #         for j in range(s, e):
+    #             new_offset_mapping.append((j, j + 1))
+    #             new_start_logit.append(start_logit[i])
+    #             new_end_logit.append(end_logit[i])
+    #             new_segmentation_logit.append(segmentation_logit[i])
+    #     return (
+    #         new_offset_mapping,
+    #         Tensor(new_start_logit),
+    #         Tensor(new_end_logit),
+    #         Tensor(new_segmentation_logit),
+    #     )
 
     def sort_values_based_on_ids(self) -> None:
         new_ids = []
