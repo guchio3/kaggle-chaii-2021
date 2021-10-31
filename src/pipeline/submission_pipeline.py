@@ -60,7 +60,8 @@ class SubmissionPipeline(Pipeline):
         )
 
         self.local_to_kaggle_kernel = {
-            "data/dataset/deepset/xlm-roberta-large-squad2/": "../input/deepset/xlm-roberta-large-squad2/"
+            "data/dataset/deepset/xlm-roberta-large-squad2/": "../input/deepset/xlm-roberta-large-squad2/",
+            "data/dataset/muril-large-cased/": "../input/muril-large-cased/",
         }
 
     def run(self) -> None:
