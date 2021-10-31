@@ -203,13 +203,17 @@ def _add_operation(
     segmentation_logit: List[float],
 ) -> None:
     # ) -> Tuple[List[int], List[float], List[float], List[float]]:
-    for (s_i, e_i), start_logit_i, end_logit_i, segmentation_logit_i in zip(
-        offset_mapping, start_logit, end_logit, segmentation_logit
-    ):
+    for i in range(len(offset_mapping)):
+        offset_mapping_i = offset_mapping[i]
+        s_i = offset_mapping_i[0]
+        e_i = offset_mapping_i[1]
+        start_logit_i = start_logit[i]
+        end_logit_i = end_logit[i]
+        segmentation_logit_i = segmentation_logit[i]
         if s_i == -1:
             continue
         for j in range(s_i, e_i):
             count += 1
-            base_start_logit += ensemble_weight * start_logit_i
-            base_end_logit += ensemble_weight * end_logit_i
-            base_segmentation_logit += ensemble_weight * segmentation_logit_i
+            base_start_logit[j] += ensemble_weight * start_logit_i
+            base_end_logit[j] += ensemble_weight * end_logit_i
+            base_segmentation_logit[j] += ensemble_weight * segmentation_logit_i
