@@ -88,7 +88,7 @@ class SubmissionPipeline(Pipeline):
             preprocessor = preprocessor_factory.create(
                 data_repository=self.data_repository,
             )
-            preprocessed_trn_df = preprocessor(
+            preprocessed_tst_df = preprocessor(
                 df=tst_df, dataset_name="test", enforce_preprocess=False, is_test=True,
             )
             # loader
@@ -99,7 +99,7 @@ class SubmissionPipeline(Pipeline):
                 **exp_train_config["sampler"], logger=self.logger
             )
             tst_loader = self._build_loader(
-                df=preprocessed_trn_df,
+                df=preprocessed_tst_df,
                 dataset_factory=dataset_factory,
                 sampler_factory=sampler_factory,
                 sampler_type="sequential",
@@ -134,6 +134,7 @@ class SubmissionPipeline(Pipeline):
                     loader=tst_loader,
                 )
                 prediction_results.append(prediction_result)
+                gc.collect()
             del model
             gc.collect()
 
@@ -189,9 +190,9 @@ class SubmissionPipeline(Pipeline):
                     end_logits = end_logits.reshape(1, -1)
                     segmentation_logits = segmentation_logits.reshape(1, -1)
 
-                start_logits.to("cpu")
-                end_logits.to("cpu")
-                segmentation_logits.to("cpu")
+                start_logits = start_logits.to("cpu")
+                end_logits = end_logits.to("cpu")
+                segmentation_logits = segmentation_logits.to("cpu")
 
                 prediction_result.extend_by_value_list(key="ids", value_list=ids)
                 prediction_result.extend_by_value_list(
@@ -268,6 +269,7 @@ if __name__ == "__main__":
         device="cuda",
         data_origin_root_path="data/origin",
         data_dataset_root_path="data/dataset",
+        data_checkpoint_root_path="data/checkpoint",
         config_local_root_path="configs",
         debug=False,
         logger=logger,
