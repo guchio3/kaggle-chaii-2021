@@ -17,9 +17,9 @@ class Checkpoint:
     optimizer_state_dict: Optional[Dict[str, Tensor]] = None
     scheduler_state_dict: Optional[Dict[str, Tensor]] = None
     val_ids: List[str] = field(default_factory=list)
-    val_start_logits: List[float] = field(default_factory=list)
-    val_end_logits: List[float] = field(default_factory=list)
-    val_segmentation_logits: List[float] = field(default_factory=list)
+    val_start_logits: List[Tensor] = field(default_factory=list)
+    val_end_logits: List[Tensor] = field(default_factory=list)
+    val_segmentation_logits: List[Tensor] = field(default_factory=list)
     val_pospro_ids: List[str] = field(default_factory=list)
     val_pospro_answer_texts: List[str] = field(default_factory=list)
     val_pospro_answer_preds: List[str] = field(default_factory=list)
