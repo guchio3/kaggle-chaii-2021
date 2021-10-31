@@ -19,6 +19,7 @@ class PredictionResultEnsembler:
             ##### prediction_result.convert_elems_to_char_level()
             ##### prediction_result.sort_values_based_on_ids()
             if len(res_prediction_result) == 0:
+                self.logger.info("len = 0")
                 res_prediction_result.ids = prediction_result.ids
                 res_prediction_result.offset_mappings = (
                     prediction_result.offset_mappings
@@ -29,6 +30,7 @@ class PredictionResultEnsembler:
                     prediction_result.segmentation_logits
                 )
             else:
+                self.logger.info(f"len = {len(res_prediction_result)}")
                 if res_prediction_result.ids != prediction_result.ids:
                     raise Exception(
                         "res_prediction_result.ids != prediction_result.ids"
