@@ -1,11 +1,19 @@
 from typing import Dict, List, Tuple
 
 import torch
+from pandas import DataFrame
 from torch import Tensor
 from tqdm.auto import tqdm
 
 from src.log import myLogger
 from src.prediction.prediction_result import PredictionResult
+
+
+def calc_id_to_context_len(df: DataFrame):
+    id_to_context_len = {}
+    for _, row in df.iterrows():
+        id_to_context_len[str(row["id"])] = len(row["context"])
+    return id_to_context_len
 
 
 def ensemble_prediction_results(
@@ -110,14 +118,20 @@ class PredictionResultEnsembler:
         # temptemptemptemp
         res_prediction_result = PredictionResult(ensemble_weight=0)
         for id in self.body.keys():
-            id_context_len = self.id_to_context_len[id]
+            count = self.body[id]["count"]
+            if (count == 0).any().item():
+                raise Exception(f"count contains 0, {count}")
+
             res_prediction_result.ids.append(id)
+            id_context_len = self.id_to_context_len[id]
             res_prediction_result.offset_mappings.append(
                 [(i, i + 1) for i in range(id_context_len)]
             )
-            res_prediction_result.start_logits.append(self.body[id]["start_logit"])
-            res_prediction_result.end_logits.append(self.body[id]["end_logit"])
+            res_prediction_result.start_logits.append(
+                self.body[id]["start_logit"] / count
+            )
+            res_prediction_result.end_logits.append(self.body[id]["end_logit"] / count)
             res_prediction_result.segmentation_logits.append(
-                self.body[id]["segmentation_logit"]
+                self.body[id]["segmentation_logit"] / count
             )
         return res_prediction_result

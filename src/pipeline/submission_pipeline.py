@@ -17,8 +17,8 @@ from src.model.model import Model
 from src.pipeline.pipeline import Pipeline
 from src.postprocessor.factory import PostprocessorFactory
 from src.prediction.prediction_result import PredictionResult
-from src.prediction.prediction_result_ensembler import \
-    PredictionResultEnsembler
+from src.prediction.prediction_result_ensembler import (
+    calc_id_to_context_len, ensemble_prediction_results)
 from src.preprocessor.factory import PreprocessorFactory
 from src.repository.data_repository import DataRepository
 from src.sampler.factory import SamplerFactory
@@ -138,9 +138,11 @@ class SubmissionPipeline(Pipeline):
             del model
             gc.collect()
 
-        pre = PredictionResultEnsembler(logger=self.logger)
-        ensembled_prediction_result = pre.ensemble(
-            prediction_results=prediction_results
+        id_to_context_len = calc_id_to_context_len(df=tst_df)
+        ensembled_prediction_result = ensemble_prediction_results(
+            prediction_results=prediction_results,
+            id_to_context_len=id_to_context_len,
+            logger=logger,
         )
         postprocessor = self.postprocessor_factory.create()
         contexts = (
