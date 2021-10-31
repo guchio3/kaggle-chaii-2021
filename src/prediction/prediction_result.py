@@ -136,7 +136,7 @@ class PredictionResult:
                 new_start_logit,
                 new_end_logit,
                 new_segmentation_logit,
-            ) = self._convert_elem_to_char_level(
+            ) = self._convert_elems_to_as_larger_level_as_possible(
                 offset_mapping=self.offset_mappings[i],
                 start_logit=self.start_logits[i],
                 end_logit=self.end_logits[i],
