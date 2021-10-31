@@ -1,6 +1,7 @@
 from typing import Dict, List, Tuple
 
 import torch
+from numba import jit
 from pandas import DataFrame
 from torch import Tensor
 from tqdm.auto import tqdm
@@ -83,6 +84,7 @@ class PredictionResultEnsembler:
         self.id_to_context_len = id_to_context_len
         self.logger = logger
 
+    @jit
     def add(
         self,
         ensemble_weight: float,
@@ -103,6 +105,8 @@ class PredictionResultEnsembler:
         for (s_i, e_i), start_logit_i, end_logit_i, segmentation_logit_i in zip(
             offset_mapping, start_logit, end_logit, segmentation_logit
         ):
+            if s_i == -1:
+                continue
             for j in range(s_i, e_i):
                 self.body[id]["start_logit"][j] += ensemble_weight * start_logit_i
                 self.body[id]["end_logit"][j] += ensemble_weight * end_logit_i
@@ -119,8 +123,19 @@ class PredictionResultEnsembler:
         res_prediction_result = PredictionResult(ensemble_weight=0)
         for id in self.body.keys():
             count = self.body[id]["count"]
+            # some chars are ignored, so count == 0. for ex, 6th of 22bff3dec
             if (count == 0).any().item():
-                raise Exception(f"count contains 0, {count}")
+                zero_cnt_index = torch.where(count == 0)
+                max_count = int(count.max())
+                count[zero_cnt_index] = max_count
+                start_min_value = float(self.body[id]["start_logit"].min())
+                self.body[id]["start_logit"][count] = start_min_value
+                end_min_value = float(self.body[id]["end_logit"].min())
+                self.body[id]["end_logit"][count] = end_min_value
+                segmentation_min_value = float(
+                    self.body[id]["segmentation_logit"].min()
+                )
+                self.body[id]["segmentation_logit"][count] = segmentation_min_value
 
             res_prediction_result.ids.append(id)
             id_context_len = self.id_to_context_len[id]
