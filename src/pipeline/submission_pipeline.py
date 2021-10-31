@@ -143,7 +143,7 @@ class SubmissionPipeline(Pipeline):
         ensembled_prediction_result = ensemble_prediction_results(
             prediction_results=prediction_results,
             id_to_context_len=id_to_context_len,
-            logger=logger,
+            logger=self.logger,
         )
         postprocessor = self.postprocessor_factory.create()
         contexts = (
