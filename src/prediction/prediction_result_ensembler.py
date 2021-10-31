@@ -213,7 +213,7 @@ def _add_operation(
         if s_i == -1:
             continue
         for j in range(s_i, e_i):
-            count += 1
+            count[j] += 1
             base_start_logit[j] += ensemble_weight * start_logit_i
             base_end_logit[j] += ensemble_weight * end_logit_i
             base_segmentation_logit[j] += ensemble_weight * segmentation_logit_i
