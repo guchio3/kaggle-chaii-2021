@@ -223,8 +223,8 @@ def _add_operation(
         offset_mapping_i = offset_mapping[i]
         s_i = offset_mapping_i[0]
         e_i = offset_mapping_i[1]
-        # if s_i == -1:
-        #     continue
+        if s_i == -1:
+            continue
         start_logit_i = start_logit[i]
         end_logit_i = end_logit[i]
         segmentation_logit_i = segmentation_logit[i]
