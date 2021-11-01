@@ -70,6 +70,8 @@ class SubmissionPipeline(Pipeline):
     @class_dec_timer(unit="m")
     def _create_submission(self) -> None:
         tst_df = self.data_repository.load_test_df()
+        if len(tst_df) < 100:
+            tst_df = pd.concat([tst_df for _ in range(200)]).reset_index(drop=True)
 
         prediction_results = []
         for train_exp_id in self.train_exp_ids:
