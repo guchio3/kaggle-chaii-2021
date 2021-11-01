@@ -18,7 +18,8 @@ from src.pipeline.pipeline import Pipeline
 from src.postprocessor.factory import PostprocessorFactory
 from src.prediction.prediction_result import PredictionResult
 from src.prediction.prediction_result_ensembler import (
-    calc_id_to_context_len, ensemble_prediction_results)
+    PredictionResultEnsembler, calc_id_to_context_len,
+    ensemble_prediction_result, ensemble_prediction_results)
 from src.preprocessor.factory import PreprocessorFactory
 from src.repository.data_repository import DataRepository
 from src.sampler.factory import SamplerFactory
@@ -72,8 +73,12 @@ class SubmissionPipeline(Pipeline):
         tst_df = self.data_repository.load_test_df()
         if len(tst_df) < 10:
             tst_df = pd.concat([tst_df for _ in range(5)]).reset_index(drop=True)
+        id_to_context_len = calc_id_to_context_len(df=tst_df)
+        prediction_result_ensembler = PredictionResultEnsembler(
+            id_to_context_len=id_to_context_len, logger=logger
+        )
 
-        prediction_results = []
+        # prediction_results = []
         for train_exp_id in self.train_exp_ids:
             exp_train_config = self.config_loader.load(
                 pipeline_type="train_pred", exp_id=train_exp_id, default_exp_id="e000"
@@ -92,7 +97,10 @@ class SubmissionPipeline(Pipeline):
                 data_repository=self.data_repository,
             )
             preprocessed_tst_df = preprocessor(
-                df=tst_df, dataset_name="test", enforce_preprocess=False, is_test=True,
+                df=tst_df,
+                dataset_name="test",
+                enforce_preprocess=False,
+                is_test=True,
             )
             # loader
             dataset_factory = DatasetFactory(
@@ -120,13 +128,13 @@ class SubmissionPipeline(Pipeline):
             model_factory = ModelFactory(
                 **exp_train_config["model"], logger=self.logger
             )
-            model = model_factory.create(order_settings=exp_train_config["model"])
 
             for (
                 best_model_state_dict
             ) in self.data_repository.iter_kaggle_kernel_best_model_state_dict(
                 exp_id=train_exp_id
             ):
+                model = model_factory.create(order_settings=exp_train_config["model"])
                 model.load_state_dict(best_model_state_dict)
                 del best_model_state_dict
                 gc.collect()
@@ -136,18 +144,31 @@ class SubmissionPipeline(Pipeline):
                     model=model,
                     loader=tst_loader,
                 )
-                prediction_results.append(prediction_result)
+                del model
                 gc.collect()
-                break
-            del model
+                # prediction_results.append(prediction_result)
+                ensemble_prediction_result(
+                    prediction_result_ensembler=prediction_result_ensembler,
+                    prediction_result=prediction_result,
+                    logger=self.logger
+                )
+                del prediction_result
+                gc.collect()
+                # break
             gc.collect()
 
-        id_to_context_len = calc_id_to_context_len(df=tst_df)
-        ensembled_prediction_result = ensemble_prediction_results(
-            prediction_results=prediction_results,
-            id_to_context_len=id_to_context_len,
-            logger=self.logger,
-        )
+        ensembled_prediction_result = prediction_result_ensembler.to_prediction_result()
+        del prediction_result_ensembler
+        gc.collect()
+        ensembled_prediction_result.sort_values_based_on_ids()
+        ensembled_prediction_result.convert_elems_to_larger_level_as_possible()
+
+        # id_to_context_len = calc_id_to_context_len(df=tst_df)
+        # ensembled_prediction_result = ensemble_prediction_results(
+        #     prediction_results=prediction_results,
+        #     id_to_context_len=id_to_context_len,
+        #     logger=self.logger,
+        # )
         postprocessor = self.postprocessor_factory.create()
         contexts = (
             tst_df.set_index("id")
@@ -172,7 +193,11 @@ class SubmissionPipeline(Pipeline):
 
     @class_dec_timer(unit="m")
     def _predict(
-        self, device: str, ensemble_weight: float, model: Model, loader: DataLoader,
+        self,
+        device: str,
+        ensemble_weight: float,
+        model: Model,
+        loader: DataLoader,
     ) -> PredictionResult:
         model.to(device)
         model.eval()
@@ -186,7 +211,8 @@ class SubmissionPipeline(Pipeline):
                 attention_masks = batch["attention_mask"].to(device)
 
                 start_logits, end_logits, segmentation_logits = model(
-                    input_ids=input_ids, attention_masks=attention_masks,
+                    input_ids=input_ids,
+                    attention_masks=attention_masks,
                 )
                 if start_logits.dim() == 1:
                     self.logger.info(

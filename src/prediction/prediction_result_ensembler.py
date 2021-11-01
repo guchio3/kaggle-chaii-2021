@@ -10,74 +10,7 @@ from tqdm.auto import tqdm
 
 from src.log import myLogger
 from src.prediction.prediction_result import PredictionResult
-
-
-def calc_id_to_context_len(df: DataFrame):
-    id_to_context_len = {}
-    for _, row in df.iterrows():
-        id_to_context_len[str(row["id"])] = len(row["context"])
-    return id_to_context_len
-
-
-def ensemble_prediction_results(
-    prediction_results: List[PredictionResult],
-    id_to_context_len: Dict[str, int],
-    logger: myLogger,
-) -> PredictionResult:
-    prediction_result_ensembler = PredictionResultEnsembler(
-        id_to_context_len=id_to_context_len, logger=logger
-    )
-
-    # res_prediction_result = PredictionResult(ensemble_weight=0)
-    logger.info("now ensembling ...")
-    for prediction_result in tqdm(prediction_results):
-        for i in range(len(prediction_result)):
-            (
-                id,
-                offset_mapping,
-                start_logit,
-                end_logit,
-                segmentaton_logit,
-            ) = prediction_result.get(i)
-            prediction_result_ensembler.add(
-                ensemble_weight=prediction_result.ensemble_weight,
-                id=id,
-                offset_mapping=offset_mapping,
-                start_logit=start_logit,
-                end_logit=end_logit,
-                segmentation_logit=segmentaton_logit,
-            )
-        # ##### prediction_result.convert_elems_to_char_level()
-        # ##### prediction_result.sort_values_based_on_ids()
-        # if len(res_prediction_result) == 0:
-        #     logger.info("len = 0")
-        #     res_prediction_result.ids = prediction_result.ids
-        #     res_prediction_result.offset_mappings = prediction_result.offset_mappings
-        #     res_prediction_result.start_logits = prediction_result.start_logits
-        #     res_prediction_result.end_logits = prediction_result.end_logits
-        #     res_prediction_result.segmentation_logits = (
-        #         prediction_result.segmentation_logits
-        #     )
-        # else:
-        #     logger.info(f"len = {len(res_prediction_result)}")
-        #     if res_prediction_result.ids != prediction_result.ids:
-        #         raise Exception("res_prediction_result.ids != prediction_result.ids")
-        #     for i in range(len(prediction_result)):
-        #         res_prediction_result.start_logits[i] += (
-        #             prediction_result.ensemble_weight
-        #             * prediction_result.start_logits[i]
-        #         )
-        #         res_prediction_result.end_logits[i] += (
-        #             prediction_result.ensemble_weight * prediction_result.end_logits[i]
-        #         )
-        #         res_prediction_result.segmentation_logits[i] += (
-        #             prediction_result.ensemble_weight
-        #             * prediction_result.segmentation_logits[i]
-        #         )
-    res_prediction_result = prediction_result_ensembler.to_prediction_result()
-    res_prediction_result.sort_values_based_on_ids()
-    res_prediction_result.convert_elems_to_larger_level_as_possible()
-    return res_prediction_result
+from src.timer import dec_timer
 
 
 class PredictionResultEnsembler:
@@ -98,10 +31,6 @@ class PredictionResultEnsembler:
         if id not in self.body:
             id_context_len = self.id_to_context_len[id]
             self.body[id] = {
-                #"count": [0] * id_context_len,
-                #"start_logit": [0.0] * id_context_len,
-                #"end_logit": [0.0] * id_context_len,
-                #"segmentation_logit": [0.0] * id_context_len,
                 "count": np.zeros(id_context_len),
                 "start_logit": np.zeros(id_context_len),
                 "end_logit": np.zeros(id_context_len),
@@ -118,17 +47,6 @@ class PredictionResultEnsembler:
             base_segmentation_logit=self.body[id]["segmentation_logit"],
             segmentation_logit=segmentation_logit.numpy(),
         )
-        # _add_operation(
-        #     ensemble_weight=ensemble_weight,
-        #     offset_mapping=offset_mapping.numpy(),  # .tolist()
-        #     count=self.body[id]["count"],
-        #     base_start_logit=self.body[id]["start_logit"],
-        #     start_logit=start_logit.tolist(),
-        #     base_end_logit=self.body[id]["end_logit"],
-        #     end_logit=end_logit.tolist(),
-        #     base_segmentation_logit=self.body[id]["segmentation_logit"],
-        #     segmentation_logit=segmentation_logit.tolist(),
-        # )
 
     # def add(
     #     self,
@@ -235,58 +153,95 @@ def _add_operation(
             base_segmentation_logit[j] += ensemble_weight * segmentation_logit_i
 
 
-# @jit
-# def raw_ensemble_function(
-#     ensemble_weight: float,
-#     ids: List[str],
-#     offset_mappings: List[List[Tuple[int, int]]],
-#     start_logits: List[List[float]],
-#     end_logits: List[List[float]],
-#     segmentation_logits: List[List[float]],
-#     id_to_context_len: Dict[str, int],
-# ) -> None:
-#     counts = []
-#     base_start_logits = []
-#     base_end_logits = []
-#     base_segmentation_logits = []
-#     for i in range(len(ids)):
-#         id = ids[i]
-#         id_context_len = id_to_context_len[id]
-#         offset_mapping = offset_mappings[i]
-#         start_logit = start_logits[i]
-#         end_logit = end_logits [i]
-#         segmentation_logit = segmentation_logits[i]
-#
-#         if id not in self.body:
-#             id_context_len = self.id_to_context_len[id]
-#             self.body[id] = {
-#                 "count": [0] * id_context_len,
-#                 "start_logit": [0.0] * id_context_len,
-#                 "end_logit": [0.0] * id_context_len,
-#                 "segmentation_logit": [0.0] * id_context_len,
-#             }
-#         _add_operation(
-#             ensemble_weight=ensemble_weight,
-#             offset_mapping=offset_mapping.tolist(),
-#             count=self.body[id]["count"],
-#             base_start_logit=self.body[id]["start_logit"],
-#             start_logit=start_logit,
-#             base_end_logit=self.body[id]["end_logit"],
-#             end_logit=end_logit,
-#             base_segmentation_logit=self.body[id]["segmentation_logit"],
-#             segmentation_logit=segmentation_logit,
-#         )
-#
-#         for (s_i, e_i), start_logit_i, end_logit_i, segmentation_logit_i in zip(
-#             offset_mapping, start_logit, end_logit, segmentation_logit
-#         ):
-#             if s_i == -1:
-#                 continue
-#             for j in range(s_i, e_i):
-#                 self.body[id]["count"][j] += 1
-#                 self.body[id]["start_logit"][j] += ensemble_weight * start_logit_i
-#                 self.body[id]["end_logit"][j] += ensemble_weight * end_logit_i
-#                 self.body[id]["segmentation_logit"][j] += (
-#                     ensemble_weight * segmentation_logit_i
-#                 )
-#
+def calc_id_to_context_len(df: DataFrame):
+    id_to_context_len = {}
+    for _, row in df.iterrows():
+        id_to_context_len[str(row["id"])] = len(row["context"])
+    return id_to_context_len
+
+
+def ensemble_prediction_results(
+    prediction_results: List[PredictionResult],
+    id_to_context_len: Dict[str, int],
+    logger: myLogger,
+) -> PredictionResult:
+    prediction_result_ensembler = PredictionResultEnsembler(
+        id_to_context_len=id_to_context_len, logger=logger
+    )
+
+    # res_prediction_result = PredictionResult(ensemble_weight=0)
+    logger.info("now ensembling ...")
+    for prediction_results in tqdm(prediction_results):
+        for i in range(len(prediction_results)):
+            (
+                id,
+                offset_mapping,
+                start_logit,
+                end_logit,
+                segmentaton_logit,
+            ) = prediction_results.get(i)
+            prediction_result_ensembler.add(
+                ensemble_weight=prediction_results.ensemble_weight,
+                id=id,
+                offset_mapping=offset_mapping,
+                start_logit=start_logit,
+                end_logit=end_logit,
+                segmentation_logit=segmentaton_logit,
+            )
+        # ##### prediction_result.convert_elems_to_char_level()
+        # ##### prediction_result.sort_values_based_on_ids()
+        # if len(res_prediction_result) == 0:
+        #     logger.info("len = 0")
+        #     res_prediction_result.ids = prediction_result.ids
+        #     res_prediction_result.offset_mappings = prediction_result.offset_mappings
+        #     res_prediction_result.start_logits = prediction_result.start_logits
+        #     res_prediction_result.end_logits = prediction_result.end_logits
+        #     res_prediction_result.segmentation_logits = (
+        #         prediction_result.segmentation_logits
+        #     )
+        # else:
+        #     logger.info(f"len = {len(res_prediction_result)}")
+        #     if res_prediction_result.ids != prediction_result.ids:
+        #         raise Exception("res_prediction_result.ids != prediction_result.ids")
+        #     for i in range(len(prediction_result)):
+        #         res_prediction_result.start_logits[i] += (
+        #             prediction_result.ensemble_weight
+        #             * prediction_result.start_logits[i]
+        #         )
+        #         res_prediction_result.end_logits[i] += (
+        #             prediction_result.ensemble_weight * prediction_result.end_logits[i]
+        #         )
+        #         res_prediction_result.segmentation_logits[i] += (
+        #             prediction_result.ensemble_weight
+        #             * prediction_result.segmentation_logits[i]
+        #         )
+    res_prediction_result = prediction_result_ensembler.to_prediction_result()
+    res_prediction_result.sort_values_based_on_ids()
+    res_prediction_result.convert_elems_to_larger_level_as_possible()
+    return res_prediction_result
+
+
+@dec_timer(unit="m")
+def ensemble_prediction_result(
+    prediction_result_ensembler: PredictionResultEnsembler,
+    prediction_result: PredictionResult,
+    logger: myLogger,
+) -> None:
+    logger.info("now ensembling ...")
+    for prediction_result in tqdm(prediction_result):
+        for i in range(len(prediction_result)):
+            (
+                id,
+                offset_mapping,
+                start_logit,
+                end_logit,
+                segmentaton_logit,
+            ) = prediction_result.get(i)
+            prediction_result_ensembler.add(
+                ensemble_weight=prediction_result.ensemble_weight,
+                id=id,
+                offset_mapping=offset_mapping,
+                start_logit=start_logit,
+                end_logit=end_logit,
+                segmentation_logit=segmentaton_logit,
+            )
