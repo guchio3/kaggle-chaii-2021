@@ -106,11 +106,11 @@ class PredictionResultEnsembler:
             offset_mapping=offset_mapping.tolist(),
             count=self.body[id]["count"],
             base_start_logit=self.body[id]["start_logit"],
-            start_logit=start_logit,
+            start_logit=start_logit.tolist(),
             base_end_logit=self.body[id]["end_logit"],
-            end_logit=end_logit,
+            end_logit=end_logit.tolist(),
             base_segmentation_logit=self.body[id]["segmentation_logit"],
-            segmentation_logit=segmentation_logit,
+            segmentation_logit=segmentation_logit.tolist(),
         )
 
         # for (s_i, e_i), start_logit_i, end_logit_i, segmentation_logit_i in zip(
