@@ -2,6 +2,7 @@ import os
 
 
 def main():
+    os.system("git commit -am 'temp'")
     os.system("git pull")
     os.system("mkdir ./temp_kaggle_upload")
     os.system("cp -r configs ./temp_kaggle_upload")
