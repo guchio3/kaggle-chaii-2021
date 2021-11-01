@@ -18,11 +18,13 @@ class Postprocessor(metaclass=ABCMeta):
         self,
         n_best_size: int,
         max_answer_length: int,
+        use_chars_length: bool,
         text_postprocess: Optional[str],
         logger: myLogger,
     ) -> None:
         self.n_best_size = n_best_size
         self.max_answer_length = max_answer_length
+        self.use_chars_length = use_chars_length
         self.text_postprocess = text_postprocess
         self.logger = logger
 
@@ -33,9 +35,9 @@ class Postprocessor(metaclass=ABCMeta):
         contexts: List[str],
         answer_texts: List[str],
         offset_mappings: List[List[Tuple[int, int]]],
-        start_logits: List[Tensor],  #####  Tensor,
-        end_logits: List[Tensor],  #####  Tensor,
-        segmentation_logits: List[Tensor],  #####Tensor,
+        start_logits: List[Tensor],
+        end_logits: List[Tensor],
+        segmentation_logits: List[Tensor],
     ) -> Tuple[List[str], List[str], List[str]]:
         raise NotImplementedError()
 
@@ -47,9 +49,9 @@ class BaselineKernelPostprocessor(Postprocessor):
         contexts: List[str],
         answer_texts: List[str],
         offset_mappings: List[List[Tuple[int, int]]],
-        start_logits: List[Tensor],  #####Tensor,
-        end_logits: List[Tensor],  #####Tensor,
-        segmentation_logits: List[Tensor],  #####Tensor,
+        start_logits: List[Tensor],
+        end_logits: List[Tensor],
+        segmentation_logits: List[Tensor],
     ) -> Tuple[List[str], List[str], List[str]]:
         self.logger.info("start postprocessing")
 
@@ -75,15 +77,16 @@ class BaselineKernelPostprocessor(Postprocessor):
         raw_df["context"] = contexts
         raw_df["answer_text"] = answer_texts
         raw_df["offset_mapping"] = offset_mappings
-        raw_df["start_logit"] = start_logits  #####.tolist()
-        raw_df["end_logit"] = end_logits  #####.tolist()
-        raw_df["segmentation_logit"] = segmentation_logits  #####.tolist()
+        raw_df["start_logit"] = start_logits
+        raw_df["end_logit"] = end_logits
+        raw_df["segmentation_logit"] = segmentation_logits
 
         with Pool(os.cpu_count()) as p:
             iter_func = partial(
                 _apply_extract_best_answer_pred,
                 n_best_size=self.n_best_size,
                 max_answer_length=self.max_answer_length,
+                use_chars_length=self.use_chars_length,
                 text_postprocess=self.text_postprocess,
             )
             imap = p.imap_unordered(iter_func, raw_df.groupby("id"))
@@ -107,6 +110,7 @@ def _apply_extract_best_answer_pred(
     grp_pair: Tuple[str, DataFrame],
     n_best_size: int,
     max_answer_length,
+    use_chars_length: bool,
     text_postprocess: Optional[str],
 ) -> Tuple[str, str, str]:
     id, grp_df = grp_pair
@@ -122,6 +126,7 @@ def _apply_extract_best_answer_pred(
         end_logits=grp_df["end_logit"].tolist(),
         n_best_size=n_best_size,
         max_answer_length=max_answer_length,
+        use_chars_length=use_chars_length,
         text_postprocess=text_postprocess,
     )
     return id, answer_text, answer_pred
@@ -134,6 +139,7 @@ def _extract_best_answer_pred(
     end_logits: List[List[float]],
     n_best_size: int,
     max_answer_length: int,
+    use_chars_length: bool,
     text_postprocess: Optional[str],
 ) -> str:
     candidates = []
@@ -148,6 +154,7 @@ def _extract_best_answer_pred(
                 end_logit=np.asarray(end_logit),
                 n_best_size=n_best_size,
                 max_answer_length=max_answer_length,
+                use_chars_length=use_chars_length,
             )
         )
     best_candidate = _choose_best_candidate(candidates=candidates)
@@ -202,6 +209,7 @@ def _extract_candidate_answer_preds(
     end_logit: ndarray,
     n_best_size: int,
     max_answer_length: int,
+    use_chars_length: bool,
 ) -> List[str]:
     start_indexes = np.argsort(start_logit)[-1 : -n_best_size - 1 : -1].tolist()
     end_indexes = np.argsort(end_logit)[-1 : -n_best_size - 1 : -1].tolist()
@@ -218,17 +226,20 @@ def _extract_candidate_answer_preds(
                 or offset_mapping[end_index][0] == -1
             ):
                 continue
+
+            start_char_index = offset_mapping[start_index][0]
+            end_char_index = offset_mapping[end_index][1]
+            extracted_text = context[start_char_index:end_char_index]
             # Don't consider answers with a length that is either < 0 or > max_answer_length.
-            if (
-                end_index < start_index
-                or end_index - start_index + 1 > max_answer_length
+            if end_index < start_index or (
+                (use_chars_length and len(extracted_text) > max_answer_length)
+                or (
+                    not use_chars_length
+                    and end_index - start_index + 1 > max_answer_length
+                )
             ):
                 continue
 
-            start_char = offset_mapping[start_index][0]
-            end_char = offset_mapping[end_index][1]
-
-            extracted_text = context[start_char:end_char]
             score = float(start_logit[start_index] + end_logit[end_index])
             candidates.append({"extracted_text": extracted_text, "score": score})
     return candidates

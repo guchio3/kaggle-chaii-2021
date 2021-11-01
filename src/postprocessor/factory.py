@@ -12,6 +12,7 @@ class PostprocessorFactory(Factory[Postprocessor]):
         postprocessor_type: str,
         n_best_size: int,
         max_answer_length: int,
+        use_chars_length: bool,
         text_postprocess: Optional[str],
         logger: myLogger,
     ) -> None:
@@ -20,6 +21,7 @@ class PostprocessorFactory(Factory[Postprocessor]):
             logger=logger,
             n_best_size=n_best_size,
             max_answer_length=max_answer_length,
+            use_chars_length=use_chars_length,
             text_postprocess=text_postprocess,
         )
 
@@ -28,6 +30,7 @@ class PostprocessorFactory(Factory[Postprocessor]):
             preprocessor = BaselineKernelPostprocessor(
                 n_best_size=self.n_best_size,
                 max_answer_length=self.max_answer_length,
+                use_chars_length=self.use_chars_length,
                 text_postprocess=self.text_postprocess,
                 logger=self.logger,
             )
