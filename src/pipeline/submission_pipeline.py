@@ -75,7 +75,7 @@ class SubmissionPipeline(Pipeline):
             tst_df = pd.concat([tst_df for _ in range(5)]).reset_index(drop=True)
         id_to_context_len = calc_id_to_context_len(df=tst_df)
         prediction_result_ensembler = PredictionResultEnsembler(
-            id_to_context_len=id_to_context_len, logger=logger
+            id_to_context_len=id_to_context_len, logger=self.logger
         )
 
         # prediction_results = []
