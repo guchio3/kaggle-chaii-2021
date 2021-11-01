@@ -27,7 +27,7 @@ def ensemble_prediction_results(
     )
 
     # res_prediction_result = PredictionResult(ensemble_weight=0)
-    logger.info(f"now ensembling ...")
+    logger.info("now ensembling ...")
     for prediction_result in tqdm(prediction_results):
         for i in range(len(prediction_result)):
             (
@@ -113,18 +113,18 @@ class PredictionResultEnsembler:
             segmentation_logit=segmentation_logit,
         )
 
-        for (s_i, e_i), start_logit_i, end_logit_i, segmentation_logit_i in zip(
-            offset_mapping, start_logit, end_logit, segmentation_logit
-        ):
-            if s_i == -1:
-                continue
-            for j in range(s_i, e_i):
-                self.body[id]["count"][j] += 1
-                self.body[id]["start_logit"][j] += ensemble_weight * start_logit_i
-                self.body[id]["end_logit"][j] += ensemble_weight * end_logit_i
-                self.body[id]["segmentation_logit"][j] += (
-                    ensemble_weight * segmentation_logit_i
-                )
+        # for (s_i, e_i), start_logit_i, end_logit_i, segmentation_logit_i in zip(
+        #     offset_mapping, start_logit, end_logit, segmentation_logit
+        # ):
+        #     if s_i == -1:
+        #         continue
+        #     for j in range(s_i, e_i):
+        #         self.body[id]["count"][j] += 1
+        #         self.body[id]["start_logit"][j] += ensemble_weight * start_logit_i
+        #         self.body[id]["end_logit"][j] += ensemble_weight * end_logit_i
+        #         self.body[id]["segmentation_logit"][j] += (
+        #             ensemble_weight * segmentation_logit_i
+        #         )
 
     # def add(
     #     self,
@@ -190,7 +190,7 @@ class PredictionResultEnsembler:
         return res_prediction_result
 
 
-@jit
+@jit(nopython=True)
 def _add_operation(
     ensemble_weight: float,
     offset_mapping: List[Tuple[int, int]],
@@ -204,16 +204,74 @@ def _add_operation(
 ) -> None:
     # ) -> Tuple[List[int], List[float], List[float], List[float]]:
     for i in range(len(offset_mapping)):
+        # for i in range(100):
         offset_mapping_i = offset_mapping[i]
         s_i = offset_mapping_i[0]
         e_i = offset_mapping_i[1]
+        if s_i == -1:
+            continue
         start_logit_i = start_logit[i]
         end_logit_i = end_logit[i]
         segmentation_logit_i = segmentation_logit[i]
-        if s_i == -1:
-            continue
         for j in range(s_i, e_i):
             count[j] += 1
             base_start_logit[j] += ensemble_weight * start_logit_i
             base_end_logit[j] += ensemble_weight * end_logit_i
             base_segmentation_logit[j] += ensemble_weight * segmentation_logit_i
+
+
+# @jit
+# def raw_ensemble_function(
+#     ensemble_weight: float,
+#     ids: List[str],
+#     offset_mappings: List[List[Tuple[int, int]]],
+#     start_logits: List[List[float]],
+#     end_logits: List[List[float]],
+#     segmentation_logits: List[List[float]],
+#     id_to_context_len: Dict[str, int],
+# ) -> None:
+#     counts = []
+#     base_start_logits = []
+#     base_end_logits = []
+#     base_segmentation_logits = []
+#     for i in range(len(ids)):
+#         id = ids[i]
+#         id_context_len = id_to_context_len[id]
+#         offset_mapping = offset_mappings[i]
+#         start_logit = start_logits[i]
+#         end_logit = end_logits [i]
+#         segmentation_logit = segmentation_logits[i]
+#
+#         if id not in self.body:
+#             id_context_len = self.id_to_context_len[id]
+#             self.body[id] = {
+#                 "count": [0] * id_context_len,
+#                 "start_logit": [0.0] * id_context_len,
+#                 "end_logit": [0.0] * id_context_len,
+#                 "segmentation_logit": [0.0] * id_context_len,
+#             }
+#         _add_operation(
+#             ensemble_weight=ensemble_weight,
+#             offset_mapping=offset_mapping.tolist(),
+#             count=self.body[id]["count"],
+#             base_start_logit=self.body[id]["start_logit"],
+#             start_logit=start_logit,
+#             base_end_logit=self.body[id]["end_logit"],
+#             end_logit=end_logit,
+#             base_segmentation_logit=self.body[id]["segmentation_logit"],
+#             segmentation_logit=segmentation_logit,
+#         )
+#
+#         for (s_i, e_i), start_logit_i, end_logit_i, segmentation_logit_i in zip(
+#             offset_mapping, start_logit, end_logit, segmentation_logit
+#         ):
+#             if s_i == -1:
+#                 continue
+#             for j in range(s_i, e_i):
+#                 self.body[id]["count"][j] += 1
+#                 self.body[id]["start_logit"][j] += ensemble_weight * start_logit_i
+#                 self.body[id]["end_logit"][j] += ensemble_weight * end_logit_i
+#                 self.body[id]["segmentation_logit"][j] += (
+#                     ensemble_weight * segmentation_logit_i
+#                 )
+#
