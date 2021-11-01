@@ -150,7 +150,6 @@ class SubmissionPipeline(Pipeline):
                 ensemble_prediction_result(
                     prediction_result_ensembler=prediction_result_ensembler,
                     prediction_result=prediction_result,
-                    logger=self.logger
                 )
                 del prediction_result
                 gc.collect()

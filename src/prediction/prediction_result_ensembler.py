@@ -221,13 +221,11 @@ def ensemble_prediction_results(
     return res_prediction_result
 
 
-@dec_timer(unit="m")
 def ensemble_prediction_result(
     prediction_result_ensembler: PredictionResultEnsembler,
     prediction_result: PredictionResult,
-    logger: myLogger,
 ) -> None:
-    logger.info("now ensembling ...")
+    print("now ensembling ...")
     for prediction_result in tqdm(prediction_result):
         for i in range(len(prediction_result)):
             (
