@@ -39,7 +39,7 @@ class PredictionResultEnsembler:
             }
         _add_operation(
             ensemble_weight=ensemble_weight,
-            offset_mapping=offset_mapping.numpy(),  # .tolist()
+            offset_mapping=offset_mapping.numpy().astype(int),  # .tolist()
             count=self.body[id]["count"],
             base_start_logit=self.body[id]["start_logit"],
             start_logit=start_logit.numpy(),
@@ -172,17 +172,17 @@ def ensemble_prediction_results(
 
     # res_prediction_result = PredictionResult(ensemble_weight=0)
     logger.info("now ensembling ...")
-    for prediction_results in tqdm(prediction_results):
-        for i in range(len(prediction_results)):
+    for prediction_result in tqdm(prediction_results):
+        for i in range(len(prediction_result)):
             (
                 id,
                 offset_mapping,
                 start_logit,
                 end_logit,
                 segmentaton_logit,
-            ) = prediction_results.get(i)
+            ) = prediction_result.get(i)
             prediction_result_ensembler.add(
-                ensemble_weight=prediction_results.ensemble_weight,
+                ensemble_weight=prediction_result.ensemble_weight,
                 id=id,
                 offset_mapping=offset_mapping,
                 start_logit=start_logit,

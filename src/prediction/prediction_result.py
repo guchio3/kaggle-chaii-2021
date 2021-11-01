@@ -168,10 +168,12 @@ class PredictionResult:
         bef_start_logit_i = start_logit[0]
         bef_end_logit_i = end_logit[0]
         bef_segmentation_logit_i = segmentation_logit[0]
-        for i, (s, e) in enumerate(offset_mapping[1:]):
-            start_logit_i = start_logit[i]
-            end_logit_i = end_logit[i]
-            segmentation_logit_i = segmentation_logit[i]
+        for (s, e), start_logit_i, end_logit_i, segmentation_logit_i in zip(
+            offset_mapping[1:],
+            start_logit[1:],
+            end_logit[1:],
+            segmentation_logit[1:],
+        ):
             if start_logit_i != bef_start_logit_i:
                 new_offset_mapping.append((cur_s, cur_e))
                 new_start_logit.append(bef_start_logit_i)
