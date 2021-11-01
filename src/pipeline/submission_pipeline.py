@@ -138,6 +138,7 @@ class SubmissionPipeline(Pipeline):
                 )
                 prediction_results.append(prediction_result)
                 gc.collect()
+                break
             del model
             gc.collect()
 
