@@ -2,6 +2,7 @@ from typing import Dict, List, Tuple, Union
 
 import torch
 from numba import jit
+from numpy import ndarray
 from pandas import DataFrame
 from torch import Tensor
 from tqdm.auto import tqdm
@@ -103,7 +104,7 @@ class PredictionResultEnsembler:
             }
         _add_operation(
             ensemble_weight=ensemble_weight,
-            offset_mapping=offset_mapping.tolist(),
+            offset_mapping=offset_mapping.numpy(),  # .tolist()
             count=self.body[id]["count"],
             base_start_logit=self.body[id]["start_logit"],
             start_logit=start_logit.tolist(),
@@ -193,7 +194,7 @@ class PredictionResultEnsembler:
 @jit(nopython=True)
 def _add_operation(
     ensemble_weight: float,
-    offset_mapping: List[Tuple[int, int]],
+    offset_mapping: ndarray,  # List[Tuple[int, int]],
     count: List[int],
     base_start_logit: List[float],
     start_logit: List[float],
