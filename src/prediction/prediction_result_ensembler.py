@@ -227,8 +227,8 @@ def ensemble_prediction_result(
     prediction_result: PredictionResult,
 ) -> None:
     print("now ensembling ...")
-    s_time = time()
-    for i in range(len(prediction_result)):
+    prediction_result_len = len(prediction_result)
+    for i in tqdm(range(prediction_result_len), total=prediction_result_len):
         (
             id,
             offset_mapping,
@@ -244,4 +244,4 @@ def ensemble_prediction_result(
             end_logit=end_logit,
             segmentation_logit=segmentaton_logit,
         )
-    print(f"done, in {int(time() - s_time)}s")
+    print("done.")

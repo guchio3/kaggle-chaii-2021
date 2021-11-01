@@ -71,9 +71,9 @@ class SubmissionPipeline(Pipeline):
     @class_dec_timer(unit="m")
     def _create_submission(self) -> None:
         tst_df = self.data_repository.load_test_df()
-        if len(tst_df) < 10:
-            tst_df = pd.concat([tst_df for _ in range(5)]).reset_index(drop=True)
-            tst_df["id"] = [str(i) for i in range(len(tst_df))]
+        # if len(tst_df) < 10:
+        #     tst_df = pd.concat([tst_df for _ in range(5)]).reset_index(drop=True)
+        #     tst_df["id"] = [str(i) for i in range(len(tst_df))]
         id_to_context_len = calc_id_to_context_len(df=tst_df)
         prediction_result_ensembler = PredictionResultEnsembler(
             id_to_context_len=id_to_context_len, logger=self.logger
