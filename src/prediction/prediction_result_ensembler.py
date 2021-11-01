@@ -1,5 +1,6 @@
 from typing import Dict, List, Tuple, Union
 
+import numpy as np
 import torch
 from numba import jit
 from numpy import ndarray
@@ -97,35 +98,37 @@ class PredictionResultEnsembler:
         if id not in self.body:
             id_context_len = self.id_to_context_len[id]
             self.body[id] = {
-                "count": [0] * id_context_len,
-                "start_logit": [0.0] * id_context_len,
-                "end_logit": [0.0] * id_context_len,
-                "segmentation_logit": [0.0] * id_context_len,
+                #"count": [0] * id_context_len,
+                #"start_logit": [0.0] * id_context_len,
+                #"end_logit": [0.0] * id_context_len,
+                #"segmentation_logit": [0.0] * id_context_len,
+                "count": np.zeros_like(id_context_len),
+                "start_logit": np.zeros_like(id_context_len),
+                "end_logit": np.zeros_like(id_context_len),
+                "segmentation_logit": np.zeros_like(id_context_len),
             }
         _add_operation(
             ensemble_weight=ensemble_weight,
             offset_mapping=offset_mapping.numpy(),  # .tolist()
             count=self.body[id]["count"],
             base_start_logit=self.body[id]["start_logit"],
-            start_logit=start_logit.tolist(),
+            start_logit=start_logit.numpy(),
             base_end_logit=self.body[id]["end_logit"],
-            end_logit=end_logit.tolist(),
+            end_logit=end_logit.numpy(),
             base_segmentation_logit=self.body[id]["segmentation_logit"],
-            segmentation_logit=segmentation_logit.tolist(),
+            segmentation_logit=segmentation_logit.numpy(),
         )
-
-        # for (s_i, e_i), start_logit_i, end_logit_i, segmentation_logit_i in zip(
-        #     offset_mapping, start_logit, end_logit, segmentation_logit
-        # ):
-        #     if s_i == -1:
-        #         continue
-        #     for j in range(s_i, e_i):
-        #         self.body[id]["count"][j] += 1
-        #         self.body[id]["start_logit"][j] += ensemble_weight * start_logit_i
-        #         self.body[id]["end_logit"][j] += ensemble_weight * end_logit_i
-        #         self.body[id]["segmentation_logit"][j] += (
-        #             ensemble_weight * segmentation_logit_i
-        #         )
+        # _add_operation(
+        #     ensemble_weight=ensemble_weight,
+        #     offset_mapping=offset_mapping.numpy(),  # .tolist()
+        #     count=self.body[id]["count"],
+        #     base_start_logit=self.body[id]["start_logit"],
+        #     start_logit=start_logit.tolist(),
+        #     base_end_logit=self.body[id]["end_logit"],
+        #     end_logit=end_logit.tolist(),
+        #     base_segmentation_logit=self.body[id]["segmentation_logit"],
+        #     segmentation_logit=segmentation_logit.tolist(),
+        # )
 
     # def add(
     #     self,
@@ -191,26 +194,37 @@ class PredictionResultEnsembler:
         return res_prediction_result
 
 
+# @jit(nopython=True)
+# def _add_operation(
+#     ensemble_weight: float,
+#     offset_mapping: ndarray,  # List[Tuple[int, int]],
+#     count: List[int],
+#     base_start_logit: List[float],
+#     start_logit: List[float],
+#     base_end_logit: List[float],
+#     end_logit: List[float],
+#     base_segmentation_logit: List[float],
+#     segmentation_logit: List[float],
+# ) -> None:
 @jit(nopython=True)
 def _add_operation(
     ensemble_weight: float,
-    offset_mapping: ndarray,  # List[Tuple[int, int]],
-    count: List[int],
-    base_start_logit: List[float],
-    start_logit: List[float],
-    base_end_logit: List[float],
-    end_logit: List[float],
-    base_segmentation_logit: List[float],
-    segmentation_logit: List[float],
+    offset_mapping: ndarray,
+    count: ndarray,
+    base_start_logit: ndarray,
+    start_logit: ndarray,
+    base_end_logit: ndarray,
+    end_logit: ndarray,
+    base_segmentation_logit: ndarray,
+    segmentation_logit: ndarray,
 ) -> None:
     # ) -> Tuple[List[int], List[float], List[float], List[float]]:
     for i in range(len(offset_mapping)):
-        # for i in range(100):
         offset_mapping_i = offset_mapping[i]
         s_i = offset_mapping_i[0]
         e_i = offset_mapping_i[1]
-        if s_i == -1:
-            continue
+        # if s_i == -1:
+        #     continue
         start_logit_i = start_logit[i]
         end_logit_i = end_logit[i]
         segmentation_logit_i = segmentation_logit[i]
