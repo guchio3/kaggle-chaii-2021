@@ -71,7 +71,7 @@ class SubmissionPipeline(Pipeline):
     def _create_submission(self) -> None:
         tst_df = self.data_repository.load_test_df()
         if len(tst_df) < 10:
-            tst_df = pd.concat([tst_df for _ in range(10)]).reset_index(drop=True)
+            tst_df = pd.concat([tst_df for _ in range(5)]).reset_index(drop=True)
 
         prediction_results = []
         for train_exp_id in self.train_exp_ids:
@@ -200,8 +200,8 @@ class SubmissionPipeline(Pipeline):
                 segmentation_logits = segmentation_logits.to("cpu")
 
                 prediction_result.extend_by_value_list(key="ids", value_list=ids)
-                prediction_result.extend_by_value_list(
-                    key="offset_mappings", value_list=offset_mappings
+                prediction_result.extend_by_tensor(
+                    key="offset_mappings", val_info=offset_mappings
                 )
                 prediction_result.extend_by_tensor(
                     key="start_logits", val_info=start_logits
