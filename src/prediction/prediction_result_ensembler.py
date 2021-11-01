@@ -102,10 +102,10 @@ class PredictionResultEnsembler:
                 #"start_logit": [0.0] * id_context_len,
                 #"end_logit": [0.0] * id_context_len,
                 #"segmentation_logit": [0.0] * id_context_len,
-                "count": np.zeros_like(id_context_len),
-                "start_logit": np.zeros_like(id_context_len),
-                "end_logit": np.zeros_like(id_context_len),
-                "segmentation_logit": np.zeros_like(id_context_len),
+                "count": np.zeros(id_context_len),
+                "start_logit": np.zeros(id_context_len),
+                "end_logit": np.zeros(id_context_len),
+                "segmentation_logit": np.zeros(id_context_len),
             }
         _add_operation(
             ensemble_weight=ensemble_weight,
