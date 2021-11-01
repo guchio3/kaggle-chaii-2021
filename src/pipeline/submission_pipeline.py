@@ -71,15 +71,11 @@ class SubmissionPipeline(Pipeline):
     @class_dec_timer(unit="m")
     def _create_submission(self) -> None:
         tst_df = self.data_repository.load_test_df()
-        # if len(tst_df) < 10:
-        #     tst_df = pd.concat([tst_df for _ in range(5)]).reset_index(drop=True)
-        #     tst_df["id"] = [str(i) for i in range(len(tst_df))]
         id_to_context_len = calc_id_to_context_len(df=tst_df)
         prediction_result_ensembler = PredictionResultEnsembler(
             id_to_context_len=id_to_context_len, logger=self.logger
         )
 
-        # prediction_results = []
         for train_exp_id in self.train_exp_ids:
             exp_train_config = self.config_loader.load(
                 pipeline_type="train_pred", exp_id=train_exp_id, default_exp_id="e000"
@@ -147,7 +143,6 @@ class SubmissionPipeline(Pipeline):
                 )
                 del model
                 gc.collect()
-                # prediction_results.append(prediction_result)
                 ensemble_prediction_result(
                     prediction_result_ensembler=prediction_result_ensembler,
                     prediction_result=prediction_result,
@@ -163,12 +158,6 @@ class SubmissionPipeline(Pipeline):
         ensembled_prediction_result.sort_values_based_on_ids()
         ensembled_prediction_result.convert_elems_to_larger_level_as_possible()
 
-        # id_to_context_len = calc_id_to_context_len(df=tst_df)
-        # ensembled_prediction_result = ensemble_prediction_results(
-        #     prediction_results=prediction_results,
-        #     id_to_context_len=id_to_context_len,
-        #     logger=self.logger,
-        # )
         postprocessor = self.postprocessor_factory.create()
         contexts = (
             tst_df.set_index("id")
