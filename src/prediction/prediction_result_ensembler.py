@@ -226,20 +226,19 @@ def ensemble_prediction_result(
     prediction_result: PredictionResult,
 ) -> None:
     print("now ensembling ...")
-    for prediction_result in tqdm(prediction_result):
-        for i in range(len(prediction_result)):
-            (
-                id,
-                offset_mapping,
-                start_logit,
-                end_logit,
-                segmentaton_logit,
-            ) = prediction_result.get(i)
-            prediction_result_ensembler.add(
-                ensemble_weight=prediction_result.ensemble_weight,
-                id=id,
-                offset_mapping=offset_mapping,
-                start_logit=start_logit,
-                end_logit=end_logit,
-                segmentation_logit=segmentaton_logit,
-            )
+    for i in range(len(prediction_result)):
+        (
+            id,
+            offset_mapping,
+            start_logit,
+            end_logit,
+            segmentaton_logit,
+        ) = prediction_result.get(i)
+        prediction_result_ensembler.add(
+            ensemble_weight=prediction_result.ensemble_weight,
+            id=id,
+            offset_mapping=offset_mapping,
+            start_logit=start_logit,
+            end_logit=end_logit,
+            segmentation_logit=segmentaton_logit,
+        )
