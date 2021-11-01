@@ -1,3 +1,4 @@
+from time import time
 from typing import Dict, List, Tuple, Union
 
 import numpy as np
@@ -226,6 +227,7 @@ def ensemble_prediction_result(
     prediction_result: PredictionResult,
 ) -> None:
     print("now ensembling ...")
+    s_time = time()
     for i in range(len(prediction_result)):
         (
             id,
@@ -242,3 +244,4 @@ def ensemble_prediction_result(
             end_logit=end_logit,
             segmentation_logit=segmentaton_logit,
         )
+    print(f"done, in {int(time() - s_time)}s")
