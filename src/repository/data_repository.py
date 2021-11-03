@@ -163,6 +163,7 @@ class DataRepository(Repository):
         pad_on_right: bool,
         stride: int,
         use_language_as_question: bool,
+        add_overflowing_batch_id: bool,
     ) -> bool:
         filepath_from_root = self.__preprocessed_df_filepath_from_root(
             dataset_name=dataset_name,
@@ -172,6 +173,7 @@ class DataRepository(Repository):
             pad_on_right=pad_on_right,
             stride=stride,
             use_language_as_question=use_language_as_question,
+            add_overflowing_batch_id=add_overflowing_batch_id,
         )
         gcs_files = self.list_gcs_filepaths_from_root(prefix=filepath_from_root)
         if len(gcs_files) == 0:
@@ -220,6 +222,7 @@ class DataRepository(Repository):
         pad_on_right: bool,
         stride: int,
         use_language_as_question: bool,
+        add_overflowing_batch_id: bool,
     ) -> DataFrame:
         filepath_from_root = self.__preprocessed_df_filepath_from_root(
             dataset_name=dataset_name,
@@ -229,6 +232,7 @@ class DataRepository(Repository):
             pad_on_right=pad_on_right,
             stride=stride,
             use_language_as_question=use_language_as_question,
+            add_overflowing_batch_id=add_overflowing_batch_id,
         )
         self.logger.info(f"loading {filepath_from_root} ...")
         df = self.load(
