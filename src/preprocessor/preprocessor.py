@@ -211,7 +211,7 @@ class BaselineKernelPreprocessor(Preprocessor, metaclass=ABCMeta):
 
             is_successed = True
             row_j = deepcopy(row)
-            token_type_ids: List[int] = tokenized_res.sequence_ids(j)  # CAUTION!!!!!
+            # token_type_ids: List[int] = tokenized_res.sequence_ids(j)  # CAUTION!!!!!
             sequence_ids = [i for i in range(len(input_ids))]
 
             cls_index = input_ids.index(cls_token_id)
