@@ -1,0 +1,32 @@
+description: "e019 tkm setting"
+num_epochs: 7
+train_folds: [0, 1, 2, 3, 4]
+accum_mod: 4
+trn_batch_size: 4
+val_batch_size: 16
+tst_batch_size: 16
+booster_trn_data:
+  - data/dataset/mlqa-hindi-processed/mlqa_hindi.csv
+  - data/dataset/mlqa-hindi-processed/xquad.csv
+preprocessor:
+    preprocessor_type: baseline_kernel_v1
+    tokenizer_type: data/dataset/muril-large-cased/
+    max_length: 400
+    stride: 135
+postprocessor:
+    n_best_size: 50
+    max_answer_length: 80
+    use_chars_length: true
+model:
+    model_type: chaii-qa-seg-xlmrb-1
+    pretrained_model_name_or_path: data/dataset/muril-large-cased/
+    max_grad_norm: 1.0
+    start_loss_weight: 1.0
+    end_loss_weight: 1.0
+    segmentation_loss_weight: 1.0
+optimizer:
+    learning_rate: 0.00001
+scheduler:
+    scheduler_type: cosine
+    max_epoch: 7
+    cosine_eta_min: 0.000001

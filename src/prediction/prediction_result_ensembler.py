@@ -1,4 +1,3 @@
-from time import time
 from typing import Dict, List, Tuple, Union
 
 import numpy as np
@@ -11,7 +10,6 @@ from tqdm.auto import tqdm
 
 from src.log import myLogger
 from src.prediction.prediction_result import PredictionResult
-from src.timer import dec_timer
 
 
 class PredictionResultEnsembler:
@@ -49,36 +47,6 @@ class PredictionResultEnsembler:
             segmentation_logit=segmentation_logit.numpy(),
         )
 
-    # def add(
-    #     self,
-    #     ensemble_weight: float,
-    #     id: str,
-    #     offset_mapping: List[Tuple[int, int]],
-    #     start_logit: Tensor,
-    #     end_logit: Tensor,
-    #     segmentation_logit: Tensor,
-    # ) -> None:
-    #     if id not in self.body:
-    #         id_context_len = self.id_to_context_len[id]
-    #         self.body[id] = {
-    #             "count": torch.zeros(id_context_len),
-    #             "start_logit": torch.zeros(id_context_len),
-    #             "end_logit": torch.zeros(id_context_len),
-    #             "segmentation_logit": torch.zeros(id_context_len),
-    #         }
-    #     for (s_i, e_i), start_logit_i, end_logit_i, segmentation_logit_i in zip(
-    #         offset_mapping, start_logit, end_logit, segmentation_logit
-    #     ):
-    #         if s_i == -1:
-    #             continue
-    #         for j in range(s_i, e_i):
-    #             self.body[id]["count"][j] += 1
-    #             self.body[id]["start_logit"][j] += ensemble_weight * start_logit_i
-    #             self.body[id]["end_logit"][j] += ensemble_weight * end_logit_i
-    #             self.body[id]["segmentation_logit"][j] += (
-    #                 ensemble_weight * segmentation_logit_i
-    #             )
-
     def to_prediction_result(self) -> PredictionResult:
         # temptemptemptemp
         temp_key = list(self.body.keys())[0]
@@ -113,18 +81,6 @@ class PredictionResultEnsembler:
         return res_prediction_result
 
 
-# @jit(nopython=True)
-# def _add_operation(
-#     ensemble_weight: float,
-#     offset_mapping: ndarray,  # List[Tuple[int, int]],
-#     count: List[int],
-#     base_start_logit: List[float],
-#     start_logit: List[float],
-#     base_end_logit: List[float],
-#     end_logit: List[float],
-#     base_segmentation_logit: List[float],
-#     segmentation_logit: List[float],
-# ) -> None:
 @jit(nopython=True)
 def _add_operation(
     ensemble_weight: float,
@@ -170,7 +126,6 @@ def ensemble_prediction_results(
         id_to_context_len=id_to_context_len, logger=logger
     )
 
-    # res_prediction_result = PredictionResult(ensemble_weight=0)
     logger.info("now ensembling ...")
     for prediction_result in tqdm(prediction_results):
         for i in range(len(prediction_result)):
@@ -189,33 +144,6 @@ def ensemble_prediction_results(
                 end_logit=end_logit,
                 segmentation_logit=segmentaton_logit,
             )
-        # ##### prediction_result.convert_elems_to_char_level()
-        # ##### prediction_result.sort_values_based_on_ids()
-        # if len(res_prediction_result) == 0:
-        #     logger.info("len = 0")
-        #     res_prediction_result.ids = prediction_result.ids
-        #     res_prediction_result.offset_mappings = prediction_result.offset_mappings
-        #     res_prediction_result.start_logits = prediction_result.start_logits
-        #     res_prediction_result.end_logits = prediction_result.end_logits
-        #     res_prediction_result.segmentation_logits = (
-        #         prediction_result.segmentation_logits
-        #     )
-        # else:
-        #     logger.info(f"len = {len(res_prediction_result)}")
-        #     if res_prediction_result.ids != prediction_result.ids:
-        #         raise Exception("res_prediction_result.ids != prediction_result.ids")
-        #     for i in range(len(prediction_result)):
-        #         res_prediction_result.start_logits[i] += (
-        #             prediction_result.ensemble_weight
-        #             * prediction_result.start_logits[i]
-        #         )
-        #         res_prediction_result.end_logits[i] += (
-        #             prediction_result.ensemble_weight * prediction_result.end_logits[i]
-        #         )
-        #         res_prediction_result.segmentation_logits[i] += (
-        #             prediction_result.ensemble_weight
-        #             * prediction_result.segmentation_logits[i]
-        #         )
     res_prediction_result = prediction_result_ensembler.to_prediction_result()
     res_prediction_result.sort_values_based_on_ids()
     res_prediction_result.convert_elems_to_larger_level_as_possible()

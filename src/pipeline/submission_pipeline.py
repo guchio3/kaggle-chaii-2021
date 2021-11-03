@@ -94,10 +94,7 @@ class SubmissionPipeline(Pipeline):
                 data_repository=self.data_repository,
             )
             preprocessed_tst_df = preprocessor(
-                df=tst_df,
-                dataset_name="test",
-                enforce_preprocess=False,
-                is_test=True,
+                df=tst_df, dataset_name="test", enforce_preprocess=False, is_test=True,
             )
             # loader
             dataset_factory = DatasetFactory(
@@ -147,6 +144,11 @@ class SubmissionPipeline(Pipeline):
                     prediction_result_ensembler=prediction_result_ensembler,
                     prediction_result=prediction_result,
                 )
+                for id in prediction_result_ensembler.body.keys():
+                    self.logger.info(
+                        f"prediction_result_ensembler.body[{id}]['count']: "
+                        f"{prediction_result_ensembler.body[id]['count']}"
+                    )
                 del prediction_result
                 gc.collect()
                 # break
@@ -182,11 +184,7 @@ class SubmissionPipeline(Pipeline):
 
     @class_dec_timer(unit="m")
     def _predict(
-        self,
-        device: str,
-        ensemble_weight: float,
-        model: Model,
-        loader: DataLoader,
+        self, device: str, ensemble_weight: float, model: Model, loader: DataLoader,
     ) -> PredictionResult:
         model.to(device)
         model.eval()
@@ -200,8 +198,7 @@ class SubmissionPipeline(Pipeline):
                 attention_masks = batch["attention_mask"].to(device)
 
                 start_logits, end_logits, segmentation_logits = model(
-                    input_ids=input_ids,
-                    attention_masks=attention_masks,
+                    input_ids=input_ids, attention_masks=attention_masks,
                 )
                 if start_logits.dim() == 1:
                     self.logger.info(
