@@ -21,12 +21,14 @@ class Postprocessor(metaclass=ABCMeta):
         max_answer_length: int,
         use_chars_length: bool,
         text_postprocess: Optional[str],
+        use_multiprocess: bool,
         logger: myLogger,
     ) -> None:
         self.n_best_size = n_best_size
         self.max_answer_length = max_answer_length
         self.use_chars_length = use_chars_length
         self.text_postprocess = text_postprocess
+        self.use_multiprocess = use_multiprocess
         self.logger = logger
 
     @abstractmethod
@@ -82,18 +84,31 @@ class BaselineKernelPostprocessor(Postprocessor):
         raw_df["end_logit"] = end_logits
         raw_df["segmentation_logit"] = segmentation_logits
 
-        with Pool(os.cpu_count()) as p:
-            iter_func = partial(
-                _apply_extract_best_answer_pred,
-                n_best_size=self.n_best_size,
-                max_answer_length=self.max_answer_length,
-                use_chars_length=self.use_chars_length,
-                text_postprocess=self.text_postprocess,
-            )
-            imap = p.imap_unordered(iter_func, raw_df.groupby("id"))
-            res_sets = list(tqdm(imap, total=raw_df["id"].nunique()))
-            p.close()
-            p.join()
+        if self.use_multiprocess:
+            with Pool(os.cpu_count()) as p:
+                iter_func = partial(
+                    _apply_extract_best_answer_pred,
+                    n_best_size=self.n_best_size,
+                    max_answer_length=self.max_answer_length,
+                    use_chars_length=self.use_chars_length,
+                    text_postprocess=self.text_postprocess,
+                )
+                imap = p.imap_unordered(iter_func, raw_df.groupby("id"))
+                res_sets = list(tqdm(imap, total=raw_df["id"].nunique()))
+                p.close()
+                p.join()
+        else:
+            res_sets = []
+            for grp_pair in raw_df.groupby("id"):
+                res_sets.append(
+                    _apply_extract_best_answer_pred(
+                        grp_pair=grp_pair,
+                        n_best_size=self.n_best_size,
+                        max_answer_length=self.max_answer_length,
+                        use_chars_length=self.use_chars_length,
+                        text_postprocess=self.text_postprocess,
+                    )
+                )
         res_sets = sorted(res_sets)
 
         res_ids: List[str] = []

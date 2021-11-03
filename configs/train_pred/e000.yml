@@ -21,6 +21,7 @@ postprocessor:
     max_answer_length: 30
     use_chars_length: false
     text_postprocess: null
+    use_multiprocess: true
 splitter:
     splitter_type: kf
     split_num: 5

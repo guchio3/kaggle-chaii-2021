@@ -197,12 +197,14 @@ class BaselineKernelPreprocessor(Preprocessor, metaclass=ABCMeta):
                 (o if token_type_ids[k] == context_index else (-1, -1))
                 for k, o in enumerate(offset_mapping)
             ]
+            row_j["overflowing_batch_id"] = j  # jth batch
             if is_test:
                 is_successed = False
                 row_j["answer_text"] = ""
                 row_j["start_position"] = cls_index
                 row_j["end_position"] = cls_index
                 row_j["segmentation_position"] = [1] + [0] * (len(offset_mapping) - 1)
+                row_j["is_contain_answer_text"] = 0
             else:
                 start_char_index = self._start_char_index(row=row_j)
                 end_char_index = start_char_index + len(row_j["answer_text"])
@@ -228,6 +230,7 @@ class BaselineKernelPreprocessor(Preprocessor, metaclass=ABCMeta):
                     row_j["segmentation_position"] = [1] + [0] * (
                         len(offset_mapping) - 1
                     )
+                    row_j["is_contain_answer_text"] = 0
                 else:
                     # Otherwise move the token_start_index and token_end_index to the two ends of the answer.
                     # Note: we could go after the last offset if the answer is the last word (edge case).
@@ -250,6 +253,7 @@ class BaselineKernelPreprocessor(Preprocessor, metaclass=ABCMeta):
                         else 0
                         for i in range(len(offset_mapping))
                     ]
+                    row_j["is_contain_answer_text"] = 1
             reses.append((i, j, row_j, is_successed))
         reses = self._pre_postprocess(preprocessed_results=reses)
         return reses

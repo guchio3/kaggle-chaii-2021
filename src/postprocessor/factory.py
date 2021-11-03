@@ -14,6 +14,7 @@ class PostprocessorFactory(Factory[Postprocessor]):
         max_answer_length: int,
         use_chars_length: bool,
         text_postprocess: Optional[str],
+        use_multiprocess: bool,
         logger: myLogger,
     ) -> None:
         super().__init__(
@@ -23,6 +24,7 @@ class PostprocessorFactory(Factory[Postprocessor]):
             max_answer_length=max_answer_length,
             use_chars_length=use_chars_length,
             text_postprocess=text_postprocess,
+            use_multiprocess=use_multiprocess,
         )
 
     def _create(self) -> Postprocessor:
@@ -32,6 +34,7 @@ class PostprocessorFactory(Factory[Postprocessor]):
                 max_answer_length=self.max_answer_length,
                 use_chars_length=self.use_chars_length,
                 text_postprocess=self.text_postprocess,
+                use_multiprocess=self.use_multiprocess,
                 logger=self.logger,
             )
         else:
