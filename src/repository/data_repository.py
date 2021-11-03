@@ -259,6 +259,7 @@ class DataRepository(Repository):
         model_state_dict_filenames = self.list_local_filepaths_from_root(
             prefix=model_state_dict_dir
         )
+        self.logger.info(f"iter filename: {model_state_dict_filenames}")
         for model_state_dict_filename in model_state_dict_filenames:
             yield self.load(
                 filepath_from_root=model_state_dict_filename,
