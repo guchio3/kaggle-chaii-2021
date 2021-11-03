@@ -186,51 +186,63 @@ class BaselineKernelPreprocessor(Preprocessor, metaclass=ABCMeta):
             )
         ):
             token_type_ids: List[int] = tokenized_res.sequence_ids(j)  # CAUTION!!!!!
+            offset_mapping = [
+                (o if token_type_ids[k] == context_index else (-1, -1))
+                for k, o in enumerate(offset_mapping)
+            ]
             if add_overflowing_batch_id:
-                context_offset_mapping = [
-                    o
-                    for k, o in enumerate(offset_mapping)
-                    if token_type_ids[k] == context_index
-                ]
-                min_s = len(context) * 5
-                max_e = -1
-                for (temp_s, temp_e) in context_offset_mapping:
-                    min_s = min(temp_s, min_s)
-                    max_e = max(temp_e, max_e)
-                context_j = context[min_s:max_e]
-                tokenized_res_j = tokenizer.encode_plus(
-                    text=f"{j} {question}" if pad_on_right else context_j,
-                    text_pair=context_j if pad_on_right else f"{j} {question}",
-                    padding="max_length",
-                    truncation="only_second" if pad_on_right else "only_first",
-                    max_length=max_length + 5,
-                    stride=stride,
-                    return_attention_mask=True,
-                    return_overflowing_tokens=True,
-                    return_special_tokens_mask=False,
-                    return_offsets_mapping=True,
-                )
-                print(len(tokenized_res_j["input_ids"]))
-                input_ids = tokenized_res_j["input_ids"][0]
-                attention_mask = tokenized_res_j["attention_mask"][0]
-                token_type_ids: List[int] = tokenized_res_j.sequence_ids(
-                    0
-                )  # CAUTION!!!!!
-                offset_mapping_index = 0
-                final_offset_mapping = []
-                for token_type_id in token_type_ids:
-                    if token_type_id == context_index:
-                        final_offset_mapping.append(
-                            context_offset_mapping[offset_mapping_index]
-                        )
-                        offset_mapping_index += 1
-                    else:
-                        final_offset_mapping.append((-1, -1))
-            else:
-                final_offset_mapping = [
-                    (o if token_type_ids[k] == context_index else (-1, -1))
-                    for k, o in enumerate(offset_mapping)
-                ]
+                if not pad_on_right:
+                    raise Exception()
+                j_input_id = tokenizer.encode(f"{j}")[1]
+                if j_input_id > 200:
+                    raise Exception(f"j_input_id > 200 is not supported. now {j_input_id}.")
+                input_ids.insert(1, j_input_id)
+                attention_mask.insert(1, 1)
+                offset_mapping.insert(1, (-1, -1))
+                token_type_ids.insert(1, 0)
+                # context_offset_mapping = [
+                #     o
+                #     for k, o in enumerate(offset_mapping)
+                #     if token_type_ids[k] == context_index
+                # ]
+                # min_s = len(context) * 5
+                # max_e = -1
+                # for (temp_s, temp_e) in context_offset_mapping:
+                #     min_s = min(temp_s, min_s)
+                #     max_e = max(temp_e, max_e)
+                # context_j = context[min_s:max_e]
+                # tokenized_res_j = tokenizer.encode_plus(
+                #     text=f"{j} {question}" if pad_on_right else context_j,
+                #     text_pair=context_j if pad_on_right else f"{j} {question}",
+                #     padding="max_length",
+                #     truncation="only_second" if pad_on_right else "only_first",
+                #     max_length=max_length + 5,
+                #     stride=stride,
+                #     return_attention_mask=True,
+                #     return_overflowing_tokens=True,
+                #     return_special_tokens_mask=False,
+                #     return_offsets_mapping=True,
+                # )
+                # if len(tokenized_res_j["input_ids"]) != 1:
+                #     raise Exception(
+                #         "len of tokenized_res_j is not 1, "
+                #         f"but {len(tokenized_res_j['input_ids'])}"
+                #     )
+                # input_ids = tokenized_res_j["input_ids"][0]
+                # attention_mask = tokenized_res_j["attention_mask"][0]
+                # token_type_ids: List[int] = tokenized_res_j.sequence_ids(
+                #     0
+                # )  # CAUTION!!!!!
+                # offset_mapping_index = 0
+                # final_offset_mapping = []
+                # for token_type_id in token_type_ids:
+                #     if token_type_id == context_index:
+                #         final_offset_mapping.append(
+                #             context_offset_mapping[offset_mapping_index]
+                #         )
+                #         offset_mapping_index += 1
+                #     else:
+                #         final_offset_mapping.append((-1, -1))
 
             is_successed = True
             row_j = deepcopy(row)
@@ -243,7 +255,7 @@ class BaselineKernelPreprocessor(Preprocessor, metaclass=ABCMeta):
             row_j["sequence_ids"] = sequence_ids
             # Set to None the offset_mapping that are not part of the context so it's easy to determine if a token
             # position is part of the context or not.
-            row_j["offset_mapping"] = final_offset_mapping
+            row_j["offset_mapping"] = offset_mapping
             row_j["overflowing_batch_id"] = j  # jth batch
             if is_test:
                 is_successed = False
