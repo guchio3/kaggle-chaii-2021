@@ -54,6 +54,7 @@ class SubmissionPipeline(Pipeline):
 
         self.train_exp_ids = config["train_exp_ids"]
         self.tst_batch_size = config["tst_batch_size"]
+        self.ensemble_mode = config["ensemble_mode"]
         self.ensemble_weights = config["ensemble_weights"]
 
         self.postprocessor_factory = PostprocessorFactory(
@@ -73,7 +74,9 @@ class SubmissionPipeline(Pipeline):
         tst_df = self.data_repository.load_test_df()
         id_to_context_len = calc_id_to_context_len(df=tst_df)
         prediction_result_ensembler = PredictionResultEnsembler(
-            id_to_context_len=id_to_context_len, logger=self.logger
+            id_to_context_len=id_to_context_len,
+            ensemble_mode=self.ensemble_mode,
+            logger=self.logger,
         )
 
         for train_exp_id in self.train_exp_ids:
@@ -144,11 +147,6 @@ class SubmissionPipeline(Pipeline):
                     prediction_result_ensembler=prediction_result_ensembler,
                     prediction_result=prediction_result,
                 )
-                for id in prediction_result_ensembler.body.keys():
-                    self.logger.info(
-                        f"prediction_result_ensembler.body[{id}]['count']: "
-                        f"{prediction_result_ensembler.body[id]['count']}"
-                    )
                 del prediction_result
                 gc.collect()
                 # break

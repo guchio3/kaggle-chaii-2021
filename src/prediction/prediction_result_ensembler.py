@@ -13,9 +13,18 @@ from src.prediction.prediction_result import PredictionResult
 
 
 class PredictionResultEnsembler:
-    def __init__(self, id_to_context_len: Dict[str, int], logger: myLogger) -> None:
+    def __init__(
+        self, id_to_context_len: Dict[str, int], ensemble_mode: str, logger: myLogger
+    ) -> None:
+        valid_ensemble_modes = ["mean", "max"]
+        if ensemble_mode not in valid_ensemble_modes:
+            raise Exception(
+                f"{ensemble_mode} is not supported."
+                f"only {valid_ensemble_modes} are valid."
+            )
         self.body: Dict[str, Dict[str, List[Union[int, float]]]] = {}
         self.id_to_context_len = id_to_context_len
+        self.ensemble_mode = ensemble_mode
         self.logger = logger
 
     def add(
@@ -29,12 +38,22 @@ class PredictionResultEnsembler:
     ) -> None:
         if id not in self.body:
             id_context_len = self.id_to_context_len[id]
-            self.body[id] = {
-                "count": np.zeros(id_context_len),
-                "start_logit": np.zeros(id_context_len),
-                "end_logit": np.zeros(id_context_len),
-                "segmentation_logit": np.zeros(id_context_len),
-            }
+            if self.ensemble_mode == "mean":
+                self.body[id] = {
+                    "count": np.zeros(id_context_len),
+                    "start_logit": np.zeros(id_context_len),
+                    "end_logit": np.zeros(id_context_len),
+                    "segmentation_logit": np.zeros(id_context_len),
+                }
+            elif self.ensemble_mode == "max":
+                self.body[id] = {
+                    "count": np.zeros(id_context_len),
+                    "start_logit": np.ones(id_context_len) * -1_000_000,
+                    "end_logit": np.zeros(id_context_len) * -1_000_000,
+                    "segmentation_logit": np.zeros(id_context_len) * -1_000_000,
+                }
+            else:
+                Exception()
         _add_operation(
             ensemble_weight=ensemble_weight,
             offset_mapping=offset_mapping.numpy().astype(int),  # .tolist()
@@ -45,6 +64,7 @@ class PredictionResultEnsembler:
             end_logit=end_logit.numpy(),
             base_segmentation_logit=self.body[id]["segmentation_logit"],
             segmentation_logit=segmentation_logit.numpy(),
+            ensemble_mode=self.ensemble_mode,
         )
 
     def to_prediction_result(self) -> PredictionResult:
@@ -75,9 +95,16 @@ class PredictionResultEnsembler:
             res_prediction_result.offset_mappings.append(
                 [(i, i + 1) for i in range(id_context_len)]
             )
-            res_prediction_result.start_logits.append(start_logit / count)
-            res_prediction_result.end_logits.append(end_logit / count)
-            res_prediction_result.segmentation_logits.append(segmentation_logit / count)
+            if self.ensemble_mode == "mean":
+                res_prediction_result.start_logits.append(start_logit / count)
+                res_prediction_result.end_logits.append(end_logit / count)
+                res_prediction_result.segmentation_logits.append(
+                    segmentation_logit / count
+                )
+            elif self.ensemble_mode == "max":
+                res_prediction_result.start_logits.append(start_logit)
+                res_prediction_result.end_logits.append(end_logit)
+                res_prediction_result.segmentation_logits.append(segmentation_logit)
         return res_prediction_result
 
 
@@ -92,6 +119,7 @@ def _add_operation(
     end_logit: ndarray,
     base_segmentation_logit: ndarray,
     segmentation_logit: ndarray,
+    ensemble_mode: str,
 ) -> None:
     # ) -> Tuple[List[int], List[float], List[float], List[float]]:
     for i in range(len(offset_mapping)):
@@ -105,9 +133,18 @@ def _add_operation(
         segmentation_logit_i = segmentation_logit[i]
         for j in range(s_i, e_i):
             count[j] += 1
-            base_start_logit[j] += ensemble_weight * start_logit_i
-            base_end_logit[j] += ensemble_weight * end_logit_i
-            base_segmentation_logit[j] += ensemble_weight * segmentation_logit_i
+            if ensemble_mode == "mean":
+                base_start_logit[j] += ensemble_weight * start_logit_i
+                base_end_logit[j] += ensemble_weight * end_logit_i
+                base_segmentation_logit[j] += ensemble_weight * segmentation_logit_i
+            elif ensemble_mode == "max":
+                base_start_logit[j] = max(start_logit_i, base_start_logit[j])
+                base_end_logit[j] = max(end_logit_i, base_end_logit[j])
+                base_segmentation_logit[j] = max(
+                    segmentation_logit_i, base_segmentation_logit[j]
+                )
+            else:
+                raise Exception()
 
 
 def calc_id_to_context_len(df: DataFrame):
