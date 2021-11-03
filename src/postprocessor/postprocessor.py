@@ -1,4 +1,5 @@
 import os
+import re
 from abc import ABCMeta, abstractmethod
 from functools import partial
 from multiprocessing import Pool
@@ -162,6 +163,10 @@ def _extract_best_answer_pred(
         best_candidate = baseline_kernel1_text_postprocess(
             answer_text=best_candidate, context=contexts[0]
         )
+    if text_postprocess == "baseline_kernel2":
+        best_candidate = baseline_kernel2_text_postprocess(
+            answer_text=best_candidate, context=contexts[0]
+        )
     return best_candidate
 
 
@@ -200,6 +205,69 @@ def baseline_kernel1_text_postprocess(answer_text: str, context: str) -> str:
     ):
         answer_text = answer_text + "."
     return answer_text
+
+
+def baseline_kernel2_text_postprocess(answer_text: str, context: str) -> str:
+    answer_text = baseline_kernel2_text_postprocess(
+        answer_text=answer_text, context=context
+    )
+    if re.search("[0-9].$", answer_text):
+        answer_text = answer_text[:-1]
+    return answer_text
+
+
+def _extract_candidate_answer_preds(
+    context: str,
+    offset_mapping: List[Tuple[int, int]],
+    start_logit: ndarray,
+    end_logit: ndarray,
+    n_best_size: int,
+    max_answer_length: int,
+    use_chars_length: bool,
+) -> List[str]:
+    start_indexes = np.argsort(start_logit)[-1 : -n_best_size - 1 : -1].tolist()
+    end_indexes = np.argsort(end_logit)[-1 : -n_best_size - 1 : -1].tolist()
+
+    candidates = []
+    for start_index in start_indexes:
+        for end_index in end_indexes:
+            # Don't consider out-of-scope answers, either because the indices are out of bounds or correspond
+            # to part of the input_ids that are not in the context.
+            if (
+                start_index >= len(offset_mapping)
+                or end_index >= len(offset_mapping)
+                or offset_mapping[start_index][0] == -1
+                or offset_mapping[end_index][0] == -1
+            ):
+                continue
+
+            start_char_index = offset_mapping[start_index][0]
+            end_char_index = offset_mapping[end_index][1]
+            extracted_text = context[start_char_index:end_char_index]
+            # Don't consider answers with a length that is either < 0 or > max_answer_length.
+            if end_index < start_index or (
+                (use_chars_length and len(extracted_text) > max_answer_length)
+                or (
+                    not use_chars_length
+                    and end_index - start_index + 1 > max_answer_length
+                )
+            ):
+                continue
+
+            score = float(start_logit[start_index] + end_logit[end_index])
+            candidates.append({"extracted_text": extracted_text, "score": score})
+    return candidates
+
+
+def _choose_best_candidate(candidates: List[Dict[str, Any]]) -> str:
+    if len(candidates) == 0:
+        print("couldn't find best start end. use context as answer.")
+        best_candidate = ""
+    else:
+        best_candidate = sorted(candidates, key=lambda x: x["score"], reverse=True)[0][
+            "extracted_text"
+        ]
+    return best_candidate
 
 
 def _extract_candidate_answer_preds(
