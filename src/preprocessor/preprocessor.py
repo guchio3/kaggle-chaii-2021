@@ -186,9 +186,21 @@ class BaselineKernelPreprocessor(Preprocessor, metaclass=ABCMeta):
             )
         ):
             if add_overflowing_batch_id:
+                min_s = len(context) * 5
+                max_e = -1
+                temp_token_type_ids: List[int] = tokenized_res.sequence_ids(
+                    j
+                )  # CAUTION!!!!!
+                for temp_token_type_id, (temp_s, temp_e) in zip(
+                    temp_token_type_ids, offset_mapping
+                ):
+                    if temp_token_type_id == context_index:
+                        min_s = min(temp_s, min_s)
+                        max_e = max(temp_e, max_e)
+                context_j = context[min_s:max_e]
                 tokenized_res_j = tokenizer.encode_plus(
-                    text=f"{j} {question}" if pad_on_right else context,
-                    text_pair=context if pad_on_right else f"{j} {question}",
+                    text=f"{j} {question}" if pad_on_right else context_j,
+                    text_pair=context_j if pad_on_right else f"{j} {question}",
                     padding="max_length",
                     truncation="only_second" if pad_on_right else "only_first",
                     max_length=max_length + 5,
