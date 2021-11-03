@@ -194,7 +194,7 @@ class BaselineKernelPreprocessor(Preprocessor, metaclass=ABCMeta):
                 if not pad_on_right:
                     raise Exception()
                 j_input_id = tokenizer.encode(f"{j}")[1]
-                if j_input_id > 200:
+                if j > 200:
                     raise Exception(f"j_input_id > 200 is not supported. now {j_input_id}.")
                 input_ids.insert(1, j_input_id)
                 attention_mask.insert(1, 1)
