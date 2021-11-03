@@ -104,6 +104,7 @@ class BaselineKernelPreprocessor(Preprocessor, metaclass=ABCMeta):
                         pad_on_right=self.pad_on_right,
                         stride=self.stride,
                         use_language_as_question=self.use_language_as_question,
+                        add_overflowing_batch_id=self.add_overflowing_batch_id,
                         is_test=is_test,
                     )
                 )
@@ -127,6 +128,7 @@ class BaselineKernelPreprocessor(Preprocessor, metaclass=ABCMeta):
                     pad_on_right=self.pad_on_right,
                     stride=self.stride,
                     use_language_as_question=self.use_language_as_question,
+                    add_overflowing_batch_id=self.add_overflowing_batch_id,
                 )
             else:
                 self.logger.info(
@@ -145,6 +147,7 @@ class BaselineKernelPreprocessor(Preprocessor, metaclass=ABCMeta):
         pad_on_right: bool,
         stride: int,
         use_language_as_question: bool,
+        add_overflowing_batch_id: bool,
         is_test: bool,
     ) -> List[Tuple[int, int, Series, bool]]:
         if tokenizer.cls_token_id is not None:
@@ -179,6 +182,10 @@ class BaselineKernelPreprocessor(Preprocessor, metaclass=ABCMeta):
                 tokenized_res["offset_mapping"],
             )
         ):
+            if add_overflowing_batch_id:
+
+
+
             is_successed = True
             row_j = deepcopy(row)
             # special_tokens_mask: List[int] = tokenized_res["special_tokens_mask"]
