@@ -3,7 +3,6 @@ import os
 import re
 from abc import ABCMeta, abstractmethod
 from copy import deepcopy
-# from functools import partial
 # from multiprocessing import Pool
 from typing import List, Tuple
 
@@ -48,6 +47,7 @@ class BaselineKernelPreprocessor(Preprocessor, metaclass=ABCMeta):
         pad_on_right: bool,
         stride: int,
         use_language_as_question: bool,
+        add_overflowing_batch_id: bool,
         debug: bool,
         logger: myLogger,
     ):
@@ -61,6 +61,7 @@ class BaselineKernelPreprocessor(Preprocessor, metaclass=ABCMeta):
         self.pad_on_right = pad_on_right
         self.stride = stride
         self.use_language_as_question = use_language_as_question
+        self.add_overflowing_batch_id = add_overflowing_batch_id
 
     @class_dec_timer(unit="m")
     def __call__(
@@ -128,7 +129,7 @@ class BaselineKernelPreprocessor(Preprocessor, metaclass=ABCMeta):
                     pad_on_right=self.pad_on_right,
                     stride=self.stride,
                     use_language_as_question=self.use_language_as_question,
-                    add_overflowing_batch_id=self.add_overflowing_batch_id,
+                    # add_overflowing_batch_id=self.add_overflowing_batch_id,
                 )
             else:
                 self.logger.info(
@@ -183,8 +184,7 @@ class BaselineKernelPreprocessor(Preprocessor, metaclass=ABCMeta):
             )
         ):
             if add_overflowing_batch_id:
-
-
+                pass
 
             is_successed = True
             row_j = deepcopy(row)

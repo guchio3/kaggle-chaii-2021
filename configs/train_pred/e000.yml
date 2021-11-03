@@ -15,6 +15,7 @@ preprocessor:
     pad_on_right: true
     stride: 128
     use_language_as_question: false
+    add_overflowing_batch_id: false
 postprocessor:
     postprocessor_type: baseline_kernel
     n_best_size: 20

@@ -20,6 +20,7 @@ class PreprocessorFactory(Factory[Preprocessor]):
         pad_on_right: bool,
         stride: int,
         use_language_as_question: bool,
+        add_overflowing_batch_id: bool,
         debug: bool,
         logger: myLogger,
     ) -> None:
@@ -30,6 +31,7 @@ class PreprocessorFactory(Factory[Preprocessor]):
             pad_on_right=pad_on_right,
             stride=stride,
             use_language_as_question=use_language_as_question,
+            add_overflowing_batch_id=add_overflowing_batch_id,
             debug=debug,
             logger=logger,
         )
@@ -45,6 +47,7 @@ class PreprocessorFactory(Factory[Preprocessor]):
                 pad_on_right=self.pad_on_right,
                 stride=self.stride,
                 use_language_as_question=self.use_language_as_question,
+                add_overflowing_batch_id=self.add_overflowing_batch_id,
                 debug=self.debug,
                 logger=self.logger,
             )
@@ -56,6 +59,7 @@ class PreprocessorFactory(Factory[Preprocessor]):
                 pad_on_right=self.pad_on_right,
                 stride=self.stride,
                 use_language_as_question=self.use_language_as_question,
+                add_overflowing_batch_id=self.add_overflowing_batch_id,
                 debug=self.debug,
                 logger=self.logger,
             )
@@ -67,6 +71,7 @@ class PreprocessorFactory(Factory[Preprocessor]):
                 pad_on_right=self.pad_on_right,
                 stride=self.stride,
                 use_language_as_question=self.use_language_as_question,
+                add_overflowing_batch_id=self.add_overflowing_batch_id,
                 debug=self.debug,
                 logger=self.logger,
             )
@@ -78,6 +83,7 @@ class PreprocessorFactory(Factory[Preprocessor]):
                 pad_on_right=self.pad_on_right,
                 stride=self.stride,
                 use_language_as_question=self.use_language_as_question,
+                add_overflowing_batch_id=self.add_overflowing_batch_id,
                 debug=self.debug,
                 logger=self.logger,
             )
@@ -89,6 +95,7 @@ class PreprocessorFactory(Factory[Preprocessor]):
                 pad_on_right=self.pad_on_right,
                 stride=self.stride,
                 use_language_as_question=self.use_language_as_question,
+                add_overflowing_batch_id=self.add_overflowing_batch_id,
                 debug=self.debug,
                 logger=self.logger,
             )
