@@ -184,12 +184,31 @@ class BaselineKernelPreprocessor(Preprocessor, metaclass=ABCMeta):
             )
         ):
             if add_overflowing_batch_id:
-                pass
+                tokenized_res_j = tokenizer.encode_plus(
+                    text=f"{j} {question}" if pad_on_right else context,
+                    text_pair=context if pad_on_right else f"{j} {question}",
+                    padding="max_length",
+                    truncation="only_second" if pad_on_right else "only_first",
+                    max_length=max_length + 5,
+                    stride=stride,
+                    return_attention_mask=True,
+                    return_overflowing_tokens=True,
+                    return_special_tokens_mask=False,
+                    return_offsets_mapping=True,
+                )
+                input_ids = tokenized_res_j["input_ids"][0]
+                attention_mask = tokenized_res_j["attention_mask"][0]
+                offset_mapping = tokenized_res_j["offset_mapping"][0]
+                token_type_ids: List[int] = tokenized_res_j.sequence_ids(
+                    0
+                )  # CAUTION!!!!!
+            else:
+                token_type_ids: List[int] = tokenized_res.sequence_ids(
+                    j
+                )  # CAUTION!!!!!
 
             is_successed = True
             row_j = deepcopy(row)
-            # special_tokens_mask: List[int] = tokenized_res["special_tokens_mask"]
-            # sequence_ids: List[int] = tokenized_res["sequence_ids"]
             token_type_ids: List[int] = tokenized_res.sequence_ids(j)  # CAUTION!!!!!
             sequence_ids = [i for i in range(len(input_ids))]
 
