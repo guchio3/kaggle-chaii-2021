@@ -185,14 +185,12 @@ class BaselineKernelPreprocessor(Preprocessor, metaclass=ABCMeta):
                 tokenized_res["offset_mapping"],
             )
         ):
+            token_type_ids: List[int] = tokenized_res.sequence_ids(j)  # CAUTION!!!!!
             if add_overflowing_batch_id:
                 min_s = len(context) * 5
                 max_e = -1
-                temp_token_type_ids: List[int] = tokenized_res.sequence_ids(
-                    j
-                )  # CAUTION!!!!!
                 for temp_token_type_id, (temp_s, temp_e) in zip(
-                    temp_token_type_ids, offset_mapping
+                    token_type_ids, offset_mapping
                 ):
                     if temp_token_type_id == context_index:
                         min_s = min(temp_s, min_s)
@@ -212,18 +210,32 @@ class BaselineKernelPreprocessor(Preprocessor, metaclass=ABCMeta):
                 )
                 input_ids = tokenized_res_j["input_ids"][0]
                 attention_mask = tokenized_res_j["attention_mask"][0]
-                offset_mapping = tokenized_res_j["offset_mapping"][0]
                 token_type_ids: List[int] = tokenized_res_j.sequence_ids(
                     0
                 )  # CAUTION!!!!!
+                context_offset_mapping = [
+                    o
+                    for k, o in enumerate(offset_mapping)
+                    if token_type_ids[k] == context_index
+                ]
+                offset_mapping_index = 0
+                final_offset_mapping = []
+                for token_type_id in token_type_ids:
+                    if token_type_id == context_index:
+                        final_offset_mapping.append(
+                            context_offset_mapping[offset_mapping_index]
+                        )
+                        offset_mapping_index += 1
+                    else:
+                        final_offset_mapping.append((-1, -1))
             else:
-                token_type_ids: List[int] = tokenized_res.sequence_ids(
-                    j
-                )  # CAUTION!!!!!
+                final_offset_mapping = [
+                    (o if token_type_ids[k] == context_index else (-1, -1))
+                    for k, o in enumerate(offset_mapping)
+                ]
 
             is_successed = True
             row_j = deepcopy(row)
-            # token_type_ids: List[int] = tokenized_res.sequence_ids(j)  # CAUTION!!!!!
             sequence_ids = [i for i in range(len(input_ids))]
 
             cls_index = input_ids.index(cls_token_id)
@@ -233,10 +245,7 @@ class BaselineKernelPreprocessor(Preprocessor, metaclass=ABCMeta):
             row_j["sequence_ids"] = sequence_ids
             # Set to None the offset_mapping that are not part of the context so it's easy to determine if a token
             # position is part of the context or not.
-            row_j["offset_mapping"] = [
-                (o if token_type_ids[k] == context_index else (-1, -1))
-                for k, o in enumerate(offset_mapping)
-            ]
+            row_j["offset_mapping"] = final_offset_mapping
             row_j["overflowing_batch_id"] = j  # jth batch
             if is_test:
                 is_successed = False
