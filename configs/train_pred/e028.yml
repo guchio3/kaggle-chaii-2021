@@ -13,6 +13,7 @@ preprocessor:
     tokenizer_type: data/dataset/deepset/xlm-roberta-large-squad2/
     max_length: 400
     stride: 135
+    add_overflowing_batch_id: true
 model:
     model_type: chaii-qa-seg-xlmrb-1
     pretrained_model_name_or_path: data/dataset/deepset/xlm-roberta-large-squad2/
