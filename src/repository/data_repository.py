@@ -45,11 +45,12 @@ class DataRepository(Repository):
         pad_on_right: bool,
         stride: int,
         use_language_as_question: bool,
+        add_overflowing_batch_id: bool,
     ) -> str:
         return (
             f"{self.preprocessed_root_path}/{dataset_name}_{class_name}_"
             f"{tokenizer_name}_{max_length}_{pad_on_right}_"
-            f"{stride}_{use_language_as_question}.pkl"
+            f"{stride}_{use_language_as_question}_{add_overflowing_batch_id}.pkl"
         )
 
     def __checkpoint_filename_from_root(
@@ -190,6 +191,7 @@ class DataRepository(Repository):
         pad_on_right: bool,
         stride: int,
         use_language_as_question: bool,
+        add_overflowing_batch_id: bool,
     ) -> None:
         filepath_from_root = self.__preprocessed_df_filepath_from_root(
             dataset_name=dataset_name,
@@ -199,6 +201,7 @@ class DataRepository(Repository):
             pad_on_right=pad_on_right,
             stride=stride,
             use_language_as_question=use_language_as_question,
+            add_overflowing_batch_id=add_overflowing_batch_id,
         )
         self.save(
             save_obj=preprocessed_df,
