@@ -22,7 +22,7 @@ model:
     end_loss_weight: 1.0
     segmentation_loss_weight: 1.0
 optimizer:
-    learning_rate: 0.00001
+    learning_rate: 0.000005
 scheduler:
     scheduler_type: cosine
     max_epoch: 4

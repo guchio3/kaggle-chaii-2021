@@ -20,6 +20,7 @@ class ChaiiDataset(Dataset):
         row = self.df.iloc[idx]
         res = {
             "id": str(row["id"]),
+            "overflowing_batch_id": int(row["overflowing_batch_id"]),
             "context": str(row["context"]),
             "question": str(row["question"]),
             "answer_text": str(row["answer_text"]),

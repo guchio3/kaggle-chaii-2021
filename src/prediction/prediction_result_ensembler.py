@@ -12,6 +12,57 @@ from src.log import myLogger
 from src.prediction.prediction_result import PredictionResult
 
 
+class SimplePredictionResultEnsembler:
+    def __init__(self, logger: myLogger) -> None:
+        self.body: Dict[
+            Tuple[str, int], Dict[str, Union[List[Tuple[int, int]], Tensor]]
+        ] = {}
+        self.logger = logger
+
+    def add(
+        self,
+        ensemble_weight: float,
+        id: str,
+        overflowing_batch_id: int,
+        offset_mapping: List[Tuple[int, int]],
+        start_logit: Tensor,
+        end_logit: Tensor,
+        segmentation_logit: Tensor,
+    ) -> None:
+        body_key = (id, overflowing_batch_id)
+        if body_key not in self.body:
+            self.body[body_key] = {
+                "offset_mapping": offset_mapping,
+                "start_logit": start_logit,
+                "end_logit": end_logit,
+                "segmentation_logit": segmentation_logit,
+            }
+        else:
+            self.body[body_key]["start_logit"] += ensemble_weight * start_logit
+            self.body[body_key]["end_logit"] += ensemble_weight * end_logit
+            self.body[body_key]["segmentation_logit"] += (
+                ensemble_weight * segmentation_logit
+            )
+
+    def to_prediction_result(self) -> PredictionResult:
+        res_prediction_result = PredictionResult(ensemble_weight=0)
+        for body_key in self.body.keys():
+            id = body_key[0]
+            overflowing_batch_id = body_key[1]
+            offset_mapping = self.body[body_key]["offset_mapping"]
+            start_logit = self.body[body_key]["start_logit"]
+            end_logit = self.body[body_key]["end_logit"]
+            segmentation_logit = self.body[body_key]["segmentation_logit"]
+
+            res_prediction_result.ids.append(id)
+            res_prediction_result.overflowing_batch_ids.append(overflowing_batch_id)
+            res_prediction_result.offset_mappings.append(offset_mapping)
+            res_prediction_result.start_logits.append(start_logit)
+            res_prediction_result.end_logits.append(end_logit)
+            res_prediction_result.segmentation_logits.append(segmentation_logit)
+        return res_prediction_result
+
+
 class PredictionResultEnsembler:
     def __init__(
         self, id_to_context_len: Dict[str, int], ensemble_mode: str, logger: myLogger
@@ -91,6 +142,7 @@ class PredictionResultEnsembler:
                 segmentation_logit[zero_cnt_index] = segmentation_min_value
 
             res_prediction_result.ids.append(id)
+            res_prediction_result.overflowing_batch_ids.append(0)
             id_context_len = self.id_to_context_len[id]
             res_prediction_result.offset_mappings.append(
                 [(i, i + 1) for i in range(id_context_len)]
@@ -188,7 +240,9 @@ def ensemble_prediction_results(
 
 
 def ensemble_prediction_result(
-    prediction_result_ensembler: PredictionResultEnsembler,
+    prediction_result_ensembler: Union[
+        SimplePredictionResultEnsembler, PredictionResultEnsembler
+    ],
     prediction_result: PredictionResult,
 ) -> None:
     print("now ensembling ...")
@@ -196,17 +250,31 @@ def ensemble_prediction_result(
     for i in tqdm(range(prediction_result_len), total=prediction_result_len):
         (
             id,
+            overflowing_batch_id,
             offset_mapping,
             start_logit,
             end_logit,
             segmentaton_logit,
         ) = prediction_result.get(i)
-        prediction_result_ensembler.add(
-            ensemble_weight=prediction_result.ensemble_weight,
-            id=id,
-            offset_mapping=offset_mapping,
-            start_logit=start_logit,
-            end_logit=end_logit,
-            segmentation_logit=segmentaton_logit,
-        )
+        if isinstance(prediction_result_ensembler, PredictionResultEnsembler):
+            prediction_result_ensembler.add(
+                ensemble_weight=prediction_result.ensemble_weight,
+                id=id,
+                offset_mapping=offset_mapping,
+                start_logit=start_logit,
+                end_logit=end_logit,
+                segmentation_logit=segmentaton_logit,
+            )
+        elif isinstance(prediction_result_ensembler, SimplePredictionResultEnsembler):
+            prediction_result_ensembler.add(
+                ensemble_weight=prediction_result.ensemble_weight,
+                id=id,
+                overflowing_batch_id=overflowing_batch_id,
+                offset_mapping=offset_mapping,
+                start_logit=start_logit,
+                end_logit=end_logit,
+                segmentation_logit=segmentaton_logit,
+            )
+        else:
+            raise Exception()
     print("done.")

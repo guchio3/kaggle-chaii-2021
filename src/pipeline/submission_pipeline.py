@@ -18,8 +18,8 @@ from src.pipeline.pipeline import Pipeline
 from src.postprocessor.factory import PostprocessorFactory
 from src.prediction.prediction_result import PredictionResult
 from src.prediction.prediction_result_ensembler import (
-    PredictionResultEnsembler, calc_id_to_context_len,
-    ensemble_prediction_result, ensemble_prediction_results)
+    PredictionResultEnsembler, SimplePredictionResultEnsembler,
+    calc_id_to_context_len, ensemble_prediction_result)
 from src.preprocessor.factory import PreprocessorFactory
 from src.repository.data_repository import DataRepository
 from src.sampler.factory import SamplerFactory
@@ -54,6 +54,7 @@ class SubmissionPipeline(Pipeline):
 
         self.train_exp_ids = config["train_exp_ids"]
         self.tst_batch_size = config["tst_batch_size"]
+        self.ensembler_type = config["ensembler_type"]
         self.ensemble_mode = config["ensemble_mode"]
         self.ensemble_weights = config["ensemble_weights"]
 
@@ -73,11 +74,18 @@ class SubmissionPipeline(Pipeline):
     def _create_submission(self) -> None:
         tst_df = self.data_repository.load_test_df()
         id_to_context_len = calc_id_to_context_len(df=tst_df)
-        prediction_result_ensembler = PredictionResultEnsembler(
-            id_to_context_len=id_to_context_len,
-            ensemble_mode=self.ensemble_mode,
-            logger=self.logger,
-        )
+        if self.ensembler_type == "simple":
+            prediction_result_ensembler = SimplePredictionResultEnsembler(
+                logger=self.logger,
+            )
+        elif self.ensembler_type == "char_level":
+            prediction_result_ensembler = PredictionResultEnsembler(
+                id_to_context_len=id_to_context_len,
+                ensemble_mode=self.ensemble_mode,
+                logger=self.logger,
+            )
+        else:
+            raise Exception("ensembler_type {self.ensembler_type} is invalid.")
 
         for train_exp_id in self.train_exp_ids:
             exp_train_config = self.config_loader.load(
@@ -191,6 +199,7 @@ class SubmissionPipeline(Pipeline):
         with torch.no_grad():
             for _, batch in enumerate(tqdm(loader)):
                 ids = batch["id"]
+                overflowing_batch_ids = batch["overflowing_batch_id"]
                 offset_mappings = batch["offset_mapping"]
                 input_ids = batch["input_ids"].to(device)
                 attention_masks = batch["attention_mask"].to(device)
@@ -211,6 +220,9 @@ class SubmissionPipeline(Pipeline):
                 segmentation_logits = segmentation_logits.to("cpu")
 
                 prediction_result.extend_by_value_list(key="ids", value_list=ids)
+                prediction_result.extend_by_value_list(
+                    key="overflowing_batch_ids", value_list=overflowing_batch_ids
+                )
                 prediction_result.extend_by_tensor(
                     key="offset_mappings", val_info=offset_mappings
                 )
