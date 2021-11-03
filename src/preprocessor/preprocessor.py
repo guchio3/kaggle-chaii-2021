@@ -78,6 +78,7 @@ class BaselineKernelPreprocessor(Preprocessor, metaclass=ABCMeta):
                 pad_on_right=self.pad_on_right,
                 stride=self.stride,
                 use_language_as_question=self.use_language_as_question,
+                add_overflowing_batch_id=self.add_overflowing_batch_id,
             )
         ):
             self.logger.info("load preprocessed_df because it already exists.")
@@ -89,6 +90,7 @@ class BaselineKernelPreprocessor(Preprocessor, metaclass=ABCMeta):
                 pad_on_right=self.pad_on_right,
                 stride=self.stride,
                 use_language_as_question=self.use_language_as_question,
+                add_overflowing_batch_id=self.add_overflowing_batch_id,
             )
         else:
             self.logger.info("now preprocessing df ...")
