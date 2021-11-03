@@ -226,7 +226,7 @@ def baseline_kernel2_text_postprocess(answer_text: str, context: str) -> str:
     answer_text = baseline_kernel1_text_postprocess(
         answer_text=answer_text, context=context
     )
-    if re.search("[0-9].$", answer_text):
+    if re.search("[0-9]\.$", answer_text):
         answer_text = answer_text[:-1]
     return answer_text
 
