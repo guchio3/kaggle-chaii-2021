@@ -98,8 +98,7 @@ class Model(Module, metaclass=ABCMeta):
     def clip_grad_norm(self) -> None:
         if self.max_grad_norm is not None:
             nn.utils.clip_grad_norm_(
-                self.parameters(),
-                self.max_grad_norm,
+                self.parameters(), self.max_grad_norm,
             )
 
     def named_children(self) -> Iterator[Tuple[str, "Module"]]:
@@ -157,8 +156,7 @@ class Model(Module, metaclass=ABCMeta):
             segmentation_positions = batch["segmentation_position"].to(device)
 
             start_logits, end_logits, segmentation_logits = self(
-                input_ids=input_ids,
-                attention_masks=attention_masks,
+                input_ids=input_ids, attention_masks=attention_masks,
             )
             loss = self.calc_loss(
                 start_logits=start_logits,
@@ -224,8 +222,7 @@ class Model(Module, metaclass=ABCMeta):
                 segmentation_positions = batch["segmentation_position"].to(device)
 
                 start_logits, end_logits, segmentation_logits = self(
-                    input_ids=input_ids,
-                    attention_masks=attention_masks,
+                    input_ids=input_ids, attention_masks=attention_masks,
                 )
                 if start_logits.dim() == 1:
                     self.logger.info(
@@ -311,10 +308,7 @@ class Model(Module, metaclass=ABCMeta):
 
     @class_dec_timer(unit="m")
     def predict(
-        self,
-        device: str,
-        ensemble_weight: float,
-        loader: DataLoader,
+        self, device: str, ensemble_weight: float, loader: DataLoader,
     ) -> PredictionResult:
         self.to(device)
         self.eval()
@@ -328,8 +322,7 @@ class Model(Module, metaclass=ABCMeta):
                 attention_masks = batch["attention_mask"].to(device)
 
                 start_logits, end_logits, _segmentation_logits = self(
-                    input_ids=input_ids,
-                    attention_masks=attention_masks,
+                    input_ids=input_ids, attention_masks=attention_masks,
                 )
                 if start_logits.dim() == 1:
                     self.logger.info(
