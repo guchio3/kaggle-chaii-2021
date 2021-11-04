@@ -105,7 +105,10 @@ class SubmissionPipeline(Pipeline):
                 data_repository=self.data_repository,
             )
             preprocessed_tst_df = preprocessor(
-                df=tst_df, dataset_name="test", enforce_preprocess=False, is_test=True,
+                df=tst_df,
+                dataset_name="test",
+                enforce_preprocess=False,
+                is_test=True,
             )
             # loader
             dataset_factory = DatasetFactory(
@@ -158,7 +161,15 @@ class SubmissionPipeline(Pipeline):
                 del prediction_result
                 gc.collect()
                 # break
+            del model_factory
+            del preprocessor
+            del preprocessed_tst_df
+            del tst_loader
+            torch.cuda.empty_cache()
             gc.collect()
+
+        del id_to_context_len
+        gc.collect()
 
         ensembled_prediction_result = prediction_result_ensembler.to_prediction_result()
         del prediction_result_ensembler
@@ -174,6 +185,8 @@ class SubmissionPipeline(Pipeline):
             .tolist()
         )
         answer_texts = [""] * len(contexts)
+        del tst_df
+        gc.collect()
         pospro_ids, _, pospro_answer_preds = postprocessor(
             ids=ensembled_prediction_result.ids,
             contexts=contexts,
@@ -183,6 +196,9 @@ class SubmissionPipeline(Pipeline):
             end_logits=ensembled_prediction_result.end_logits,
             segmentation_logits=ensembled_prediction_result.segmentation_logits,
         )
+        del postprocessor
+        del ensembled_prediction_result
+        gc.collect()
         sub_df = pd.DataFrame()
         sub_df["id"] = pospro_ids
         sub_df["PredictionString"] = pospro_answer_preds
@@ -190,7 +206,11 @@ class SubmissionPipeline(Pipeline):
 
     @class_dec_timer(unit="m")
     def _predict(
-        self, device: str, ensemble_weight: float, model: Model, loader: DataLoader,
+        self,
+        device: str,
+        ensemble_weight: float,
+        model: Model,
+        loader: DataLoader,
     ) -> PredictionResult:
         model.to(device)
         model.eval()
@@ -204,7 +224,8 @@ class SubmissionPipeline(Pipeline):
                 attention_masks = batch["attention_mask"].to(device)
 
                 start_logits, end_logits, segmentation_logits = model(
-                    input_ids=input_ids, attention_masks=attention_masks,
+                    input_ids=input_ids,
+                    attention_masks=attention_masks,
                 )
                 if start_logits.dim() == 1:
                     self.logger.info(
@@ -232,6 +253,15 @@ class SubmissionPipeline(Pipeline):
                     key="segmentation_logits", val_info=segmentation_logits
                 )
 
+                del ids
+                del offset_mappings
+                del input_ids
+                del attention_masks
+                del start_logits
+                del end_logits
+                del segmentation_logits
+                gc.collect()
+
         model.to("cpu")
         torch.cuda.empty_cache()
 
@@ -249,7 +279,7 @@ class SubmissionPipeline(Pipeline):
     ) -> DataLoader:
         if debug:
             df = df.iloc[: batch_size * 3]
-        dataset = dataset_factory.create(df=df)
+        dataset = dataset_factory.create(df=df, is_test=True)
         sampler = sampler_factory.create(
             dataset=dataset, order_settings={"sampler_type": sampler_type}
         )

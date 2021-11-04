@@ -291,7 +291,7 @@ class TrainPredPipeline(Pipeline):
     ) -> DataLoader:
         if debug:
             df = df.iloc[: batch_size * 3]
-        dataset = self.dataset_factory.create(df=df)
+        dataset = self.dataset_factory.create(df=df, is_test=False)
         sampler = self.sampler_factory.create(
             dataset=dataset, order_settings={"sampler_type": sampler_type}
         )
