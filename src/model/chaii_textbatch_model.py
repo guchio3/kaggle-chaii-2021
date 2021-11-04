@@ -159,11 +159,11 @@ class ChaiiTextBatchXLMRBModel1(Model):
                 logits = self.textbatch_forward(
                     input_ids=input_ids, attention_masks=attention_masks,
                 )
-                if logits.dim() == 1:
-                    self.logger.info(
-                        "fix the shape of logits because it contains just one elem."
-                    )
-                    logits = logits.reshape(1, -1)
+                # if logits.dim() == 1:
+                #     self.logger.info(
+                #         "fix the shape of logits because it contains just one elem."
+                #     )
+                #     logits = logits.reshape(1, -1)
 
                 loss = self.calc_textbatch_loss(
                     logits=logits,
