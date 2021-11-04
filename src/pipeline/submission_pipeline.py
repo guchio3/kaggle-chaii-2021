@@ -199,7 +199,6 @@ class SubmissionPipeline(Pipeline):
         with torch.no_grad():
             for _, batch in enumerate(tqdm(loader)):
                 ids = batch["id"]
-                overflowing_batch_ids = batch["overflowing_batch_id"]
                 offset_mappings = batch["offset_mapping"]
                 input_ids = batch["input_ids"].to(device)
                 attention_masks = batch["attention_mask"].to(device)
@@ -220,9 +219,6 @@ class SubmissionPipeline(Pipeline):
                 segmentation_logits = segmentation_logits.to("cpu")
 
                 prediction_result.extend_by_value_list(key="ids", value_list=ids)
-                prediction_result.extend_by_value_list(
-                    key="overflowing_batch_ids", value_list=overflowing_batch_ids
-                )
                 prediction_result.extend_by_tensor(
                     key="offset_mappings", val_info=offset_mappings
                 )
@@ -237,6 +233,7 @@ class SubmissionPipeline(Pipeline):
                 )
 
         model.to("cpu")
+        torch.cuda.empty_cache()
 
         return prediction_result
 
