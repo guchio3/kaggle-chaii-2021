@@ -11,7 +11,6 @@ class PipelineFactory(Factory[Pipeline]):
     def _create(
         self,
         pipeline_type: str,
-        mode: str,
         exp_id: str,
         device: str,
         enforce_preprocess: bool,
@@ -23,7 +22,7 @@ class PipelineFactory(Factory[Pipeline]):
             pipeline_type=pipeline_type, exp_id=exp_id, default_exp_id="e000"
         )
 
-        use_wdb = self._use_wdb(pipeline_type=pipeline_type, mode=mode, debug=debug)
+        use_wdb = self._use_wdb(pipeline_type=pipeline_type, debug=debug)
         logger = myLogger(
             log_filename=f"{local_root_path}/logs/{pipeline_type}/{exp_id}.log",
             exp_id=exp_id,
@@ -35,7 +34,6 @@ class PipelineFactory(Factory[Pipeline]):
         if pipeline_type == "train_pred":
             pipeline = TrainPredPipeline(
                 exp_id=exp_id,
-                mode=mode,
                 config=config,
                 device=device,
                 enforce_preprocess=enforce_preprocess,
@@ -47,15 +45,12 @@ class PipelineFactory(Factory[Pipeline]):
 
         return pipeline
 
-    def _use_wdb(self, pipeline_type: str, mode: str, debug: bool) -> bool:
+    def _use_wdb(self, pipeline_type: str, debug: bool) -> bool:
         if debug:
             return False
         if pipeline_type == "train_pred":
-            if mode == "train":
-                return True
-            elif mode == "pred":
-                return False
+            return True
 
         raise Exception(
-            f"invalid setting, pipeline_type: {pipeline_type} / mode: {mode} / debug: {debug}."
+            f"invalid setting, pipeline_type: {pipeline_type} / debug: {debug}."
         )

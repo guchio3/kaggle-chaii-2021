@@ -31,7 +31,6 @@ class TrainPredPipeline(Pipeline):
     def __init__(
         self,
         exp_id: str,
-        mode: str,
         config: Dict[str, Any],
         device: str,
         enforce_preprocess: bool,
@@ -39,7 +38,6 @@ class TrainPredPipeline(Pipeline):
         logger: myLogger,
     ) -> None:
         super().__init__("train_pred", exp_id, logger)
-        self.mode = mode
         self.config = config
         self.device = device
         self.enforce_preprocess = enforce_preprocess
@@ -49,6 +47,7 @@ class TrainPredPipeline(Pipeline):
 
         self.cleaned_train = config["cleaned_train"]
         self.only_answer_text_training = config["only_answer_text_training"]
+        self.only_answer_text_validation = config["only_answer_text_validation"]
         self.num_epochs = config["num_epochs"]
         self.train_folds = config["train_folds"]
         self.accum_mod = config["accum_mod"]
@@ -76,10 +75,7 @@ class TrainPredPipeline(Pipeline):
         )
 
     def run(self) -> None:
-        if self.mode == "train":
-            self._train()
-        else:
-            raise NotImplementedError(f"mode {self.mode} is not supported.")
+        self._train()
 
     @class_error_line_notification(add_traceback=True, return_value=None)
     @class_dec_timer(unit="m")
@@ -144,6 +140,8 @@ class TrainPredPipeline(Pipeline):
             )
             val_ids = trn_df.iloc[val_idx]["id"].tolist()
             fold_val_df = preprocessed_trn_df.query(f"id in {val_ids}")
+            if self.only_answer_text_validation:
+                fold_val_df = fold_val_df.query("is_contain_answer_text == 1")
             val_loader = self._build_loader(
                 df=fold_val_df,
                 sampler_type=self.config["sampler"]["val_sampler_type"],

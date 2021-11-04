@@ -35,13 +35,6 @@ def parse_args():
         required=True,
     )
     parser.add_argument(
-        "-m",
-        "--mode",
-        help="the mode of pipeline, choose from (none|train|pred)",
-        type=str,
-        default="none",
-    )
-    parser.add_argument(
         "--enforce_preprocess",
         help="even if the preprocessed result exists",
         action="store_true",
@@ -63,7 +56,6 @@ def main():
     factory = PipelineFactory()
     pipeline = factory.create(
         pipeline_type=args.pipeline_type,
-        mode=args.mode,
         exp_id=args.exp_id,
         device=args.device,
         enforce_preprocess=args.enforce_preprocess,
