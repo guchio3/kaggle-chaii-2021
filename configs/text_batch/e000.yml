@@ -1,0 +1,58 @@
+description: "train and pred base"
+cleaned_train: false
+only_answer_text_training: false
+only_answer_text_validation: false
+num_epochs: 5
+train_folds:
+    - 0
+accum_mod: 8
+trn_batch_size: 4
+val_batch_size: 4
+tst_batch_size: 4
+booster_trn_data: []
+preprocessor:
+    preprocessor_type: baseline_kernel_v1
+    tokenizer_type: data/dataset/deepset/xlm-roberta-large-squad2/
+    max_length: 384
+    pad_on_right: true
+    stride: 128
+    use_language_as_question: false
+    add_overflowing_batch_id: false
+postprocessor:
+    postprocessor_type: baseline_kernel
+    n_best_size: 20
+    max_answer_length: 30
+    use_chars_length: false
+    text_postprocess: null
+    use_multiprocess: true
+splitter:
+    splitter_type: kf
+    split_num: 5
+    shuffle: true
+    random_state: 71
+dataset:
+    dataset_type: chaii
+    aug: []
+sampler:
+    sampler_type: sequential
+    trn_sampler_type: random
+    val_sampler_type: sequential
+    tst_sampler_type: sequential
+model:
+    model_type: chaii-qa-xlmrb-1
+    pretrained_model_name_or_path: data/dataset/deepset/xlm-roberta-large-squad2/
+    warmup_epoch: 0
+    max_grad_norm: null
+    start_loss_weight: 1.0
+    end_loss_weight: 1.0
+    segmentation_loss_weight: 0.0
+optimizer:
+    optimizer_type: adamw
+    learning_rate: 0.00003
+    weight_decay: 0.01
+fobj: 
+    fobj_type: ce
+scheduler:
+    scheduler_type: cosine
+    max_epoch: 5
+    cosine_eta_min: 0.000001

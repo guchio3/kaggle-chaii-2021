@@ -1,4 +1,4 @@
-from torch.nn import BCEWithLogitsLoss, CrossEntropyLoss
+from torch.nn import BCELoss, CrossEntropyLoss
 from torch.nn.modules.loss import _Loss
 
 from src.factory import Factory
@@ -15,7 +15,8 @@ class FobjFactory(Factory[_Loss]):
 
     def _create(self,) -> _Loss:
         if self.fobj_type == "bce":
-            loss = BCEWithLogitsLoss()
+            # loss = BCEWithLogitsLoss()
+            loss = BCELoss()
         elif self.fobj_type == "ce":
             loss = CrossEntropyLoss()
         else:

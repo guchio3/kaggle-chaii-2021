@@ -9,11 +9,7 @@ from src.log import myLogger
 
 class ChaiiDataset(Dataset):
     def __init__(
-        self,
-        df: DataFrame,
-        aug: List[str],
-        is_test: bool,
-        logger: myLogger,
+        self, df: DataFrame, aug: List[str], is_test: bool, logger: myLogger,
     ) -> None:
         self.df = df
         self.aug = aug
@@ -48,5 +44,6 @@ class ChaiiDataset(Dataset):
                 "start_position": torch.tensor(row["start_position"]),
                 "end_position": torch.tensor(row["end_position"]),
                 "segmentation_position": torch.tensor(row["segmentation_position"]),
+                "is_contain_answer_text": torch.tensor(row["is_contain_answer_text"]),
             }
         return res

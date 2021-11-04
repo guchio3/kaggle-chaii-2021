@@ -4,6 +4,8 @@ from src.config import ConfigLoader
 from src.factory import Factory
 from src.log import myLogger
 from src.pipeline.pipeline import Pipeline
+from src.pipeline.text_batch_choose_train_pipeline import \
+    TextBatchChooseTrainPipeline
 from src.pipeline.train_pred_pipeline import TrainPredPipeline
 
 
@@ -33,6 +35,15 @@ class PipelineFactory(Factory[Pipeline]):
 
         if pipeline_type == "train_pred":
             pipeline = TrainPredPipeline(
+                exp_id=exp_id,
+                config=config,
+                device=device,
+                enforce_preprocess=enforce_preprocess,
+                debug=debug,
+                logger=logger,
+            )
+        elif pipeline_type == "text_batch":
+            pipeline = TextBatchChooseTrainPipeline(
                 exp_id=exp_id,
                 config=config,
                 device=device,
