@@ -24,6 +24,7 @@ class ChaiiTextBatchXLMRBModel1(Model):
         warmup_epoch: int,
         max_grad_norm: Optional[float],
         logger: myLogger,
+        **kwargs,
     ) -> None:
         super().__init__(
             pretrained_model_name_or_path=pretrained_model_name_or_path,
