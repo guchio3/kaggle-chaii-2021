@@ -104,6 +104,9 @@ class SubmissionPipeline(Pipeline):
             preprocessor = preprocessor_factory.create(
                 data_repository=self.data_repository,
             )
+            del preprocessor
+            del preprocessor_factory
+            gc.collect()
             preprocessed_tst_df = preprocessor(
                 df=tst_df,
                 dataset_name="test",
