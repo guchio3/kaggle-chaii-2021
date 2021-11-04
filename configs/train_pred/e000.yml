@@ -1,5 +1,6 @@
 description: "train and pred base"
 cleaned_train: false
+contain_answer_text_training: false
 num_epochs: 5
 train_folds:
     - 0

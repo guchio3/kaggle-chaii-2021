@@ -1,7 +1,6 @@
 import argparse
 
 from pytorch_lightning.utilities.seed import seed_everything
-
 from src.pipeline.factory import PipelineFactory
 
 

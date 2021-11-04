@@ -1,11 +1,12 @@
 from dataclasses import asdict, dataclass, field
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 from torch import Tensor
 from torch.optim import Optimizer
 from torch.optim.lr_scheduler import _LRScheduler
 
-from src.model.model import Model
+# remove to avoid cyclic import
+# from src.model.model import Model
 
 
 @dataclass
@@ -38,7 +39,8 @@ class Checkpoint:
                 non_filled_members.append(field_key)
         return non_filled_members
 
-    def set_model(self, model: Model) -> None:
+    # def set_model(self, model: Model) -> None:
+    def set_model(self, model: Any) -> None:
         model.to("cpu")
         self.model_state_dict = model.state_dict()
 

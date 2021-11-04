@@ -48,6 +48,7 @@ class TrainPredPipeline(Pipeline):
         self.data_repository = DataRepository(logger=logger)
 
         self.cleaned_train = config["cleaned_train"]
+        self.only_answer_text_training = config["only_answer_text_training"]
         self.num_epochs = config["num_epochs"]
         self.train_folds = config["train_folds"]
         self.accum_mod = config["accum_mod"]
@@ -132,6 +133,8 @@ class TrainPredPipeline(Pipeline):
             fold_trn_df = pd.concat(
                 [fold_trn_df, preprocessed_booster_train_df], axis=0
             ).reset_index(drop=True)
+            if self.only_answer_text_training:
+                fold_trn_df = fold_trn_df.query("is_contain_answer_text == 1")
             trn_loader = self._build_loader(
                 df=fold_trn_df,
                 sampler_type=self.config["sampler"]["trn_sampler_type"],
