@@ -1,3 +1,4 @@
+import gc
 from dataclasses import asdict, dataclass
 from glob import glob
 from typing import Dict, Generator, List
@@ -253,20 +254,25 @@ class DataRepository(Repository):
     def iter_kaggle_kernel_best_model_state_dict(
         self, exp_id: str
     ) -> Generator[Dict[str, Tensor], None, None]:
-        model_state_dict_dir = self.__best_kaggle_kernel_model_state_dict_directory_from_root(
-            exp_id=exp_id
+        model_state_dict_dir = (
+            self.__best_kaggle_kernel_model_state_dict_directory_from_root(
+                exp_id=exp_id
+            )
         )
         model_state_dict_filenames = self.list_local_filepaths_from_root(
             prefix=model_state_dict_dir
         )
         self.logger.info(f"iter filename: {model_state_dict_filenames}")
         for model_state_dict_filename in model_state_dict_filenames:
-            yield self.load(
+            model_state_dict = self.load(
                 filepath_from_root=model_state_dict_filename,
                 mode="pkl",
                 load_from_gcs=False,
                 rm_local_after_load=False,
             )
+            yield model_state_dict
+            del model_state_dict
+            gc.collect()
 
     def load_checkpoint_from_filepath(
         self, filepath_from_root: str, load_from_gcs: bool, rm_local_after_load: bool
@@ -394,12 +400,14 @@ class DataRepository(Repository):
         best_model_state_dict = best_checkpoint.model_state_dict
         if best_model_state_dict is None:
             raise Exception(f"model weight in {best_filepath} is None.")
-        best_model_state_dict_filepath = self.__best_model_state_dict_filename_from_root(
-            exp_id=best_checkpoint.exp_id,
-            fold=best_checkpoint.fold,
-            epoch=best_checkpoint.epoch,
-            val_loss=best_checkpoint.val_loss,
-            val_jaccard=best_checkpoint.val_jaccard,
+        best_model_state_dict_filepath = (
+            self.__best_model_state_dict_filename_from_root(
+                exp_id=best_checkpoint.exp_id,
+                fold=best_checkpoint.fold,
+                epoch=best_checkpoint.epoch,
+                val_loss=best_checkpoint.val_loss,
+                val_jaccard=best_checkpoint.val_jaccard,
+            )
         )
         self.save(
             save_obj=best_model_state_dict,
