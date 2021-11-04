@@ -19,7 +19,6 @@ class SimplePredictionResultEnsembler:
             "offset_mappings": [],
             "start_logits": [],
             "end_logits": [],
-            "segmentation_logits": [],
         }
         self.logger = logger
 
@@ -31,20 +30,15 @@ class SimplePredictionResultEnsembler:
         offset_mapping: List[Tuple[int, int]],
         start_logit: Tensor,
         end_logit: Tensor,
-        segmentation_logit: Tensor,
     ) -> None:
         if simple_index == len(self.body["ids"]):
             self.body["ids"].append(id)
             self.body["offset_mappings"].append(offset_mapping)
             self.body["start_logits"].append(start_logit)
             self.body["end_logits"].append(end_logit)
-            self.body["segmentation_logits"].append(end_logit)
         elif simple_index < len(self.body["ids"]):
             self.body["start_logits"][simple_index] += ensemble_weight * start_logit
             self.body["end_logits"][simple_index] += ensemble_weight * end_logit
-            self.body["segmentation_logits"][simple_index] += (
-                ensemble_weight * segmentation_logit
-            )
         else:
             raise Exception("not incremental index.")
 
@@ -55,12 +49,10 @@ class SimplePredictionResultEnsembler:
             offset_mapping = self.body["offset_mappings"][i]
             start_logit = self.body["start_logits"][i]
             end_logit = self.body["end_logits"][i]
-            segmentation_logit = self.body["segmentation_logits"][i]
             res_prediction_result.ids.append(id)
             res_prediction_result.offset_mappings.append(offset_mapping)
             res_prediction_result.start_logits.append(start_logit)
             res_prediction_result.end_logits.append(end_logit)
-            res_prediction_result.segmentation_logits.append(segmentation_logit)
         return res_prediction_result
 
 
@@ -86,7 +78,6 @@ class PredictionResultEnsembler:
         offset_mapping: Tensor,  # List[Tuple[int, int]],
         start_logit: Tensor,
         end_logit: Tensor,
-        segmentation_logit: Tensor,
     ) -> None:
         if id not in self.body:
             id_context_len = self.id_to_context_len[id]
@@ -95,14 +86,12 @@ class PredictionResultEnsembler:
                     "count": np.zeros(id_context_len),
                     "start_logit": np.zeros(id_context_len),
                     "end_logit": np.zeros(id_context_len),
-                    "segmentation_logit": np.zeros(id_context_len),
                 }
             elif self.ensemble_mode == "max":
                 self.body[id] = {
                     "count": np.zeros(id_context_len),
                     "start_logit": np.ones(id_context_len) * -1_000_000,
                     "end_logit": np.zeros(id_context_len) * -1_000_000,
-                    "segmentation_logit": np.zeros(id_context_len) * -1_000_000,
                 }
             else:
                 Exception()
@@ -114,8 +103,6 @@ class PredictionResultEnsembler:
             start_logit=start_logit.numpy(),
             base_end_logit=self.body[id]["end_logit"],
             end_logit=end_logit.numpy(),
-            base_segmentation_logit=self.body[id]["segmentation_logit"],
-            segmentation_logit=segmentation_logit.numpy(),
             ensemble_mode=self.ensemble_mode,
         )
 
@@ -129,7 +116,6 @@ class PredictionResultEnsembler:
             count = Tensor(self.body[id]["count"])
             start_logit = Tensor(self.body[id]["start_logit"])
             end_logit = Tensor(self.body[id]["end_logit"])
-            segmentation_logit = Tensor(self.body[id]["segmentation_logit"])
             # some chars are ignored, so count == 0. for ex, 6th of 22bff3dec
             if (count == 0).any().item():
                 zero_cnt_index = torch.where(count == 0)
@@ -139,8 +125,6 @@ class PredictionResultEnsembler:
                 start_logit[zero_cnt_index] = start_min_value
                 end_min_value = float(end_logit.min())
                 end_logit[zero_cnt_index] = end_min_value
-                segmentation_min_value = float(segmentation_logit.min())
-                segmentation_logit[zero_cnt_index] = segmentation_min_value
 
             res_prediction_result.ids.append(id)
             id_context_len = self.id_to_context_len[id]
@@ -150,13 +134,9 @@ class PredictionResultEnsembler:
             if self.ensemble_mode == "mean":
                 res_prediction_result.start_logits.append(start_logit / count)
                 res_prediction_result.end_logits.append(end_logit / count)
-                res_prediction_result.segmentation_logits.append(
-                    segmentation_logit / count
-                )
             elif self.ensemble_mode == "max":
                 res_prediction_result.start_logits.append(start_logit)
                 res_prediction_result.end_logits.append(end_logit)
-                res_prediction_result.segmentation_logits.append(segmentation_logit)
         return res_prediction_result
 
 
@@ -169,8 +149,6 @@ def _add_operation(
     start_logit: ndarray,
     base_end_logit: ndarray,
     end_logit: ndarray,
-    base_segmentation_logit: ndarray,
-    segmentation_logit: ndarray,
     ensemble_mode: str,
 ) -> None:
     # ) -> Tuple[List[int], List[float], List[float], List[float]]:
@@ -182,19 +160,14 @@ def _add_operation(
         #     continue
         start_logit_i = start_logit[i]
         end_logit_i = end_logit[i]
-        segmentation_logit_i = segmentation_logit[i]
         for j in range(s_i, e_i):
             count[j] += 1
             if ensemble_mode == "mean":
                 base_start_logit[j] += ensemble_weight * start_logit_i
                 base_end_logit[j] += ensemble_weight * end_logit_i
-                base_segmentation_logit[j] += ensemble_weight * segmentation_logit_i
             elif ensemble_mode == "max":
                 base_start_logit[j] = max(start_logit_i, base_start_logit[j])
                 base_end_logit[j] = max(end_logit_i, base_end_logit[j])
-                base_segmentation_logit[j] = max(
-                    segmentation_logit_i, base_segmentation_logit[j]
-                )
             else:
                 raise Exception()
 
@@ -231,7 +204,6 @@ def calc_id_to_context_len(df: DataFrame):
 #                 offset_mapping=offset_mapping,
 #                 start_logit=start_logit,
 #                 end_logit=end_logit,
-#                 segmentation_logit=segmentaton_logit,
 #             )
 #     res_prediction_result = prediction_result_ensembler.to_prediction_result()
 #     res_prediction_result.sort_values_based_on_ids()
@@ -253,7 +225,6 @@ def ensemble_prediction_result(
             offset_mapping,
             start_logit,
             end_logit,
-            segmentaton_logit,
         ) = prediction_result.get(i)
         if isinstance(prediction_result_ensembler, PredictionResultEnsembler):
             prediction_result_ensembler.add(
@@ -262,7 +233,6 @@ def ensemble_prediction_result(
                 offset_mapping=offset_mapping,
                 start_logit=start_logit,
                 end_logit=end_logit,
-                segmentation_logit=segmentaton_logit,
             )
         elif isinstance(prediction_result_ensembler, SimplePredictionResultEnsembler):
             prediction_result_ensembler.add(
@@ -272,7 +242,6 @@ def ensemble_prediction_result(
                 offset_mapping=offset_mapping,
                 start_logit=start_logit,
                 end_logit=end_logit,
-                segmentation_logit=segmentaton_logit,
             )
         else:
             raise Exception()

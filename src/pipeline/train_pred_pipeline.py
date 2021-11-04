@@ -427,7 +427,6 @@ class TrainPredPipeline(Pipeline):
                 # segmentation_logits=final_all_segmentation_logits,
                 start_logits=checkpoint.val_start_logits,
                 end_logits=checkpoint.val_end_logits,
-                segmentation_logits=checkpoint.val_segmentation_logits,
             )
             val_jaccard = calc_jaccard_mean(
                 text_trues=pospro_answer_texts, text_preds=pospro_answer_preds

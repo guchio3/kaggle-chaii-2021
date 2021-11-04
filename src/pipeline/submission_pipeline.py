@@ -194,7 +194,6 @@ class SubmissionPipeline(Pipeline):
             offset_mappings=ensembled_prediction_result.offset_mappings,
             start_logits=ensembled_prediction_result.start_logits,
             end_logits=ensembled_prediction_result.end_logits,
-            segmentation_logits=ensembled_prediction_result.segmentation_logits,
         )
         del postprocessor
         del ensembled_prediction_result
@@ -223,7 +222,7 @@ class SubmissionPipeline(Pipeline):
                 input_ids = batch["input_ids"].to(device)
                 attention_masks = batch["attention_mask"].to(device)
 
-                start_logits, end_logits, segmentation_logits = model(
+                start_logits, end_logits, _segmentation_logits = model(
                     input_ids=input_ids,
                     attention_masks=attention_masks,
                 )
@@ -235,22 +234,15 @@ class SubmissionPipeline(Pipeline):
                     end_logits = end_logits.reshape(1, -1)
                     segmentation_logits = segmentation_logits.reshape(1, -1)
 
-                start_logits = start_logits.to("cpu")
-                end_logits = end_logits.to("cpu")
-                segmentation_logits = segmentation_logits.to("cpu")
-
                 prediction_result.extend_by_value_list(key="ids", value_list=ids)
                 prediction_result.extend_by_tensor(
                     key="offset_mappings", val_info=offset_mappings
                 )
                 prediction_result.extend_by_tensor(
-                    key="start_logits", val_info=start_logits
+                    key="start_logits", val_info=start_logits.to("cpu")
                 )
                 prediction_result.extend_by_tensor(
-                    key="end_logits", val_info=end_logits
-                )
-                prediction_result.extend_by_tensor(
-                    key="segmentation_logits", val_info=segmentation_logits
+                    key="end_logits", val_info=end_logits.to("cpu")
                 )
 
                 del ids

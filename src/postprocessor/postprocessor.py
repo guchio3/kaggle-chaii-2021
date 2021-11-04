@@ -40,7 +40,6 @@ class Postprocessor(metaclass=ABCMeta):
         offset_mappings: List[List[Tuple[int, int]]],
         start_logits: List[Tensor],
         end_logits: List[Tensor],
-        segmentation_logits: List[Tensor],
     ) -> Tuple[List[str], List[str], List[str]]:
         raise NotImplementedError()
 
@@ -54,7 +53,6 @@ class BaselineKernelPostprocessor(Postprocessor):
         offset_mappings: List[List[Tuple[int, int]]],
         start_logits: List[Tensor],
         end_logits: List[Tensor],
-        segmentation_logits: List[Tensor],
     ) -> Tuple[List[str], List[str], List[str]]:
         self.logger.info("start postprocessing")
 
@@ -82,7 +80,6 @@ class BaselineKernelPostprocessor(Postprocessor):
         raw_df["offset_mapping"] = offset_mappings
         raw_df["start_logit"] = start_logits
         raw_df["end_logit"] = end_logits
-        raw_df["segmentation_logit"] = segmentation_logits
 
         if self.use_multiprocess:
             with Pool(os.cpu_count()) as p:
