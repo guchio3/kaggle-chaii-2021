@@ -99,7 +99,7 @@ class BaselineKernelPostprocessor(Postprocessor):
                 p.join()
         else:
             res_sets = []
-            for grp_pair in raw_df.groupby("id"):
+            for grp_pair in tqdm(raw_df.groupby("id")):
                 res_sets.append(
                     _apply_extract_best_answer_pred(
                         grp_pair=grp_pair,
