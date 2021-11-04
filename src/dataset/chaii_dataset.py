@@ -49,4 +49,4 @@ class ChaiiDataset(Dataset):
                 "end_position": torch.tensor(row["end_position"]),
                 "segmentation_position": torch.tensor(row["segmentation_position"]),
             }
-            return res
+        return res
