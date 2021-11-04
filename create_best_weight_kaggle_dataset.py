@@ -46,6 +46,7 @@ def create_dataset(exp_id: str):
 
     # create kaggle dataset
     exp_checkpoint_root_path = f"./data/checkpoint/{exp_id}"
+    os.system(f"mkdir -p {exp_checkpoint_root_path}")
     os.system(f"kaggle datasets init -p {exp_checkpoint_root_path}")
     with open(f"{exp_checkpoint_root_path}/dataset-metadata.json", "r") as fin:
         dataset_metadata = json.load(fin)
