@@ -39,7 +39,7 @@ class SimplePredictionResultEnsembler:
             self.body["start_logits"].append(start_logit)
             self.body["end_logits"].append(end_logit)
             self.body["segmentation_logits"].append(end_logit)
-        elif simple_index < len(self.body):
+        elif simple_index < len(self.body["ids"]):
             self.body["start_logits"][simple_index] += ensemble_weight * start_logit
             self.body["end_logits"][simple_index] += ensemble_weight * end_logit
             self.body["segmentation_logits"][simple_index] += (
