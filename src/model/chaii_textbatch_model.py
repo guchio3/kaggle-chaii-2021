@@ -71,7 +71,7 @@ class ChaiiTextBatchXLMRBModel1(Model):
     ) -> Tensor:
         if fobj is None:
             raise Exception("plz set fobj.")
-        loss = fobj(logits, is_contain_answer_texts)
+        loss = fobj(logits, is_contain_answer_texts.float())
         return loss
 
     @class_dec_timer(unit="m")
