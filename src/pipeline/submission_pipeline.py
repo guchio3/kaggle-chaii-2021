@@ -232,7 +232,7 @@ class SubmissionPipeline(Pipeline):
                     )
                     start_logits = start_logits.reshape(1, -1)
                     end_logits = end_logits.reshape(1, -1)
-                    segmentation_logits = segmentation_logits.reshape(1, -1)
+                    # segmentation_logits = segmentation_logits.reshape(1, -1)
 
                 prediction_result.extend_by_value_list(key="ids", value_list=ids)
                 prediction_result.extend_by_tensor(
@@ -251,7 +251,7 @@ class SubmissionPipeline(Pipeline):
                 del attention_masks
                 del start_logits
                 del end_logits
-                del segmentation_logits
+                del _segmentation_logits
                 gc.collect()
 
         model.to("cpu")
