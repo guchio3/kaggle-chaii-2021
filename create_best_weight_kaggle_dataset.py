@@ -47,6 +47,7 @@ def create_dataset(exp_id: str):
     # create kaggle dataset
     exp_checkpoint_root_path = f"./data/checkpoint/{exp_id}"
     os.system(f"mkdir -p {exp_checkpoint_root_path}")
+    os.system(f"touch {exp_checkpoint_root_path}/temp.txt")
     os.system(f"kaggle datasets init -p {exp_checkpoint_root_path}")
     with open(f"{exp_checkpoint_root_path}/dataset-metadata.json", "r") as fin:
         dataset_metadata = json.load(fin)
@@ -54,7 +55,7 @@ def create_dataset(exp_id: str):
     dataset_metadata["id"] = f"guchio3/{exp_id}-best-weights"
     with open(f"{exp_checkpoint_root_path}/dataset-metadata.json", "w") as fout:
         json.dump(dataset_metadata, fout)
-    os.system(f"kaggle datasets create -p {exp_checkpoint_root_path} -r zip")
+    os.system(f"kaggle datasets create -p {exp_checkpoint_root_path} -r tar")
 
     # remove
     dr.clean_exp_checkpoint(exp_id=exp_id, delete_from_gcs=False)
