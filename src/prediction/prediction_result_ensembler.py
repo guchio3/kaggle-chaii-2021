@@ -50,7 +50,7 @@ class SimplePredictionResultEnsembler:
 
     def to_prediction_result(self) -> PredictionResult:
         res_prediction_result = PredictionResult(ensemble_weight=0)
-        for i in range(len(self.body)):
+        for i in range(len(self.body["ids"])):
             id = self.body["ids"][i]
             offset_mapping = self.body["offset_mappings"][i]
             start_logit = self.body["start_logits"][i]
