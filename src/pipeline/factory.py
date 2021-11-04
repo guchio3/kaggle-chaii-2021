@@ -61,6 +61,8 @@ class PipelineFactory(Factory[Pipeline]):
             return False
         if pipeline_type == "train_pred":
             return True
+        if pipeline_type == "text_batch":
+            return True
 
         raise Exception(
             f"invalid setting, pipeline_type: {pipeline_type} / debug: {debug}."

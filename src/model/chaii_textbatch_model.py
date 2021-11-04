@@ -153,8 +153,8 @@ class ChaiiTextBatchXLMRBModel1(Model):
                 attention_masks = batch["attention_mask"].to(device)
                 is_contain_answer_texts = batch["is_contain_answer_text"].to(device)
                 ids = batch["id"]
-                input_ids = batch["input_ids"]
-                attention_masks = batch["attention_mask"]
+                input_ids = batch["input_ids"].to(device)
+                attention_masks = batch["attention_mask"].to(device)
 
                 logits = self.textbatch_forward(
                     input_ids=input_ids, attention_masks=attention_masks,
