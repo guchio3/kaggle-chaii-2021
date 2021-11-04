@@ -104,15 +104,15 @@ class SubmissionPipeline(Pipeline):
             preprocessor = preprocessor_factory.create(
                 data_repository=self.data_repository,
             )
-            del preprocessor
-            del preprocessor_factory
-            gc.collect()
             preprocessed_tst_df = preprocessor(
                 df=tst_df,
                 dataset_name="test",
                 enforce_preprocess=False,
                 is_test=True,
             )
+            del preprocessor
+            del preprocessor_factory
+            gc.collect()
             # loader
             dataset_factory = DatasetFactory(
                 **exp_train_config["dataset"], logger=self.logger
@@ -165,7 +165,6 @@ class SubmissionPipeline(Pipeline):
                 gc.collect()
                 # break
             del model_factory
-            del preprocessor
             del preprocessed_tst_df
             del tst_loader
             torch.cuda.empty_cache()
