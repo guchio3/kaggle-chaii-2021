@@ -32,7 +32,7 @@ class SimplePredictionResultEnsembler:
         end_logit: Tensor,
         segmentation_logit: Tensor,
     ) -> None:
-        if simple_index == len(self.body):
+        if simple_index == len(self.body["ids"]):
             self.body["ids"].append(id)
             self.body["offset_mappings"].append(offset_mapping)
             self.body["start_logits"].append(start_logit)
