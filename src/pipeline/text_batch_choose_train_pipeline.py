@@ -4,6 +4,7 @@ from typing import Any, Dict, Tuple
 import numpy as np
 import pandas as pd
 from pandas import DataFrame
+
 # from torch.nn import DataParallel
 from torch.optim import Optimizer
 from torch.optim.lr_scheduler import _LRScheduler
@@ -241,7 +242,7 @@ class TextBatchChooseTrainPipeline(Pipeline):
         return loader
 
     def _build_model(self) -> Tuple[ChaiiTextBatchXLMRBModel1, Optimizer, _LRScheduler]:
-        model = ChaiiTextBatchXLMRBModel1(**self.model_config)
+        model = ChaiiTextBatchXLMRBModel1(**self.model_config, logger=self.logger)
         optimizer = self.optimizer_factory.create(model=model)
         scheduler = self.scheduler_factory.create(optimizer=optimizer)
         return model, optimizer, scheduler
