@@ -15,6 +15,7 @@ from src.prediction.prediction_result import PredictionResult
 class SimplePredictionResultEnsembler:
     def __init__(self, logger: myLogger) -> None:
         self.body: Dict[str, List[Union[str, List[Tuple[int, int]], Tensor]]] = {
+            "ids": [],
             "offset_mappings": [],
             "start_logits": [],
             "end_logits": [],
