@@ -48,7 +48,7 @@ class ChaiiTextBatchXLMRBModel1(Model):
         outputs = self.model(input_ids=input_ids, attention_mask=attention_masks,)
         output = outputs[0]
         logits = self.classifier(output)
-        return logits
+        return logits[:, 0].squeeze()
 
     def calc_loss(
         self,
@@ -65,13 +65,13 @@ class ChaiiTextBatchXLMRBModel1(Model):
 
     def calc_textbatch_loss(
         self,
-        sigmoided_logits: Tensor,
+        logits: Tensor,
         is_contain_answer_texts: Tensor,
         fobj: Optional[_Loss],
     ) -> Tensor:
         if fobj is None:
             raise Exception("plz set fobj.")
-        loss = fobj(sigmoided_logits, is_contain_answer_texts)
+        loss = fobj(logits, is_contain_answer_texts)
         return loss
 
     @class_dec_timer(unit="m")
@@ -104,7 +104,7 @@ class ChaiiTextBatchXLMRBModel1(Model):
                 input_ids=input_ids, attention_masks=attention_masks,
             )
             loss = self.calc_textbatch_loss(
-                sigmoided_logits=logits,
+                logits=logits,
                 is_contain_answer_texts=is_contain_answer_texts,
                 fobj=fobj,
             )
@@ -165,12 +165,12 @@ class ChaiiTextBatchXLMRBModel1(Model):
                     )
                     logits = logits.reshape(1, -1)
 
-                sigmoided_logits = m(logits)
                 loss = self.calc_textbatch_loss(
-                    sigmoided_logits=sigmoided_logits,
+                    logits=logits,
                     is_contain_answer_texts=is_contain_answer_texts,
                     fobj=fobj,
                 )
+                sigmoided_logits = m(logits)
 
                 logits = logits.to("cpu")
                 sigmoided_logits = sigmoided_logits.to("cpu").numpy()
