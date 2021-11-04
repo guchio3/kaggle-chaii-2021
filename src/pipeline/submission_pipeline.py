@@ -149,10 +149,9 @@ class SubmissionPipeline(Pipeline):
                 model.load_state_dict(best_model_state_dict)
                 del best_model_state_dict
                 gc.collect()
-                prediction_result = self._predict(
+                prediction_result = model.predict(
                     device=self.device,
                     ensemble_weight=self.ensemble_weights[train_exp_id],
-                    model=model,
                     loader=tst_loader,
                 )
                 del model
@@ -204,62 +203,6 @@ class SubmissionPipeline(Pipeline):
         sub_df["id"] = pospro_ids
         sub_df["PredictionString"] = pospro_answer_preds
         sub_df.to_csv("submission.csv", index=False)
-
-    @class_dec_timer(unit="m")
-    def _predict(
-        self,
-        device: str,
-        ensemble_weight: float,
-        model: Model,
-        loader: DataLoader,
-    ) -> PredictionResult:
-        model.to(device)
-        model.eval()
-
-        prediction_result = PredictionResult(ensemble_weight=ensemble_weight)
-        with torch.no_grad():
-            for _, batch in enumerate(tqdm(loader)):
-                ids = batch["id"]
-                offset_mappings = batch["offset_mapping"]
-                input_ids = batch["input_ids"].to(device)
-                attention_masks = batch["attention_mask"].to(device)
-
-                start_logits, end_logits, _segmentation_logits = model(
-                    input_ids=input_ids,
-                    attention_masks=attention_masks,
-                )
-                if start_logits.dim() == 1:
-                    self.logger.info(
-                        "fix the shape of logits because it contains just one elem."
-                    )
-                    start_logits = start_logits.reshape(1, -1)
-                    end_logits = end_logits.reshape(1, -1)
-                    # segmentation_logits = segmentation_logits.reshape(1, -1)
-
-                prediction_result.extend_by_value_list(key="ids", value_list=ids)
-                prediction_result.extend_by_tensor(
-                    key="offset_mappings", val_info=offset_mappings
-                )
-                prediction_result.extend_by_tensor(
-                    key="start_logits", val_info=start_logits.to("cpu")
-                )
-                prediction_result.extend_by_tensor(
-                    key="end_logits", val_info=end_logits.to("cpu")
-                )
-
-                del ids
-                del offset_mappings
-                del input_ids
-                del attention_masks
-                del start_logits
-                del end_logits
-                del _segmentation_logits
-                gc.collect()
-
-        model.to("cpu")
-        torch.cuda.empty_cache()
-
-        return prediction_result
 
     def _build_loader(
         self,
