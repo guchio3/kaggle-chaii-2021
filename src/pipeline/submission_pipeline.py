@@ -252,6 +252,8 @@ class SubmissionPipeline(Pipeline):
             self.ensemble_textbatch_max_length > 0
             and self.ensemble_textbatch_stride > 0
         ):
+            if self.ensembler_type == "simple":
+                raise Exception("to_textbatched cannot be used w/ simple ensembler.")
             self.logger.info("!!!!!!!!!!!!! apply to_textbatched !!!!!!!!!!!!!")
             ensembled_prediction_result.to_textbatched(
                 max_length=self.ensemble_textbatch_max_length,
