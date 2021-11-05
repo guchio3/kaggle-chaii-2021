@@ -252,10 +252,13 @@ class SubmissionPipeline(Pipeline):
             self.ensemble_textbatch_max_length > 0
             and self.ensemble_textbatch_stride > 0
         ):
+            self.logger.info("!!!!!!!!!!!!! apply to_textbatched !!!!!!!!!!!!!")
             ensembled_prediction_result.to_textbatched(
                 max_length=self.ensemble_textbatch_max_length,
                 stride=self.ensemble_textbatch_stride,
             )
+        else:
+            self.logger.info("!!!!!!!!!!!!! skip to_textbatched !!!!!!!!!!!!!")
 
         postprocessor = self.postprocessor_factory.create()
         contexts = (
