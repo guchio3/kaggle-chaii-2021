@@ -254,10 +254,8 @@ class DataRepository(Repository):
     def iter_kaggle_kernel_best_model_state_dict(
         self, exp_id: str
     ) -> Generator[Dict[str, Tensor], None, None]:
-        model_state_dict_dir = (
-            self.__best_kaggle_kernel_model_state_dict_directory_from_root(
-                exp_id=exp_id
-            )
+        model_state_dict_dir = self.__best_kaggle_kernel_model_state_dict_directory_from_root(
+            exp_id=exp_id
         )
         model_state_dict_filenames = self.list_local_filepaths_from_root(
             prefix=model_state_dict_dir
@@ -293,7 +291,7 @@ class DataRepository(Repository):
     @class_dec_timer(unit="m")
     def save_checkpoint(self, checkpoint: Checkpoint, is_best: bool) -> None:
         if checkpoint.non_filled_mambers:
-            raise Exception(
+            self.logger.warn(
                 f"checkpoint members {checkpoint.non_filled_mambers} are not filled."
             )
         if is_best:
@@ -400,14 +398,12 @@ class DataRepository(Repository):
         best_model_state_dict = best_checkpoint.model_state_dict
         if best_model_state_dict is None:
             raise Exception(f"model weight in {best_filepath} is None.")
-        best_model_state_dict_filepath = (
-            self.__best_model_state_dict_filename_from_root(
-                exp_id=best_checkpoint.exp_id,
-                fold=best_checkpoint.fold,
-                epoch=best_checkpoint.epoch,
-                val_loss=best_checkpoint.val_loss,
-                val_jaccard=best_checkpoint.val_jaccard,
-            )
+        best_model_state_dict_filepath = self.__best_model_state_dict_filename_from_root(
+            exp_id=best_checkpoint.exp_id,
+            fold=best_checkpoint.fold,
+            epoch=best_checkpoint.epoch,
+            val_loss=best_checkpoint.val_loss,
+            val_jaccard=best_checkpoint.val_jaccard,
         )
         self.save(
             save_obj=best_model_state_dict,

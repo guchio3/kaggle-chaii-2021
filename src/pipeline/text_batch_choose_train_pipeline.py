@@ -15,6 +15,7 @@ from src.error_handling import class_error_line_notification
 from src.fobj.factory import FobjFactory
 from src.log import myLogger
 from src.model.chaii_textbatch_model import ChaiiTextBatchXLMRBModel1
+from src.model.factory import ModelFactory
 from src.optimizer.factory import OptimizerFactory
 from src.pipeline.pipeline import Pipeline
 from src.postprocessor.factory import PostprocessorFactory
@@ -44,6 +45,7 @@ class TextBatchChooseTrainPipeline(Pipeline):
 
         self.data_repository = DataRepository(logger=logger)
 
+        self.all_data_train = config["all_data_train"]
         self.cleaned_train = config["cleaned_train"]
         self.only_answer_text_training = config["only_answer_text_training"]
         self.only_answer_text_validation = config["only_answer_text_validation"]
@@ -65,8 +67,7 @@ class TextBatchChooseTrainPipeline(Pipeline):
         self.splitter_factory = SplitterFactory(**config["splitter"], logger=logger)
         self.dataset_factory = DatasetFactory(**config["dataset"], logger=logger)
         self.sampler_factory = SamplerFactory(**config["sampler"], logger=logger)
-        # self.model_factory = ModelFactory(**config["model"], logger=logger)
-        self.model_config = config["model"]
+        self.model_factory = ModelFactory(**config["model"], logger=logger)
         self.optimizer_factory = OptimizerFactory(
             **config["optimizer"], logger=self.logger
         )
@@ -125,8 +126,11 @@ class TextBatchChooseTrainPipeline(Pipeline):
                 self.logger.info("skip fold {fold} because it's not in train_folds.")
                 continue
             # fold data
-            trn_ids = trn_df.iloc[trn_idx]["id"].tolist()
-            fold_trn_df = preprocessed_trn_df.query(f"id in {trn_ids}")
+            if self.all_data_train:
+                fold_trn_df = preprocessed_trn_df.copy()
+            else:
+                trn_ids = trn_df.iloc[trn_idx]["id"].tolist()
+                fold_trn_df = preprocessed_trn_df.query(f"id in {trn_ids}")
             fold_trn_df = pd.concat(
                 [fold_trn_df, preprocessed_booster_train_df], axis=0
             ).reset_index(drop=True)
@@ -139,17 +143,18 @@ class TextBatchChooseTrainPipeline(Pipeline):
                 drop_last=True,
                 debug=self.debug,
             )
-            val_ids = trn_df.iloc[val_idx]["id"].tolist()
-            fold_val_df = preprocessed_trn_df.query(f"id in {val_ids}")
-            if self.only_answer_text_validation:
-                raise Exception("not supported. self.only_answer_text_validation")
-            val_loader = self._build_loader(
-                df=fold_val_df,
-                sampler_type=self.config["sampler"]["val_sampler_type"],
-                batch_size=self.val_batch_size,
-                drop_last=False,
-                debug=self.debug,
-            )
+            if not self.all_data_train:
+                val_ids = trn_df.iloc[val_idx]["id"].tolist()
+                fold_val_df = preprocessed_trn_df.query(f"id in {val_ids}")
+                if self.only_answer_text_validation:
+                    raise Exception("not supported. self.only_answer_text_validation")
+                val_loader = self._build_loader(
+                    df=fold_val_df,
+                    sampler_type=self.config["sampler"]["val_sampler_type"],
+                    batch_size=self.val_batch_size,
+                    drop_last=False,
+                    debug=self.debug,
+                )
 
             # fold model
             model, optimizer, scheduler = self._build_model(loader_size=len(trn_loader))
@@ -172,14 +177,18 @@ class TextBatchChooseTrainPipeline(Pipeline):
                 checkpoint.set_model(model=model)
                 checkpoint.set_optimizer(optimizer=optimizer)
                 checkpoint.set_scheduler(scheduler=scheduler)
-                model.textbatch_valid(
-                    device=self.device,
-                    fold=fold,
-                    epoch=epoch,
-                    loader=val_loader,
-                    fobj=fobj,
-                    checkpoint=checkpoint,
-                )
+                if not self.all_data_train:
+                    model.textbatch_valid(
+                        device=self.device,
+                        fold=fold,
+                        epoch=epoch,
+                        loader=val_loader,
+                        fobj=fobj,
+                        checkpoint=checkpoint,
+                    )
+                else:
+                    checkpoint.val_loss = 0.
+                    checkpoint.val_jaccard = epoch
                 val_aucs.append(checkpoint.val_jaccard)  # CAUTION!
                 if not self.debug:
                     self.data_repository.save_checkpoint(
@@ -195,6 +204,9 @@ class TextBatchChooseTrainPipeline(Pipeline):
                 self.data_repository.extract_and_save_best_fold_epoch_model_state_dict(
                     exp_id=self.exp_id, fold=fold
                 )
+            if self.all_data_train:
+                self.logger.info("break on the first epoch, because all_data_train mode.")
+                break
 
         val_jaccard_mean = np.mean(best_val_aucs)  # CAUTION!
         val_jaccard_std = np.std(best_val_aucs)  # CAUTION!
@@ -245,7 +257,7 @@ class TextBatchChooseTrainPipeline(Pipeline):
     def _build_model(
         self, loader_size: int
     ) -> Tuple[ChaiiTextBatchXLMRBModel1, Optimizer, _LRScheduler]:
-        model = ChaiiTextBatchXLMRBModel1(**self.model_config, logger=self.logger)
+        model = self.model_factory.create()
         optimizer = self.optimizer_factory.create(model=model)
         scheduler = self.scheduler_factory.create(
             optimizer=optimizer,

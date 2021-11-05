@@ -45,6 +45,7 @@ class TrainPredPipeline(Pipeline):
 
         self.data_repository = DataRepository(logger=logger)
 
+        self.all_data_train = config["all_data_train"]
         self.cleaned_train = config["cleaned_train"]
         self.only_answer_text_training = config["only_answer_text_training"]
         self.only_answer_text_validation = config["only_answer_text_validation"]
@@ -125,6 +126,11 @@ class TrainPredPipeline(Pipeline):
                 self.logger.info("skip fold {fold} because it's not in train_folds.")
                 continue
             # fold data
+            if self.all_data_train:
+                fold_trn_df = preprocessed_trn_df.copy()
+            else:
+                trn_ids = trn_df.iloc[trn_idx]["id"].tolist()
+                fold_trn_df = preprocessed_trn_df.query(f"id in {trn_ids}")
             trn_ids = trn_df.iloc[trn_idx]["id"].tolist()
             fold_trn_df = preprocessed_trn_df.query(f"id in {trn_ids}")
             fold_trn_df = pd.concat(
@@ -139,17 +145,18 @@ class TrainPredPipeline(Pipeline):
                 drop_last=True,
                 debug=self.debug,
             )
-            val_ids = trn_df.iloc[val_idx]["id"].tolist()
-            fold_val_df = preprocessed_trn_df.query(f"id in {val_ids}")
-            if self.only_answer_text_validation:
-                fold_val_df = fold_val_df.query("is_contain_answer_text == 1")
-            val_loader = self._build_loader(
-                df=fold_val_df,
-                sampler_type=self.config["sampler"]["val_sampler_type"],
-                batch_size=self.val_batch_size,
-                drop_last=False,
-                debug=self.debug,
-            )
+            if not self.all_data_train:
+                val_ids = trn_df.iloc[val_idx]["id"].tolist()
+                fold_val_df = preprocessed_trn_df.query(f"id in {val_ids}")
+                if self.only_answer_text_validation:
+                    fold_val_df = fold_val_df.query("is_contain_answer_text == 1")
+                val_loader = self._build_loader(
+                    df=fold_val_df,
+                    sampler_type=self.config["sampler"]["val_sampler_type"],
+                    batch_size=self.val_batch_size,
+                    drop_last=False,
+                    debug=self.debug,
+                )
 
             # fold model
             model, optimizer, scheduler = self._build_model(loader_size=len(trn_loader))
@@ -173,17 +180,21 @@ class TrainPredPipeline(Pipeline):
                 checkpoint.set_model(model=model)
                 checkpoint.set_optimizer(optimizer=optimizer)
                 checkpoint.set_scheduler(scheduler=scheduler)
-                postprocessor = self.postprocessor_factory.create()
-                model.valid(
-                    device=self.device,
-                    fold=fold,
-                    epoch=epoch,
-                    loader=val_loader,
-                    fobj=fobj,
-                    segmentation_fobj=None,
-                    postprocessor=postprocessor,
-                    checkpoint=checkpoint,
-                )
+                if not self.all_data_train:
+                    postprocessor = self.postprocessor_factory.create()
+                    model.valid(
+                        device=self.device,
+                        fold=fold,
+                        epoch=epoch,
+                        loader=val_loader,
+                        fobj=fobj,
+                        segmentation_fobj=None,
+                        postprocessor=postprocessor,
+                        checkpoint=checkpoint,
+                    )
+                else:
+                    checkpoint.val_loss = 0.
+                    checkpoint.val_jaccard = epoch
                 val_jaccards.append(checkpoint.val_jaccard)
                 if not self.debug:
                     self.data_repository.save_checkpoint(
@@ -199,6 +210,9 @@ class TrainPredPipeline(Pipeline):
                 self.data_repository.extract_and_save_best_fold_epoch_model_state_dict(
                     exp_id=self.exp_id, fold=fold
                 )
+            if self.all_data_train:
+                self.logger.info("break on the first epoch, because all_data_train mode.")
+                break
 
         val_jaccard_mean = np.mean(best_val_jaccards)
         val_jaccard_std = np.std(best_val_jaccards)

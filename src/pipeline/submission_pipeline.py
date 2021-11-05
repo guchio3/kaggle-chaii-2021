@@ -12,6 +12,7 @@ from tqdm.auto import tqdm
 from src.config import ConfigLoader
 from src.dataset.factory import DatasetFactory
 from src.log import myLogger
+from src.model.chaii_textbatch_model import ChaiiTextBatchXLMRBModel1
 from src.model.factory import ModelFactory
 from src.model.model import Model
 from src.pipeline.pipeline import Pipeline
@@ -53,10 +54,13 @@ class SubmissionPipeline(Pipeline):
         self.config_loader = ConfigLoader(local_root_path=config_local_root_path)
 
         self.train_exp_ids = config["train_exp_ids"]
+        self.text_batch_exp_ids = config["text_batch_exp_ids"]
         self.tst_batch_size = config["tst_batch_size"]
         self.ensembler_type = config["ensembler_type"]
         self.ensemble_mode = config["ensemble_mode"]
         self.ensemble_weights = config["ensemble_weights"]
+        self.textbatch_ensemble_weights = config["textbatch_ensemble_weights"]
+        self.text_batch_topn = config["text_batch_topn"]
 
         self.postprocessor_factory = PostprocessorFactory(
             **config["postprocessor"], logger=logger
@@ -105,10 +109,7 @@ class SubmissionPipeline(Pipeline):
                 data_repository=self.data_repository,
             )
             preprocessed_tst_df = preprocessor(
-                df=tst_df,
-                dataset_name="test",
-                enforce_preprocess=False,
-                is_test=True,
+                df=tst_df, dataset_name="test", enforce_preprocess=False, is_test=True,
             )
             del preprocessor
             del preprocessor_factory
@@ -129,6 +130,73 @@ class SubmissionPipeline(Pipeline):
                 drop_last=False,
                 debug=self.debug,
             )
+            if len(self.text_batch_exp_ids) > 0:
+                ensembled_text_batch_logits = None
+                for text_batch_exp_id in self.text_batch_exp_ids:
+                    text_batch_config = self.config_loader.load(
+                        pipeline_type="text_batch",
+                        exp_id=text_batch_exp_id,
+                        default_exp_id="e000",
+                    )
+                    text_batch_config["model"][
+                        "pretrained_model_name_or_path"
+                    ] = self.local_to_kaggle_kernel[
+                        text_batch_config["model"]["pretrained_model_name_or_path"]
+                    ]
+                    model_factory = ModelFactory(
+                        **text_batch_config["model"], logger=self.logger
+                    )
+                    for (
+                        best_model_state_dict
+                    ) in self.data_repository.iter_kaggle_kernel_best_model_state_dict(
+                        exp_id=text_batch_exp_id
+                    ):
+                        model: ChaiiTextBatchXLMRBModel1 = model_factory.create(
+                            order_settings=text_batch_config["model"]
+                        )
+                        model.load_state_dict(best_model_state_dict)
+                        del best_model_state_dict
+                        gc.collect()
+                        text_batch_logits = model.textbatch_predict(
+                            device=self.device,
+                            ensemble_weight=self.textbatch_ensemble_weights[
+                                text_batch_exp_id
+                            ],
+                            loader=tst_loader,
+                        )
+                        del model
+                        gc.collect()
+                        if ensembled_text_batch_logits is None:
+                            ensembled_text_batch_logits = text_batch_logits
+                        else:
+                            ensembled_text_batch_logits += text_batch_logits
+                        del text_batch_logits
+                        gc.collect()
+                    del model_factory
+                    gc.collect()
+                preprocessed_tst_df["text_batch_logits"] = ensembled_text_batch_logits
+                del ensembled_text_batch_logits
+                gc.collect()
+
+                preprocessed_tst_df = pd.concat(
+                    preprocessed_tst_df.groupby("id").apply(
+                        lambda grp_df: grp_df.sort_values(
+                            "text_batch_logits", ascending=False
+                        ).head(self.text_batch_topn)
+                    ),
+                    axis=0,
+                ).reset_index(drop=True)
+                del tst_loader
+                gc.collect()
+                tst_loader = self._build_loader(
+                    df=preprocessed_tst_df,
+                    dataset_factory=dataset_factory,
+                    sampler_factory=sampler_factory,
+                    sampler_type="sequential",
+                    batch_size=self.tst_batch_size,
+                    drop_last=False,
+                    debug=self.debug,
+                )
 
             # model
             exp_train_config["model"][

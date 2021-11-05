@@ -1,5 +1,5 @@
-description: "e022 text batch"
-num_epochs: 4
+description: "e022 text batch linear warmup"
+num_epochs: 3
 train_folds: [0, 1, 2, 3, 4]
 accum_mod: 8
 trn_batch_size: 4
@@ -21,10 +21,9 @@ model:
     end_loss_weight: 1.0
     segmentation_loss_weight: 1.0
 optimizer:
-    learning_rate: 0.000015
+    learning_rate: 0.00001
 fobj: 
     fobj_type: bce
 scheduler:
-    scheduler_type: cosine
-    max_epoch: 4
-    cosine_eta_min: 0.000001
+    scheduler_type: linear_warmup
+    warmup_ratio: 0.1

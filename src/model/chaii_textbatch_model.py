@@ -1,7 +1,9 @@
+import gc
 from typing import Optional, Tuple
 
 import numpy as np
 import torch
+from numpy import ndarray
 from sklearn import metrics
 from torch import Tensor
 from torch.nn import Linear, Sigmoid
@@ -24,7 +26,6 @@ class ChaiiTextBatchXLMRBModel1(Model):
         warmup_epoch: int,
         max_grad_norm: Optional[float],
         logger: myLogger,
-        **kwargs,
     ) -> None:
         super().__init__(
             pretrained_model_name_or_path=pretrained_model_name_or_path,
@@ -153,12 +154,10 @@ class ChaiiTextBatchXLMRBModel1(Model):
         with torch.no_grad():
             running_loss = 0.0
             for _, batch in enumerate(tqdm(loader)):
-                input_ids = batch["input_ids"].to(device)
-                attention_masks = batch["attention_mask"].to(device)
-                is_contain_answer_texts = batch["is_contain_answer_text"].to(device)
                 ids = batch["id"]
                 input_ids = batch["input_ids"].to(device)
                 attention_masks = batch["attention_mask"].to(device)
+                is_contain_answer_texts = batch["is_contain_answer_text"].to(device)
 
                 logits = self.textbatch_forward(
                     input_ids=input_ids, attention_masks=attention_masks,
@@ -224,3 +223,43 @@ class ChaiiTextBatchXLMRBModel1(Model):
         # if device != "cpu":
         #     model = model.module
         self.to("cpu")
+
+    @class_dec_timer(unit="m")
+    def textbatch_predict(
+        self, device: str, ensemble_weight: float, loader: DataLoader,
+    ) -> ndarray:
+        self.to(device)
+        self.eval()
+
+        all_logits = []
+        with torch.no_grad():
+            for _, batch in enumerate(tqdm(loader)):
+                ids = batch["id"]
+                input_ids = batch["input_ids"].to(device)
+                attention_masks = batch["attention_mask"].to(device)
+
+                logits = self.textbatch_forward(
+                    input_ids=input_ids, attention_masks=attention_masks,
+                )
+                # if start_logits.dim() == 1:
+                #     self.logger.info(
+                #         "fix the shape of logits because it contains just one elem."
+                #     )
+                #     start_logits = start_logits.reshape(1, -1)
+                #     end_logits = end_logits.reshape(1, -1)
+                #     # segmentation_logits = segmentation_logits.reshape(1, -1)
+                logits = logits.to("cpu").numpy()
+                all_logits.append(logits)
+
+                del ids
+                del input_ids
+                del attention_masks
+                gc.collect()
+
+        self.to("cpu")
+        torch.cuda.empty_cache()
+
+        res_logits: ndarray = np.concatenate(all_logits)
+        res_logits = res_logits * ensemble_weight
+
+        return res_logits

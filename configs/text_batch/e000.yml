@@ -1,4 +1,5 @@
 description: "train and pred base"
+all_data_train: false
 cleaned_train: false
 only_answer_text_training: false
 only_answer_text_validation: false
