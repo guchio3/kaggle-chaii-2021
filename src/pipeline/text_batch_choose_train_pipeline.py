@@ -4,7 +4,6 @@ from typing import Any, Dict, Tuple
 import numpy as np
 import pandas as pd
 from pandas import DataFrame
-
 # from torch.nn import DataParallel
 from torch.optim import Optimizer
 from torch.optim.lr_scheduler import _LRScheduler
@@ -55,6 +54,7 @@ class TextBatchChooseTrainPipeline(Pipeline):
         self.val_batch_size = config["val_batch_size"]
         self.tst_batch_size = config["tst_batch_size"]
         self.booster_trn_data = config["booster_trn_data"]
+        self.schedule_per_batch = config["schedule_per_batch"]
 
         self.preprocessor_factory = PreprocessorFactory(
             **config["preprocessor"], debug=debug, logger=logger
@@ -152,7 +152,7 @@ class TextBatchChooseTrainPipeline(Pipeline):
             )
 
             # fold model
-            model, optimizer, scheduler = self._build_model()
+            model, optimizer, scheduler = self._build_model(loader_size=len(trn_loader))
             fobj = self.fobj_factory.create()
 
             val_aucs = []
@@ -166,6 +166,7 @@ class TextBatchChooseTrainPipeline(Pipeline):
                     optimizer=optimizer,
                     scheduler=scheduler,
                     fobj=fobj,
+                    schedule_per_batch=self.schedule_per_batch,
                 )
                 checkpoint = Checkpoint(exp_id=self.exp_id, fold=fold, epoch=epoch)
                 checkpoint.set_model(model=model)
@@ -241,8 +242,16 @@ class TextBatchChooseTrainPipeline(Pipeline):
         )
         return loader
 
-    def _build_model(self) -> Tuple[ChaiiTextBatchXLMRBModel1, Optimizer, _LRScheduler]:
+    def _build_model(
+        self, loader_size: int
+    ) -> Tuple[ChaiiTextBatchXLMRBModel1, Optimizer, _LRScheduler]:
         model = ChaiiTextBatchXLMRBModel1(**self.model_config, logger=self.logger)
         optimizer = self.optimizer_factory.create(model=model)
-        scheduler = self.scheduler_factory.create(optimizer=optimizer)
+        scheduler = self.scheduler_factory.create(
+            optimizer=optimizer,
+            num_epochs=self.num_epochs,
+            loader_size=loader_size,
+            accum_mod=self.accum_mod,
+            schedule_per_batch=self.schedule_per_batch,
+        )
         return model, optimizer, scheduler

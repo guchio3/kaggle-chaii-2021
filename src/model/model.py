@@ -138,6 +138,7 @@ class Model(Module, metaclass=ABCMeta):
         scheduler: _LRScheduler,
         fobj: Optional[_Loss],
         segmentation_fobj: Optional[_Loss],
+        schedule_per_batch: bool,
     ) -> None:
         # init for train
         self.warmup(epoch)
@@ -175,10 +176,13 @@ class Model(Module, metaclass=ABCMeta):
             if (batch_i + 1) % accum_mod == 0:
                 self.clip_grad_norm()
                 optimizer.step()
+                if schedule_per_batch:
+                    scheduler.step()
                 # optimizer.zero_grad()
                 self.zero_grad()
 
-        scheduler.step()
+        if not schedule_per_batch:
+            scheduler.step()
 
         trn_loss = running_loss / len(loader)
         self.logger.info(f"fold: {fold} / epoch: {epoch} / trn_loss: {trn_loss:.4f}")

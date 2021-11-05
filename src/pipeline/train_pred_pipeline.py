@@ -55,6 +55,7 @@ class TrainPredPipeline(Pipeline):
         self.val_batch_size = config["val_batch_size"]
         self.tst_batch_size = config["tst_batch_size"]
         self.booster_trn_data = config["booster_trn_data"]
+        self.schedule_per_batch = config["schedule_per_batch"]
 
         self.preprocessor_factory = PreprocessorFactory(
             **config["preprocessor"], debug=debug, logger=logger
@@ -151,7 +152,7 @@ class TrainPredPipeline(Pipeline):
             )
 
             # fold model
-            model, optimizer, scheduler = self._build_model()
+            model, optimizer, scheduler = self._build_model(loader_size=len(trn_loader))
             fobj = self.fobj_factory.create()
 
             val_jaccards = []
@@ -166,6 +167,7 @@ class TrainPredPipeline(Pipeline):
                     scheduler=scheduler,
                     fobj=fobj,
                     segmentation_fobj=None,
+                    schedule_per_batch=self.schedule_per_batch,
                 )
                 checkpoint = Checkpoint(exp_id=self.exp_id, fold=fold, epoch=epoch)
                 checkpoint.set_model(model=model)
@@ -244,8 +246,14 @@ class TrainPredPipeline(Pipeline):
         )
         return loader
 
-    def _build_model(self) -> Tuple[Model, Optimizer, _LRScheduler]:
+    def _build_model(self, loader_size: int) -> Tuple[Model, Optimizer, _LRScheduler]:
         model = self.model_factory.create()
         optimizer = self.optimizer_factory.create(model=model)
-        scheduler = self.scheduler_factory.create(optimizer=optimizer)
+        scheduler = self.scheduler_factory.create(
+            optimizer=optimizer,
+            num_epochs=self.num_epochs,
+            loader_size=loader_size,
+            accum_mod=self.accum_mod,
+            schedule_per_batch=self.schedule_per_batch,
+        )
         return model, optimizer, scheduler

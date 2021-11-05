@@ -10,6 +10,7 @@ trn_batch_size: 4
 val_batch_size: 4
 tst_batch_size: 4
 booster_trn_data: []
+schedule_per_batch: false
 preprocessor:
     preprocessor_type: baseline_kernel_v1
     tokenizer_type: data/dataset/deepset/xlm-roberta-large-squad2/
@@ -56,3 +57,4 @@ scheduler:
     scheduler_type: cosine
     max_epoch: 5
     cosine_eta_min: 0.000001
+    warmup_ratio: 0.1
