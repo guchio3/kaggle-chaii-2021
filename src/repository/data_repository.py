@@ -45,13 +45,16 @@ class DataRepository(Repository):
         max_length: int,
         pad_on_right: bool,
         stride: int,
+        split: bool,
+        lstrip: bool,
         use_language_as_question: bool,
         add_overflowing_batch_id: bool,
     ) -> str:
         return (
             f"{self.preprocessed_root_path}/{dataset_name}_{class_name}_"
             f"{tokenizer_name}_{max_length}_{pad_on_right}_"
-            f"{stride}_{use_language_as_question}_{add_overflowing_batch_id}.pkl"
+            f"{stride}_{split}_{lstrip}_{use_language_as_question}_"
+            f"{add_overflowing_batch_id}.pkl"
         )
 
     def __checkpoint_filename_from_root(
@@ -163,6 +166,8 @@ class DataRepository(Repository):
         max_length: int,
         pad_on_right: bool,
         stride: int,
+        split: bool,
+        lstrip: bool,
         use_language_as_question: bool,
         add_overflowing_batch_id: bool,
     ) -> bool:
@@ -173,6 +178,8 @@ class DataRepository(Repository):
             max_length=max_length,
             pad_on_right=pad_on_right,
             stride=stride,
+            split=split,
+            lstrip=lstrip,
             use_language_as_question=use_language_as_question,
             add_overflowing_batch_id=add_overflowing_batch_id,
         )
@@ -193,6 +200,8 @@ class DataRepository(Repository):
         max_length: int,
         pad_on_right: bool,
         stride: int,
+        split: bool,
+        lstrip: bool,
         use_language_as_question: bool,
         add_overflowing_batch_id: bool,
     ) -> None:
@@ -203,6 +212,8 @@ class DataRepository(Repository):
             max_length=max_length,
             pad_on_right=pad_on_right,
             stride=stride,
+            split=split,
+            lstrip=lstrip,
             use_language_as_question=use_language_as_question,
             add_overflowing_batch_id=add_overflowing_batch_id,
         )
@@ -222,6 +233,8 @@ class DataRepository(Repository):
         max_length: int,
         pad_on_right: bool,
         stride: int,
+        split: bool,
+        lstrip: bool,
         use_language_as_question: bool,
         add_overflowing_batch_id: bool,
     ) -> DataFrame:
@@ -232,6 +245,8 @@ class DataRepository(Repository):
             max_length=max_length,
             pad_on_right=pad_on_right,
             stride=stride,
+            split=split,
+            lstrip=lstrip,
             use_language_as_question=use_language_as_question,
             add_overflowing_batch_id=add_overflowing_batch_id,
         )

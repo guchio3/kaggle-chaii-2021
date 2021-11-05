@@ -46,6 +46,8 @@ class BaselineKernelPreprocessor(Preprocessor, metaclass=ABCMeta):
         max_length: int,
         pad_on_right: bool,
         stride: int,
+        split: bool,
+        lstrip: bool,
         use_language_as_question: bool,
         add_overflowing_batch_id: bool,
         debug: bool,
@@ -60,6 +62,8 @@ class BaselineKernelPreprocessor(Preprocessor, metaclass=ABCMeta):
         )
         self.pad_on_right = pad_on_right
         self.stride = stride
+        self.split = split
+        self.lstrip = lstrip
         self.use_language_as_question = use_language_as_question
         self.add_overflowing_batch_id = add_overflowing_batch_id
 
@@ -77,6 +81,8 @@ class BaselineKernelPreprocessor(Preprocessor, metaclass=ABCMeta):
                 max_length=self.max_length,
                 pad_on_right=self.pad_on_right,
                 stride=self.stride,
+                split=self.split,
+                lstrip=self.lstrip,
                 use_language_as_question=self.use_language_as_question,
                 add_overflowing_batch_id=self.add_overflowing_batch_id,
             )
@@ -89,6 +95,8 @@ class BaselineKernelPreprocessor(Preprocessor, metaclass=ABCMeta):
                 max_length=self.max_length,
                 pad_on_right=self.pad_on_right,
                 stride=self.stride,
+                split=self.split,
+                lstrip=self.lstrip,
                 use_language_as_question=self.use_language_as_question,
                 add_overflowing_batch_id=self.add_overflowing_batch_id,
             )
@@ -106,6 +114,8 @@ class BaselineKernelPreprocessor(Preprocessor, metaclass=ABCMeta):
                         max_length=self.max_length,
                         pad_on_right=self.pad_on_right,
                         stride=self.stride,
+                        split=self.split,
+                        lstrip=self.lstrip,
                         use_language_as_question=self.use_language_as_question,
                         add_overflowing_batch_id=self.add_overflowing_batch_id,
                         is_test=is_test,
@@ -130,6 +140,8 @@ class BaselineKernelPreprocessor(Preprocessor, metaclass=ABCMeta):
                     max_length=self.max_length,
                     pad_on_right=self.pad_on_right,
                     stride=self.stride,
+                    split=self.split,
+                    lstrip=self.lstrip,
                     use_language_as_question=self.use_language_as_question,
                     add_overflowing_batch_id=self.add_overflowing_batch_id,
                 )
@@ -149,6 +161,8 @@ class BaselineKernelPreprocessor(Preprocessor, metaclass=ABCMeta):
         max_length: int,
         pad_on_right: bool,
         stride: int,
+        split: bool,
+        lstrip: bool,
         use_language_as_question: bool,
         add_overflowing_batch_id: bool,
         is_test: bool,
@@ -162,7 +176,10 @@ class BaselineKernelPreprocessor(Preprocessor, metaclass=ABCMeta):
         i, row = row_pair
         context = str(row["context"])
         question = self._prep_question(
-            row=row, use_language_as_question=use_language_as_question
+            row=row,
+            split=split,
+            lstrip=lstrip,
+            use_language_as_question=use_language_as_question,
         )
         tokenized_res = tokenizer.encode_plus(
             text=question if pad_on_right else context,
@@ -195,7 +212,9 @@ class BaselineKernelPreprocessor(Preprocessor, metaclass=ABCMeta):
                     raise Exception()
                 j_input_id = tokenizer.encode(f"{j}")[1]
                 if j > 200:
-                    raise Exception(f"j_input_id > 200 is not supported. now {j_input_id}.")
+                    raise Exception(
+                        f"j_input_id > 200 is not supported. now {j_input_id}."
+                    )
                 input_ids.insert(1, j_input_id)
                 attention_mask.insert(1, 1)
                 offset_mapping.insert(1, (-1, -1))
@@ -321,9 +340,15 @@ class BaselineKernelPreprocessor(Preprocessor, metaclass=ABCMeta):
         self,
         row: Series,
         # tokenizer: PreTrainedTokenizer,
+        split: bool,
+        lstrip: bool,
         use_language_as_question: bool,
     ) -> str:
-        question = str(row["question"]).lstrip()
+        question = str(row["question"])
+        if split:
+            question = " ".join(question.split())
+        if lstrip:
+            question = str(question).lstrip()
         if use_language_as_question:
             # tokenizer.add_tokens(["<l>", "</l>"])
             language = str(row["language"]).lstrip()
