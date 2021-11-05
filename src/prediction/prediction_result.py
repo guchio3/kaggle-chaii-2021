@@ -1,3 +1,4 @@
+import gc
 from dataclasses import dataclass, field
 from typing import List, Optional, Tuple
 
@@ -28,9 +29,7 @@ class PredictionResult:
             )
         return len(self.ids)
 
-    def get(
-        self, i: int
-    ) -> Tuple[str, List[Tuple[int, int]], Tensor, Tensor]:
+    def get(self, i: int) -> Tuple[str, List[Tuple[int, int]], Tensor, Tensor]:
         return (
             self.ids[i],
             self.offset_mappings[i],
@@ -180,3 +179,31 @@ class PredictionResult:
             Tensor(new_start_logit),
             Tensor(new_end_logit),
         )
+
+    def to_textbatched(self, max_length: int, stride: int) -> None:
+        if max_length <= stride:
+            raise Exception("max_length <= stride, so cannot textbatched.")
+        new_ids = []
+        new_offset_mappings = []
+        new_start_logits = []
+        new_end_logits = []
+
+        for id, offset_mapping, start_logit, end_logit in zip(
+            self.ids, self.offset_mappings, self.start_logits, self.end_logits
+        ):
+            s = 0
+            e = s + max_length
+            while s < len(offset_mapping):
+                new_ids.append(id)
+                new_offset_mappings.append(offset_mapping[s:e])
+                new_start_logits.append(start_logit[s:e])
+                new_end_logits.append(end_logit[s:e])
+
+                s = e - stride
+                e = s + max_length
+
+        self.ids = new_ids
+        self.offset_mappings = new_offset_mappings
+        self.start_logits = new_start_logits
+        self.end_logits = new_end_logits
+        gc.collect()

@@ -7,17 +7,14 @@ import pandas as pd
 import torch
 from pandas import DataFrame
 from torch.utils.data.dataloader import DataLoader
-from tqdm.auto import tqdm
 
 from src.config import ConfigLoader
 from src.dataset.factory import DatasetFactory
 from src.log import myLogger
 from src.model.chaii_textbatch_model import ChaiiTextBatchXLMRBModel1
 from src.model.factory import ModelFactory
-from src.model.model import Model
 from src.pipeline.pipeline import Pipeline
 from src.postprocessor.factory import PostprocessorFactory
-from src.prediction.prediction_result import PredictionResult
 from src.prediction.prediction_result_ensembler import (
     PredictionResultEnsembler, SimplePredictionResultEnsembler,
     calc_id_to_context_len, ensemble_prediction_result)
@@ -58,6 +55,8 @@ class SubmissionPipeline(Pipeline):
         self.tst_batch_size = config["tst_batch_size"]
         self.ensembler_type = config["ensembler_type"]
         self.ensemble_mode = config["ensemble_mode"]
+        self.ensemble_textbatch_max_length = config["ensemble_textbatch_max_length"]
+        self.ensemble_textbatch_stride = config["ensemble_textbatch_stride"]
         self.ensemble_weights = config["ensemble_weights"]
         self.textbatch_ensemble_weights = config["textbatch_ensemble_weights"]
         self.text_batch_topn = config["text_batch_topn"]
@@ -109,7 +108,10 @@ class SubmissionPipeline(Pipeline):
                 data_repository=self.data_repository,
             )
             preprocessed_tst_df = preprocessor(
-                df=tst_df, dataset_name="test", enforce_preprocess=False, is_test=True,
+                df=tst_df,
+                dataset_name="test",
+                enforce_preprocess=False,
+                is_test=True,
             )
             del preprocessor
             del preprocessor_factory
@@ -246,6 +248,14 @@ class SubmissionPipeline(Pipeline):
         gc.collect()
         ensembled_prediction_result.sort_values_based_on_ids()
         ensembled_prediction_result.convert_elems_to_larger_level_as_possible()
+        if (
+            self.ensemble_textbatch_max_length > 0
+            and self.ensemble_textbatch_stride > 0
+        ):
+            ensembled_prediction_result.to_textbatched(
+                max_length=self.ensemble_textbatch_max_length,
+                stride=self.ensemble_textbatch_stride,
+            )
 
         postprocessor = self.postprocessor_factory.create()
         contexts = (
