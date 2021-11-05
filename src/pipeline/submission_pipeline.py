@@ -178,14 +178,15 @@ class SubmissionPipeline(Pipeline):
                 del ensembled_text_batch_logits
                 gc.collect()
 
-                preprocessed_tst_df = pd.concat(
-                    preprocessed_tst_df.groupby("id").apply(
+                preprocessed_tst_df = (
+                    preprocessed_tst_df.groupby("id")
+                    .apply(
                         lambda grp_df: grp_df.sort_values(
                             "text_batch_logits", ascending=False
                         ).head(self.text_batch_topn)
-                    ),
-                    axis=0,
-                ).reset_index(drop=True)
+                    )
+                    .reset_index(drop=True)
+                )
                 del tst_loader
                 gc.collect()
                 tst_loader = self._build_loader(
