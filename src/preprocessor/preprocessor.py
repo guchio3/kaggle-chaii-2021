@@ -286,7 +286,7 @@ class BaselineKernelPreprocessor(Preprocessor, metaclass=ABCMeta):
                 row_j["segmentation_position"] = [1] + [0] * (len(offset_mapping) - 1)
                 row_j["is_contain_answer_text"] = 0
             else:
-                start_char_index = self._start_char_index(row=row_j)
+                start_char_index = self._start_char_index(row=row_j, split=split)
                 end_char_index = start_char_index + len(row_j["answer_text"])
 
                 # Start token index of the current span in the text.
@@ -364,7 +364,7 @@ class BaselineKernelPreprocessor(Preprocessor, metaclass=ABCMeta):
         return context
 
     @abstractmethod
-    def _start_char_index(self, row: Series) -> int:
+    def _start_char_index(self, row: Series, split: bool) -> int:
         raise NotImplementedError()
 
     def _pre_postprocess(
@@ -374,13 +374,23 @@ class BaselineKernelPreprocessor(Preprocessor, metaclass=ABCMeta):
 
 
 class BaselineKernelPreprocessorV1(BaselineKernelPreprocessor):
-    def _start_char_index(self, row: Series) -> int:
-        start_char_index = int(row["answer_start"])
+    def _start_char_index(self, row: Series, split: bool) -> int:
+        if split:
+            context = str(row["context"])
+            answer_text = str(row["answer_text"])
+            search_res = re.search(answer_text, context)
+            # no match or exception case
+            if search_res is None:
+                Exception("answer_text should be found.")
+            else:
+                start_char_index = int(search_res.span()[0])
+        else:
+            start_char_index = int(row["answer_start"])
         return start_char_index
 
 
 class BaselineKernelPreprocessorV2(BaselineKernelPreprocessor):
-    def _start_char_index(self, row: Series) -> int:
+    def _start_char_index(self, row: Series, split: bool) -> int:
         context = str(row["context"])
 
         context_start_char_index = len(context)
@@ -402,7 +412,15 @@ class BaselineKernelPreprocessorV2(BaselineKernelPreprocessor):
             search_res = None
         # no match or exception case
         if search_res is None:
-            start_char_index = int(row["answer_start"])
+            if split:
+                search_res = re.search(answer_text, context)
+                # no match or exception case
+                if search_res is None:
+                    Exception("answer_text should be found.")
+                else:
+                    start_char_index = int(search_res.span()[0])
+            else:
+                start_char_index = int(row["answer_start"])
         else:
             start_char_index = context_start_char_index + int(search_res.span()[0])
         return start_char_index
