@@ -377,11 +377,13 @@ class BaselineKernelPreprocessorV1(BaselineKernelPreprocessor):
     def _start_char_index(self, row: Series, split: bool) -> int:
         if split:
             context = str(row["context"])
-            answer_text = str(row["answer_text"])
+            # NOTE: think this!
+            # answer_text = str(row["answer_text"])
+            answer_text = " ".join(str(row["answer_text"]).split())
             search_res = re.search(answer_text, context)
             # no match or exception case
             if search_res is None:
-                Exception("answer_text should be found.")
+                raise Exception("answer_text should be found.")
             else:
                 start_char_index = int(search_res.span()[0])
         else:
@@ -413,10 +415,11 @@ class BaselineKernelPreprocessorV2(BaselineKernelPreprocessor):
         # no match or exception case
         if search_res is None:
             if split:
+                answer_text = " ".join(str(row["answer_text"]).split())
                 search_res = re.search(answer_text, context)
                 # no match or exception case
                 if search_res is None:
-                    Exception("answer_text should be found.")
+                    raise Exception("answer_text should be found.")
                 else:
                     start_char_index = int(search_res.span()[0])
             else:
