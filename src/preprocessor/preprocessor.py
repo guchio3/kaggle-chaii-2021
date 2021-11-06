@@ -174,13 +174,15 @@ class BaselineKernelPreprocessor(Preprocessor, metaclass=ABCMeta):
         context_index = 1 if pad_on_right else 0
 
         i, row = row_pair
-        context = str(row["context"])
+        context = self._prep_context(row=row, split=split)
+        row["context"] = context
         question = self._prep_question(
             row=row,
             split=split,
             lstrip=lstrip,
             use_language_as_question=use_language_as_question,
         )
+        row["question"] = question
         tokenized_res = tokenizer.encode_plus(
             text=question if pad_on_right else context,
             text_pair=context if pad_on_right else question,
@@ -354,6 +356,12 @@ class BaselineKernelPreprocessor(Preprocessor, metaclass=ABCMeta):
             language = str(row["language"]).lstrip()
             question = f"{language} </s> {question}"
         return question
+
+    def _prep_context(self, row: Series, split: bool,) -> str:
+        context = str(row["context"])
+        if split:
+            context = " ".join(context.split())
+        return context
 
     @abstractmethod
     def _start_char_index(self, row: Series) -> int:
