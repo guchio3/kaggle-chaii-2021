@@ -34,12 +34,14 @@ class SubmissionPipeline(Pipeline):
         data_dataset_root_path: str,
         data_checkpoint_root_path: str,
         config_local_root_path: str,
+        enforce_split: bool,
         debug: bool,
         logger: myLogger,
     ) -> None:
         super().__init__("submission", exp_id, logger)
         self.config = config
         self.device = device
+        self.enforce_split = enforce_split
         self.debug = debug
 
         self.data_repository = DataRepository(
@@ -76,6 +78,9 @@ class SubmissionPipeline(Pipeline):
     @class_dec_timer(unit="m")
     def _create_submission(self) -> None:
         tst_df = self.data_repository.load_test_df()
+        if self.enforce_split:
+            tst_df["context"] = tst_df["context"].apply(lambda x: " ".join(x.split()))
+            tst_df["question"] = tst_df["question"].apply(lambda x: " ".join(x.split()))
         id_to_context_len = calc_id_to_context_len(df=tst_df)
         if self.ensembler_type == "simple":
             prediction_result_ensembler = SimplePredictionResultEnsembler(
@@ -108,10 +113,7 @@ class SubmissionPipeline(Pipeline):
                 data_repository=self.data_repository,
             )
             preprocessed_tst_df = preprocessor(
-                df=tst_df,
-                dataset_name="test",
-                enforce_preprocess=False,
-                is_test=True,
+                df=tst_df, dataset_name="test", enforce_preprocess=False, is_test=True,
             )
             del preprocessor
             del preprocessor_factory
