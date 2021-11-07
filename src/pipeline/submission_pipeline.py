@@ -34,14 +34,12 @@ class SubmissionPipeline(Pipeline):
         data_dataset_root_path: str,
         data_checkpoint_root_path: str,
         config_local_root_path: str,
-        enforce_split: bool,
         debug: bool,
         logger: myLogger,
     ) -> None:
         super().__init__("submission", exp_id, logger)
         self.config = config
         self.device = device
-        self.enforce_split = enforce_split
         self.debug = debug
 
         self.data_repository = DataRepository(
@@ -62,6 +60,7 @@ class SubmissionPipeline(Pipeline):
         self.ensemble_weights = config["ensemble_weights"]
         self.textbatch_ensemble_weights = config["textbatch_ensemble_weights"]
         self.text_batch_topn = config["text_batch_topn"]
+        self.enforce_split = config["enforce_split"]
 
         self.postprocessor_factory = PostprocessorFactory(
             **config["postprocessor"], logger=logger
