@@ -4,7 +4,7 @@ import re
 from abc import ABCMeta, abstractmethod
 from copy import deepcopy
 # from multiprocessing import Pool
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 
 import pandas as pd
 from pandas import DataFrame, Series
@@ -183,6 +183,12 @@ class BaselineKernelPreprocessor(Preprocessor, metaclass=ABCMeta):
             use_language_as_question=use_language_as_question,
         )
         row["question"] = question
+        # NOTE: think this!
+        if split:
+            if "answer_text" in row:
+                row["answer_text"] = " ".join(str(row["answer_text"]).split())
+            else:
+                self.logger.info("skip insert splitted answer because it does not exist.")
         tokenized_res = tokenizer.encode_plus(
             text=question if pad_on_right else context,
             text_pair=context if pad_on_right else question,
@@ -287,6 +293,8 @@ class BaselineKernelPreprocessor(Preprocessor, metaclass=ABCMeta):
                 row_j["is_contain_answer_text"] = 0
             else:
                 start_char_index = self._start_char_index(row=row_j, split=split)
+                if start_char_index is None:
+                    return []
                 end_char_index = start_char_index + len(row_j["answer_text"])
 
                 # Start token index of the current span in the text.
@@ -374,25 +382,24 @@ class BaselineKernelPreprocessor(Preprocessor, metaclass=ABCMeta):
 
 
 class BaselineKernelPreprocessorV1(BaselineKernelPreprocessor):
-    def _start_char_index(self, row: Series, split: bool) -> int:
+    def _start_char_index(self, row: Series, split: bool) -> Optional[int]:
         if split:
             context = str(row["context"])
-            # NOTE: think this!
-            # answer_text = str(row["answer_text"])
-            answer_text = " ".join(str(row["answer_text"]).split())
-            search_res = re.search(answer_text, context)
+            answer_text = str(row["answer_text"])
+            search_res = context.find(answer_text)
             # no match or exception case
-            if search_res is None:
-                raise Exception("answer_text should be found.")
+            if search_res == -1:
+                self.logger.warn("return NONE, because not found.")
+                return None
             else:
-                start_char_index = int(search_res.span()[0])
+                start_char_index = search_res
         else:
             start_char_index = int(row["answer_start"])
         return start_char_index
 
 
 class BaselineKernelPreprocessorV2(BaselineKernelPreprocessor):
-    def _start_char_index(self, row: Series, split: bool) -> int:
+    def _start_char_index(self, row: Series, split: bool) -> Optional[int]:
         context = str(row["context"])
 
         context_start_char_index = len(context)
@@ -408,24 +415,24 @@ class BaselineKernelPreprocessorV2(BaselineKernelPreprocessor):
 
         answer_text = str(row["answer_text"])
         try:
-            search_res = re.search(answer_text, context_part)
+            search_res = context_part.find(answer_text)
         except Exception as e:
             self.logger.warn(e)
-            search_res = None
+            search_res = -1
         # no match or exception case
-        if search_res is None:
+        if search_res == -1:
             if split:
-                answer_text = " ".join(str(row["answer_text"]).split())
-                search_res = re.search(answer_text, context)
+                search_res = context.find(answer_text)
                 # no match or exception case
-                if search_res is None:
-                    raise Exception("answer_text should be found.")
+                if search_res == -1:
+                    self.logger.warn("return NONE, because not found.")
+                    return None
                 else:
-                    start_char_index = int(search_res.span()[0])
+                    start_char_index = search_res
             else:
                 start_char_index = int(row["answer_start"])
         else:
-            start_char_index = context_start_char_index + int(search_res.span()[0])
+            start_char_index = context_start_char_index + search_res
         return start_char_index
 
 
