@@ -188,7 +188,9 @@ class BaselineKernelPreprocessor(Preprocessor, metaclass=ABCMeta):
             if "answer_text" in row:
                 row["answer_text"] = " ".join(str(row["answer_text"]).split())
             else:
-                self.logger.info("skip insert splitted answer because it does not exist.")
+                self.logger.info(
+                    "skip insert splitted answer because it does not exist."
+                )
         tokenized_res = tokenizer.encode_plus(
             text=question if pad_on_right else context,
             text_pair=context if pad_on_right else question,
@@ -227,49 +229,6 @@ class BaselineKernelPreprocessor(Preprocessor, metaclass=ABCMeta):
                 attention_mask.insert(1, 1)
                 offset_mapping.insert(1, (-1, -1))
                 token_type_ids.insert(1, 0)
-                # context_offset_mapping = [
-                #     o
-                #     for k, o in enumerate(offset_mapping)
-                #     if token_type_ids[k] == context_index
-                # ]
-                # min_s = len(context) * 5
-                # max_e = -1
-                # for (temp_s, temp_e) in context_offset_mapping:
-                #     min_s = min(temp_s, min_s)
-                #     max_e = max(temp_e, max_e)
-                # context_j = context[min_s:max_e]
-                # tokenized_res_j = tokenizer.encode_plus(
-                #     text=f"{j} {question}" if pad_on_right else context_j,
-                #     text_pair=context_j if pad_on_right else f"{j} {question}",
-                #     padding="max_length",
-                #     truncation="only_second" if pad_on_right else "only_first",
-                #     max_length=max_length + 5,
-                #     stride=stride,
-                #     return_attention_mask=True,
-                #     return_overflowing_tokens=True,
-                #     return_special_tokens_mask=False,
-                #     return_offsets_mapping=True,
-                # )
-                # if len(tokenized_res_j["input_ids"]) != 1:
-                #     raise Exception(
-                #         "len of tokenized_res_j is not 1, "
-                #         f"but {len(tokenized_res_j['input_ids'])}"
-                #     )
-                # input_ids = tokenized_res_j["input_ids"][0]
-                # attention_mask = tokenized_res_j["attention_mask"][0]
-                # token_type_ids: List[int] = tokenized_res_j.sequence_ids(
-                #     0
-                # )  # CAUTION!!!!!
-                # offset_mapping_index = 0
-                # final_offset_mapping = []
-                # for token_type_id in token_type_ids:
-                #     if token_type_id == context_index:
-                #         final_offset_mapping.append(
-                #             context_offset_mapping[offset_mapping_index]
-                #         )
-                #         offset_mapping_index += 1
-                #     else:
-                #         final_offset_mapping.append((-1, -1))
 
             is_successed = True
             row_j = deepcopy(row)
@@ -379,6 +338,19 @@ class BaselineKernelPreprocessor(Preprocessor, metaclass=ABCMeta):
         self, preprocessed_results: List[Tuple[int, int, Series, bool]]
     ) -> List[Tuple[int, int, Series, bool]]:
         return preprocessed_results
+
+    def _get_context_part(
+        self, offset_mapping: List[Tuple[int, int]], context: str
+    ) -> str:
+        s = 1_000_000_000
+        e = 0
+        for (offs, offe) in offset_mapping:
+            if os == -1:
+                continue
+            s = min(offs, s)
+            e = max(offe, e)
+        context_part = context[s:e]
+        return context_part
 
 
 class BaselineKernelPreprocessorV1(BaselineKernelPreprocessor):
