@@ -7,6 +7,8 @@ from src.preprocessor.preprocessor import (BaselineKernelPreprocessorV1,
                                            BaselineKernelPreprocessorV3,
                                            BaselineKernelPreprocessorV4,
                                            BaselineKernelPreprocessorV5,
+                                           BaselineKernelPreprocessorV6,
+                                           BaselineKernelPreprocessorV7,
                                            Preprocessor)
 from src.repository.data_repository import DataRepository
 
@@ -101,6 +103,34 @@ class PreprocessorFactory(Factory[Preprocessor]):
             )
         elif self.preprocessor_type == "baseline_kernel_v5":
             preprocessor = BaselineKernelPreprocessorV5(
+                tokenizer=tokenizer,
+                data_repository=data_repository,
+                max_length=self.max_length,
+                pad_on_right=self.pad_on_right,
+                stride=self.stride,
+                split=self.split,
+                lstrip=self.lstrip,
+                use_language_as_question=self.use_language_as_question,
+                add_overflowing_batch_id=self.add_overflowing_batch_id,
+                debug=self.debug,
+                logger=self.logger,
+            )
+        elif self.preprocessor_type == "baseline_kernel_v6":
+            preprocessor = BaselineKernelPreprocessorV6(
+                tokenizer=tokenizer,
+                data_repository=data_repository,
+                max_length=self.max_length,
+                pad_on_right=self.pad_on_right,
+                stride=self.stride,
+                split=self.split,
+                lstrip=self.lstrip,
+                use_language_as_question=self.use_language_as_question,
+                add_overflowing_batch_id=self.add_overflowing_batch_id,
+                debug=self.debug,
+                logger=self.logger,
+            )
+        elif self.preprocessor_type == "baseline_kernel_v7":
+            preprocessor = BaselineKernelPreprocessorV7(
                 tokenizer=tokenizer,
                 data_repository=data_repository,
                 max_length=self.max_length,

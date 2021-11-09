@@ -1,8 +1,8 @@
 import itertools
 import os
-import re
 from abc import ABCMeta, abstractmethod
 from copy import deepcopy
+from string import punctuation
 # from multiprocessing import Pool
 from typing import List, Optional, Tuple
 
@@ -12,6 +12,7 @@ from tqdm.auto import tqdm
 from transformers.tokenization_utils import PreTrainedTokenizer
 
 from src.log import myLogger
+from src.preprocessor.skip_question_words import skip_question_words
 from src.repository.data_repository import DataRepository
 from src.timer import class_dec_timer
 
@@ -243,6 +244,11 @@ class BaselineKernelPreprocessor(Preprocessor, metaclass=ABCMeta):
             # position is part of the context or not.
             row_j["offset_mapping"] = offset_mapping
             row_j["overflowing_batch_id"] = j  # jth batch
+            row_j["duplicated_elems_num_with"] = self._calc_duplicated_elems_num_with(
+                offset_mapping=row_j["offset_mapping"],
+                context=row_j["context"],
+                question=row_j["question"],
+            )
             if is_test:
                 is_successed = False
                 row_j["answer_text"] = ""
@@ -253,6 +259,7 @@ class BaselineKernelPreprocessor(Preprocessor, metaclass=ABCMeta):
             else:
                 start_char_index = self._start_char_index(row=row_j, split=split)
                 if start_char_index is None:
+                    self.logger.info("start_char_index is None.")
                     return []
                 end_char_index = start_char_index + len(row_j["answer_text"])
 
@@ -339,18 +346,10 @@ class BaselineKernelPreprocessor(Preprocessor, metaclass=ABCMeta):
     ) -> List[Tuple[int, int, Series, bool]]:
         return preprocessed_results
 
-    def _get_context_part(
-        self, offset_mapping: List[Tuple[int, int]], context: str
-    ) -> str:
-        s = 1_000_000_000
-        e = 0
-        for (offs, offe) in offset_mapping:
-            if os == -1:
-                continue
-            s = min(offs, s)
-            e = max(offe, e)
-        context_part = context[s:e]
-        return context_part
+    def _calc_duplicated_elems_num_with(
+        self, offset_mapping: List[Tuple[int, int]], context: str, question: str
+    ) -> int:
+        return -1
 
 
 class BaselineKernelPreprocessorV1(BaselineKernelPreprocessor):
@@ -426,7 +425,7 @@ class BaselineKernelPreprocessorV3(BaselineKernelPreprocessorV2):
                     len(row["offset_mapping"]) - 1
                 )
             res_preprocessed_results.append((i, j, row, is_successed))
-        return preprocessed_results
+        return res_preprocessed_results
 
 
 class BaselineKernelPreprocessorV4(BaselineKernelPreprocessorV2):
@@ -447,7 +446,7 @@ class BaselineKernelPreprocessorV4(BaselineKernelPreprocessorV2):
                     len(row["offset_mapping"]) - 1
                 )
             res_preprocessed_results.append((i, j, row, is_successed))
-        return preprocessed_results
+        return res_preprocessed_results
 
 
 class BaselineKernelPreprocessorV5(BaselineKernelPreprocessorV2):
@@ -468,4 +467,114 @@ class BaselineKernelPreprocessorV5(BaselineKernelPreprocessorV2):
                     len(row["offset_mapping"]) - 1
                 )
             res_preprocessed_results.append((i, j, row, is_successed))
-        return preprocessed_results
+        return res_preprocessed_results
+
+
+class BaselineKernelPreprocessorV6(BaselineKernelPreprocessorV2):
+    def _pre_postprocess(
+        self, preprocessed_results: List[Tuple[int, int, Series, bool]]
+    ) -> List[Tuple[int, int, Series, bool]]:
+        cls_index = 0
+
+        max_successed_duplicated_elems_num_with = 0
+        for i, j, row, is_successed in preprocessed_results:
+            if row["duplicated_elems_num_with"] == -1:
+                raise Exception("duplicated_elems_num_with should not be -1.")
+            if is_successed:
+                max_successed_duplicated_elems_num_with = max(
+                    max_successed_duplicated_elems_num_with,
+                    row["duplicated_elems_num_with"],
+                )
+        res_preprocessed_results = []
+        for i, j, row, is_successed in preprocessed_results:
+            row[
+                "max_successed_duplicated_elems_num_with"
+            ] = max_successed_duplicated_elems_num_with
+            if (
+                is_successed
+                and row["duplicated_elems_num_with"]
+                < max_successed_duplicated_elems_num_with
+            ):
+                is_successed = False
+                row["start_position"] = cls_index
+                row["end_position"] = cls_index
+                row["segmentation_position"] = [1] + [0] * (
+                    len(row["offset_mapping"]) - 1
+                )
+            res_preprocessed_results.append((i, j, row, is_successed))
+        return res_preprocessed_results
+
+    def _get_context_part(
+        self, offset_mapping: List[Tuple[int, int]], context: str
+    ) -> str:
+        s = 1_000_000_000
+        e = 0
+        for (offs, offe) in offset_mapping:
+            if offs == -1:
+                continue
+            s = min(offs, s)
+            e = max(offe, e)
+        context_part = context[s:e]
+        return context_part
+
+    def _calc_duplicated_elems_num_with(
+        self, offset_mapping: List[Tuple[int, int]], context: str, question: str
+    ) -> int:
+        context_part = self._get_context_part(offset_mapping, context)
+
+        filter_elems = skip_question_words()
+
+        context_part_words = [
+            context_part_word.strip(punctuation)
+            for context_part_word in context_part.split()
+        ]
+        context_part_words = [
+            context_part_word
+            for context_part_word in context_part_words
+            if context_part_word not in filter_elems
+        ]
+        question_words = [
+            question_word.strip(punctuation) for question_word in question.split()
+        ]
+        question_words = [
+            question_word
+            for question_word in question_words
+            if question_word not in filter_elems
+        ]
+
+        duplicated_elems_num = set(context_part_words) & set(question_words)
+        return len(duplicated_elems_num)
+
+
+class BaselineKernelPreprocessorV7(BaselineKernelPreprocessorV6):
+    def _start_char_index(self, row: Series, split: bool) -> Optional[int]:
+        if split:
+            context = str(row["context"])
+            answer_text = str(row["answer_text"])
+            search_res = context.find(answer_text)
+            # no match or exception case
+            if search_res == -1:
+                self.logger.warn("return NONE, because not found.")
+                return None
+            else:
+                start_char_index = search_res
+        else:
+            start_char_index = int(row["answer_start"])
+        return start_char_index
+
+    def _pre_postprocess(
+        self, preprocessed_results: List[Tuple[int, int, Series, bool]]
+    ) -> List[Tuple[int, int, Series, bool]]:
+        cls_index = 0
+
+        res_preprocessed_results = []
+        for i, j, row, is_successed in preprocessed_results:
+            if is_successed and row["duplicated_elems_num_with"] == 0:
+                is_successed = False
+                row["start_position"] = cls_index
+                row["end_position"] = cls_index
+                row["segmentation_position"] = [1] + [0] * (
+                    len(row["offset_mapping"]) - 1
+                )
+            res_preprocessed_results.append((i, j, row, is_successed))
+        return res_preprocessed_results
