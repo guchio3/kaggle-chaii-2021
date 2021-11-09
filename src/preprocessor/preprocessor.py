@@ -578,3 +578,20 @@ class BaselineKernelPreprocessorV7(BaselineKernelPreprocessorV6):
                 )
             res_preprocessed_results.append((i, j, row, is_successed))
         return res_preprocessed_results
+
+
+class BaselineKernelPreprocessorV8(BaselineKernelPreprocessorV6):
+    def _start_char_index(self, row: Series, split: bool) -> Optional[int]:
+        if split:
+            context = str(row["context"])
+            answer_text = str(row["answer_text"])
+            search_res = context.find(answer_text)
+            # no match or exception case
+            if search_res == -1:
+                self.logger.warn("return NONE, because not found.")
+                return None
+            else:
+                start_char_index = search_res
+        else:
+            start_char_index = int(row["answer_start"])
+        return start_char_index
