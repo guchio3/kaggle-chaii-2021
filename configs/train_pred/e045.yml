@@ -1,0 +1,31 @@
+description: "e022 v4"
+num_epochs: 4
+train_folds: [0, 1, 2, 3, 4]
+accum_mod: 8
+trn_batch_size: 4
+val_batch_size: 16
+tst_batch_size: 16
+booster_trn_data:
+  - data/dataset/mlqa-hindi-processed/mlqa_hindi.csv
+  - data/dataset/mlqa-hindi-processed/xquad.csv
+schedule_per_batch: true
+preprocessor:
+    preprocessor_type: baseline_kernel_v4
+    tokenizer_type: data/dataset/deepset/xlm-roberta-large-squad2/
+    max_length: 400
+    stride: 135
+    split: false
+    lstrip: false
+model:
+    model_type: chaii-qa-seg-xlmrb-1
+    pretrained_model_name_or_path: data/dataset/deepset/xlm-roberta-large-squad2/
+    max_grad_norm: 1.0
+    start_loss_weight: 1.0
+    end_loss_weight: 1.0
+    segmentation_loss_weight: 1.0
+optimizer:
+    learning_rate: 0.000015
+scheduler:
+    scheduler_type: cosine
+    max_epoch: 4
+    cosine_eta_min: 0.000001

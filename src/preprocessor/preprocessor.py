@@ -438,7 +438,7 @@ class BaselineKernelPreprocessorV4(BaselineKernelPreprocessorV2):
         for i, j, row, is_successed in preprocessed_results:
             if is_successed:
                 id_succeeded_cnt += 1
-            if id_succeeded_cnt > 2:
+            if id_succeeded_cnt > 5:
                 is_successed = False
                 row["start_position"] = cls_index
                 row["end_position"] = cls_index
