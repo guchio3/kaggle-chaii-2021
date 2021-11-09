@@ -606,18 +606,14 @@ class BaselineKernelPreprocessorV9(BaselineKernelPreprocessorV6):
             if row["duplicated_elems_num_with"] == -1:
                 raise Exception("duplicated_elems_num_with should not be -1.")
             max_duplicated_elems_num_with = max(
-                max_duplicated_elems_num_with,
-                row["duplicated_elems_num_with"],
+                max_duplicated_elems_num_with, row["duplicated_elems_num_with"],
             )
         res_preprocessed_results = []
         for i, j, row, is_successed in preprocessed_results:
             row[
                 "max_successed_duplicated_elems_num_with"
             ] = max_duplicated_elems_num_with
-            if (
-                row["duplicated_elems_num_with"]
-                == max_duplicated_elems_num_with
-            ):
+            if row["duplicated_elems_num_with"] == max_duplicated_elems_num_with:
                 res_preprocessed_results.append((i, j, row, is_successed))
         return res_preprocessed_results
 
@@ -631,13 +627,12 @@ class BaselineKernelPreprocessorV10(BaselineKernelPreprocessorV6):
             if row["duplicated_elems_num_with"] == -1:
                 raise Exception("duplicated_elems_num_with should not be -1.")
             sum_duplicated_elems_num_with += row["duplicated_elems_num_with"]
-        mean_duplicated_elems_num_with = sum_duplicated_elems_num_with / len(preprocessed_results)
+        mean_duplicated_elems_num_with = sum_duplicated_elems_num_with / len(
+            preprocessed_results
+        )
 
         res_preprocessed_results = []
         for i, j, row, is_successed in preprocessed_results:
-            if (
-                row["duplicated_elems_num_with"]
-                >= mean_duplicated_elems_num_with
-            ):
+            if row["duplicated_elems_num_with"] >= mean_duplicated_elems_num_with:
                 res_preprocessed_results.append((i, j, row, is_successed))
         return res_preprocessed_results
