@@ -595,3 +595,30 @@ class BaselineKernelPreprocessorV8(BaselineKernelPreprocessorV6):
         else:
             start_char_index = int(row["answer_start"])
         return start_char_index
+
+
+class BaselineKernelPreprocessorV9(BaselineKernelPreprocessorV6):
+    def _pre_postprocess(
+        self, preprocessed_results: List[Tuple[int, int, Series, bool]]
+    ) -> List[Tuple[int, int, Series, bool]]:
+        max_successed_duplicated_elems_num_with = 0
+        for i, j, row, is_successed in preprocessed_results:
+            if row["duplicated_elems_num_with"] == -1:
+                raise Exception("duplicated_elems_num_with should not be -1.")
+            if is_successed:
+                max_successed_duplicated_elems_num_with = max(
+                    max_successed_duplicated_elems_num_with,
+                    row["duplicated_elems_num_with"],
+                )
+        res_preprocessed_results = []
+        for i, j, row, is_successed in preprocessed_results:
+            row[
+                "max_successed_duplicated_elems_num_with"
+            ] = max_successed_duplicated_elems_num_with
+            if (
+                is_successed
+                and row["duplicated_elems_num_with"]
+                == max_successed_duplicated_elems_num_with
+            ):
+                res_preprocessed_results.append((i, j, row, is_successed))
+        return res_preprocessed_results
