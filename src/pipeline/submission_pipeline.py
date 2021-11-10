@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 import torch
 from pandas import DataFrame
+from torch import Tensor
 from torch.nn import Sigmoid
 from torch.utils.data.dataloader import DataLoader
 
@@ -213,7 +214,7 @@ class SubmissionPipeline(Pipeline):
                     )
                 elif self.text_batch_ensemble:
                     sigmoid = Sigmoid()
-                    text_batch_proba = sigmoid(ensembled_text_batch_logits)
+                    text_batch_proba = sigmoid(Tensor(ensembled_text_batch_logits)).numpy()
 
             # model
             exp_train_config["model"][
