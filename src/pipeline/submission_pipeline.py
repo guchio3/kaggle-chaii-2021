@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 import torch
 from pandas import DataFrame
-from torch.utils.data.dataloader import DataLoader
+from torch.nn import Sigmoid
 
 from src.config import ConfigLoader
 from src.dataset.factory import DatasetFactory
@@ -61,6 +61,8 @@ class SubmissionPipeline(Pipeline):
         self.textbatch_ensemble_weights = config["textbatch_ensemble_weights"]
         self.text_batch_topn = config["text_batch_topn"]
         self.enforce_split = config["enforce_split"]
+        self.text_batch_filter = config["text_batch_filter"]
+        self.text_batch_ensemble = config["text_batch_ensemble"]
 
         self.postprocessor_factory = PostprocessorFactory(
             **config["postprocessor"], logger=logger
@@ -112,7 +114,10 @@ class SubmissionPipeline(Pipeline):
                 data_repository=self.data_repository,
             )
             preprocessed_tst_df = preprocessor(
-                df=tst_df, dataset_name="test", enforce_preprocess=False, is_test=True,
+                df=tst_df,
+                dataset_name="test",
+                enforce_preprocess=False,
+                is_test=True,
             )
             del preprocessor
             del preprocessor_factory
@@ -177,30 +182,37 @@ class SubmissionPipeline(Pipeline):
                         gc.collect()
                     del model_factory
                     gc.collect()
-                preprocessed_tst_df["text_batch_logits"] = ensembled_text_batch_logits
-                del ensembled_text_batch_logits
-                gc.collect()
 
-                preprocessed_tst_df = (
-                    preprocessed_tst_df.groupby("id")
-                    .apply(
-                        lambda grp_df: grp_df.sort_values(
-                            "text_batch_logits", ascending=False
-                        ).head(self.text_batch_topn)
+                if self.text_batch_filter:
+                    preprocessed_tst_df[
+                        "text_batch_logits"
+                    ] = ensembled_text_batch_logits
+                    del ensembled_text_batch_logits
+                    gc.collect()
+
+                    preprocessed_tst_df = (
+                        preprocessed_tst_df.groupby("id")
+                        .apply(
+                            lambda grp_df: grp_df.sort_values(
+                                "text_batch_logits", ascending=False
+                            ).head(self.text_batch_topn)
+                        )
+                        .reset_index(drop=True)
                     )
-                    .reset_index(drop=True)
-                )
-                del tst_loader
-                gc.collect()
-                tst_loader = self._build_loader(
-                    df=preprocessed_tst_df,
-                    dataset_factory=dataset_factory,
-                    sampler_factory=sampler_factory,
-                    sampler_type="sequential",
-                    batch_size=self.tst_batch_size,
-                    drop_last=False,
-                    debug=self.debug,
-                )
+                    del tst_loader
+                    gc.collect()
+                    tst_loader = self._build_loader(
+                        df=preprocessed_tst_df,
+                        dataset_factory=dataset_factory,
+                        sampler_factory=sampler_factory,
+                        sampler_type="sequential",
+                        batch_size=self.tst_batch_size,
+                        drop_last=False,
+                        debug=self.debug,
+                    )
+                elif self.text_batch_ensemble:
+                    sigmoid = Sigmoid()
+                    text_batch_proba = sigmoid(ensembled_text_batch_logits)
 
             # model
             exp_train_config["model"][
@@ -247,6 +259,10 @@ class SubmissionPipeline(Pipeline):
         ensembled_prediction_result = prediction_result_ensembler.to_prediction_result()
         del prediction_result_ensembler
         gc.collect()
+        if self.text_batch_ensemble:
+            ensembled_prediction_result.weight_logits(weights=text_batch_proba)
+            del text_batch_proba
+            gc.collect()
         ensembled_prediction_result.sort_values_based_on_ids()
         ensembled_prediction_result.convert_elems_to_larger_level_as_possible()
         if (

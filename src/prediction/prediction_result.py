@@ -1,6 +1,6 @@
 import gc
 from dataclasses import dataclass, field
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Union
 
 import numpy as np
 from torch import Tensor
@@ -207,3 +207,11 @@ class PredictionResult:
         self.start_logits = new_start_logits
         self.end_logits = new_end_logits
         gc.collect()
+
+    def weight_logits(self, weights: Union[Tensor, List[Tensor]]) -> None:
+        if len(weights) != len(self):
+            raise Exception("len(weights) != len(self)")
+        for i in range(len(self)):
+            weight = weights[i]
+            self.start_logits[i] *= weight
+            self.end_logits[i] *= weight
