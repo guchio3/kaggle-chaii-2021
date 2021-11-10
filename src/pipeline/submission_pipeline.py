@@ -7,6 +7,7 @@ import pandas as pd
 import torch
 from pandas import DataFrame
 from torch.nn import Sigmoid
+from torch.utils.data.dataloader import DataLoader
 
 from src.config import ConfigLoader
 from src.dataset.factory import DatasetFactory
