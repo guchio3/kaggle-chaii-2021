@@ -91,6 +91,7 @@ class TrainPredPipeline(Pipeline):
             trn_df = self.data_repository.load_cleaned_train_df()
         else:
             trn_df = self.data_repository.load_train_df()
+        trn_df["top20_context"] = trn_df["context"].apply(lambda context: context[:20])
         booster_train_dfs = self.data_repository.load_booster_train_dfs(
             self.booster_trn_data
         )
@@ -118,7 +119,9 @@ class TrainPredPipeline(Pipeline):
         ).reset_index(drop=True)
 
         splitter = self.splitter_factory.create()
-        folds = splitter.split(trn_df["id"], trn_df["language"], groups=None)
+        folds = splitter.split(
+            trn_df["id"], trn_df["language"], groups=trn_df["top20_context"]
+        )
 
         best_val_jaccards = []
         for fold, (trn_idx, val_idx) in enumerate(folds):
@@ -193,7 +196,7 @@ class TrainPredPipeline(Pipeline):
                         checkpoint=checkpoint,
                     )
                 else:
-                    checkpoint.val_loss = 0.
+                    checkpoint.val_loss = 0.0
                     checkpoint.val_jaccard = epoch
                 val_jaccards.append(checkpoint.val_jaccard)
                 if not self.debug:
@@ -211,7 +214,9 @@ class TrainPredPipeline(Pipeline):
                     exp_id=self.exp_id, fold=fold
                 )
             if self.all_data_train:
-                self.logger.info("break on the first epoch, because all_data_train mode.")
+                self.logger.info(
+                    "break on the first epoch, because all_data_train mode."
+                )
                 break
 
         val_jaccard_mean = np.mean(best_val_jaccards)

@@ -67,10 +67,10 @@ class SubmissionPipeline(Pipeline):
         self.enforce_split = config["enforce_split"]
         self.text_batch_filter = config["text_batch_filter"]
         self.text_batch_ensemble = config["text_batch_ensemble"]
-        self.fill_sub_by_train = config["fill_sub_by_train"]
-        self.high_priority = config["high_priority"]
-        self.leven_thresh = config["leven_thresh"]
-        self.jaccard_thresh = config["jaccard_thresh"]
+        # self.fill_sub_by_train = config["fill_sub_by_train"]
+        # self.high_priority = config["high_priority"]
+        # self.leven_thresh = config["leven_thresh"]
+        # self.jaccard_thresh = config["jaccard_thresh"]
 
         self.postprocessor_factory = PostprocessorFactory(
             **config["postprocessor"], logger=logger
@@ -310,13 +310,13 @@ class SubmissionPipeline(Pipeline):
         sub_df = pd.DataFrame()
         sub_df["id"] = pospro_ids
         sub_df["PredictionString"] = pospro_answer_preds
-        if self.fill_sub_by_train:
-            self._fill_sub_by_train(
-                sub_df=sub_df,
-                high_priority=self.high_priority,
-                leven_thresh=self.leven_thresh,
-                jaccard_thresh=self.jaccard_thresh,
-            )
+        # if self.fill_sub_by_train:
+        #     self._fill_sub_by_train(
+        #         sub_df=sub_df,
+        #         high_priority=self.high_priority,
+        #         leven_thresh=self.leven_thresh,
+        #         jaccard_thresh=self.jaccard_thresh,
+        #     )
         sub_df.to_csv("submission.csv", index=False)
 
     def _build_loader(

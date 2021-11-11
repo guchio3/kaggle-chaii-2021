@@ -1,6 +1,7 @@
 from src.factory import Factory
 from src.log import myLogger
-from src.splitter.splitter import GKFSplitter, KFSplitter, SKFSplitter, Splitter
+from src.splitter.splitter import (GKFSplitter, KFSplitter, SKFSplitter,
+                                   Splitter)
 
 
 class SplitterFactory(Factory):
@@ -33,13 +34,13 @@ class SplitterFactory(Factory):
         #         random_state=random_state,
         #         logger=self.logger,
         #     )
-        # elif split_type == "gkf":
-        #     return GKFSplitter(
-        #         split_num=split_num,
-        #         shuffle=shuffle,
-        #         random_state=random_state,
-        #         logger=self.logger,
-        #     )
+        elif self.splitter_type == "gkf":
+            return GKFSplitter(
+                split_num=self.split_num,
+                shuffle=self.shuffle,
+                random_state=self.random_state,
+                logger=self.logger,
+            )
         else:
             raise NotImplementedError(
                 f"splitter_type `{self.splitter_type}` is not implemented"
