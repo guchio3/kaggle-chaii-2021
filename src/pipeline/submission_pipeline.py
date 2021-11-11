@@ -10,9 +10,11 @@ from torch import Tensor
 from torch.nn import Sigmoid
 from torch.utils.data.dataloader import DataLoader
 
+import Levenshtein
 from src.config import ConfigLoader
 from src.dataset.factory import DatasetFactory
 from src.log import myLogger
+from src.metrics.jaccard import jaccard
 from src.model.chaii_textbatch_model import ChaiiTextBatchXLMRBModel1
 from src.model.factory import ModelFactory
 from src.pipeline.pipeline import Pipeline
@@ -65,6 +67,10 @@ class SubmissionPipeline(Pipeline):
         self.enforce_split = config["enforce_split"]
         self.text_batch_filter = config["text_batch_filter"]
         self.text_batch_ensemble = config["text_batch_ensemble"]
+        self.fill_sub_by_train = config["fill_sub_by_train"]
+        self.high_priority = config["high_priority"]
+        self.leven_thresh = config["leven_thresh"]
+        self.jaccard_thresh = config["jaccard_thresh"]
 
         self.postprocessor_factory = PostprocessorFactory(
             **config["postprocessor"], logger=logger
@@ -116,10 +122,7 @@ class SubmissionPipeline(Pipeline):
                 data_repository=self.data_repository,
             )
             preprocessed_tst_df = preprocessor(
-                df=tst_df,
-                dataset_name="test",
-                enforce_preprocess=False,
-                is_test=True,
+                df=tst_df, dataset_name="test", enforce_preprocess=False, is_test=True,
             )
             del preprocessor
             del preprocessor_factory
@@ -214,7 +217,9 @@ class SubmissionPipeline(Pipeline):
                     )
                 elif self.text_batch_ensemble:
                     sigmoid = Sigmoid()
-                    text_batch_proba = sigmoid(Tensor(ensembled_text_batch_logits)).numpy()
+                    text_batch_proba = sigmoid(
+                        Tensor(ensembled_text_batch_logits)
+                    ).numpy()
 
             # model
             exp_train_config["model"][
@@ -305,8 +310,13 @@ class SubmissionPipeline(Pipeline):
         sub_df = pd.DataFrame()
         sub_df["id"] = pospro_ids
         sub_df["PredictionString"] = pospro_answer_preds
-        if self.:
-            trn_df = self.data_repository.load_train_df()
+        if self.fill_sub_by_train:
+            self._fill_sub_by_train(
+                sub_df=sub_df,
+                high_priority=self.high_priority,
+                leven_thresh=self.leven_thresh,
+                jaccard_thresh=self.jaccard_thresh,
+            )
         sub_df.to_csv("submission.csv", index=False)
 
     def _build_loader(
@@ -341,14 +351,71 @@ class SubmissionPipeline(Pipeline):
         )
         return loader
 
-    def a(self, sub_df: DataFrame, key: str) -> None:
+    def _fill_sub_by_train(
+        self,
+        sub_df: DataFrame,
+        high_priority: str,
+        leven_thresh: int,
+        jaccard_thresh: float,
+    ) -> None:
+        if high_priority == "jaccard":
+            self._fill_sub_by_train_leven(sub_df=sub_df, thresh=leven_thresh)
+            self._fill_sub_by_train_jaccard(sub_df=sub_df, thresh=jaccard_thresh)
+        elif high_priority == "leven":
+            self._fill_sub_by_train_jaccard(sub_df=sub_df, thresh=jaccard_thresh)
+            self._fill_sub_by_train_leven(sub_df=sub_df, thresh=leven_thresh)
+        else:
+            raise NotImplementedError(f"high_priority == {high_priority}")
+
+    def _fill_sub_by_train_jaccard(self, sub_df: DataFrame, thresh: float) -> None:
         trn_df = self.data_repository.load_train_df()
-        trn_df.drop_duplicates(key, inplace=True)
         tst_df = self.data_repository.load_test_df()
         if len(sub_df) != len(tst_df):
-            raise Exception("")
-        for i, row in tst_df.iterrows():
-            1
+            raise Exception("len(sub_df) != len(tst_df)")
+        tst_df = (
+            tst_df.set_index("id")
+            .loc[sub_df["id"].values]
+            .reset_index()
+            .reset_index(drop=True)
+        )
+        for i, tst_row in tst_df.iterrows():
+            cur_i = -1
+            cur_score = -1
+            cur_answer_text = ""
+            for _, trn_row in trn_df.iterrows():
+                score = jaccard(
+                    text_true=tst_row["question"], text_pred=trn_row["question"]
+                )
+                if score > cur_score:
+                    cur_i = i
+                    cur_score = score
+                    cur_answer_text = trn_row["answer_text"]
+            if cur_score >= thresh:
+                sub_df.loc[cur_i, "PredictionString"] = cur_answer_text
+
+    def _fill_sub_by_train_leven(self, sub_df: DataFrame, thresh: float) -> None:
+        trn_df = self.data_repository.load_train_df()
+        tst_df = self.data_repository.load_test_df()
+        if len(sub_df) != len(tst_df):
+            raise Exception("len(sub_df) != len(tst_df)")
+        tst_df = (
+            tst_df.set_index("id")
+            .loc[sub_df["id"].values]
+            .reset_index()
+            .reset_index(drop=True)
+        )
+        for i, tst_row in tst_df.iterrows():
+            cur_i = 1_000_000_000
+            cur_score = 1_000_000_000
+            cur_answer_text = ""
+            for _, trn_row in trn_df.iterrows():
+                score = Levenshtein.distance(tst_row["question"], trn_row["question"])
+                if score < cur_score:
+                    cur_i = i
+                    cur_score = score
+                    cur_answer_text = trn_row["answer_text"]
+            if cur_score <= thresh:
+                sub_df.loc[cur_i, "PredictionString"] = cur_answer_text
 
 
 if __name__ == "__main__":
