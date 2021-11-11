@@ -10,7 +10,7 @@ booster_trn_data:
   - data/dataset/mlqa-hindi-processed/xquad.csv
 schedule_per_batch: true
 preprocessor:
-    preprocessor_type: baseline_kernel_v2
+    preprocessor_type: baseline_kernel_v1
     tokenizer_type: data/dataset/deepset/xlm-roberta-large-squad2/
     max_length: 400
     stride: 135
