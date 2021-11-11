@@ -11,7 +11,7 @@ from torch.utils.data.dataloader import DataLoader
 
 from src.checkpoint.checkpoint import Checkpoint
 from src.dataset.factory import DatasetFactory
-from src.error_handling import class_error_line_notification
+# from src.error_handling import class_error_line_notification
 from src.fobj.factory import FobjFactory
 from src.log import myLogger
 from src.model.factory import ModelFactory

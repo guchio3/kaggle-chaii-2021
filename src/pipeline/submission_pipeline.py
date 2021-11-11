@@ -305,6 +305,8 @@ class SubmissionPipeline(Pipeline):
         sub_df = pd.DataFrame()
         sub_df["id"] = pospro_ids
         sub_df["PredictionString"] = pospro_answer_preds
+        if self.:
+            trn_df = self.data_repository.load_train_df()
         sub_df.to_csv("submission.csv", index=False)
 
     def _build_loader(
@@ -338,6 +340,15 @@ class SubmissionPipeline(Pipeline):
             pin_memory=True,
         )
         return loader
+
+    def a(self, sub_df: DataFrame, key: str) -> None:
+        trn_df = self.data_repository.load_train_df()
+        trn_df.drop_duplicates(key, inplace=True)
+        tst_df = self.data_repository.load_test_df()
+        if len(sub_df) != len(tst_df):
+            raise Exception("")
+        for i, row in tst_df.iterrows():
+            1
 
 
 if __name__ == "__main__":
