@@ -129,7 +129,7 @@ class TrainPredPipeline(Pipeline):
         best_val_jaccards = []
         for fold, (trn_idx, val_idx) in enumerate(folds):
             if fold not in self.train_folds:
-                self.logger.info("skip fold {fold} because it's not in train_folds.")
+                self.logger.info(f"skip fold {fold} because it's not in train_folds.")
                 continue
             # fold data
             if self.all_data_train:
@@ -246,7 +246,9 @@ class TrainPredPipeline(Pipeline):
 
     def _negative_down_sampling(self, grp_df: DataFrame) -> DataFrame:
         positive_samples_df = grp_df.query("is_contain_answer_text == 1")
-        tmp_negative_samples = grp_df.query("is_contain_answer_text == 0")
+        tmp_negative_samples = grp_df.query(
+            "is_contain_answer_text == 0 and part_answer_text_count == 0"
+        )
         negative_samples_df = tmp_negative_samples.sample(
             min(self.negative_sampling_num, len(tmp_negative_samples)), random_state=71
         )
