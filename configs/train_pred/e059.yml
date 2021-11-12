@@ -1,5 +1,5 @@
-description: "e042 gkf max_answer_text_count == 20"
-max_answer_text_count: 20
+description: "e042 gkf max_answer_text_count == 10 again"
+max_answer_text_count: 10
 num_epochs: 4
 train_folds: [0, 1, 2, 3, 4]
 accum_mod: 8

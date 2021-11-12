@@ -143,7 +143,7 @@ class TrainPredPipeline(Pipeline):
             if self.only_answer_text_training:
                 fold_trn_df = fold_trn_df.query("is_contain_answer_text == 1")
             fold_trn_df = fold_trn_df.query(
-                f"answer_text_count <= {self.max_answer_text_count}"
+                f"answer_text_count <= {self.max_answer_text_count} or part_answer_text_count == 0"
             )
             if self.negative_sampling_num > 0:
                 self.logger.info("negative down sampling...")
