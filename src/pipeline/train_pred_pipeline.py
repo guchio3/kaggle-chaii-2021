@@ -49,6 +49,7 @@ class TrainPredPipeline(Pipeline):
         self.cleaned_train = config["cleaned_train"]
         self.only_answer_text_training = config["only_answer_text_training"]
         self.only_answer_text_validation = config["only_answer_text_validation"]
+        self.max_answer_text_count = config["max_answer_text_count"]
         self.num_epochs = config["num_epochs"]
         self.train_folds = config["train_folds"]
         self.accum_mod = config["accum_mod"]
@@ -141,6 +142,7 @@ class TrainPredPipeline(Pipeline):
             ).reset_index(drop=True)
             if self.only_answer_text_training:
                 fold_trn_df = fold_trn_df.query("is_contain_answer_text == 1")
+            fold_trn_df = fold_trn_df.query(f"answer_text_count <= {self.max_answer_text_count}")
             trn_loader = self._build_loader(
                 df=fold_trn_df,
                 sampler_type=self.config["sampler"]["trn_sampler_type"],

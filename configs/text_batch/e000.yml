@@ -3,6 +3,7 @@ all_data_train: false
 cleaned_train: false
 only_answer_text_training: false
 only_answer_text_validation: false
+max_answer_text_count: 10000000000
 num_epochs: 5
 train_folds:
     - 0

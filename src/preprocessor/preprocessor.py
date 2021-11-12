@@ -184,6 +184,7 @@ class BaselineKernelPreprocessor(Preprocessor, metaclass=ABCMeta):
             use_language_as_question=use_language_as_question,
         )
         row["question"] = question
+        row["answer_text_count"] = str(row["context"]).count(str(row["answer_text"]))
         # NOTE: think this!
         if split:
             if "answer_text" in row:
@@ -331,7 +332,11 @@ class BaselineKernelPreprocessor(Preprocessor, metaclass=ABCMeta):
             question = f"{language} </s> {question}"
         return question
 
-    def _prep_context(self, row: Series, split: bool,) -> str:
+    def _prep_context(
+        self,
+        row: Series,
+        split: bool,
+    ) -> str:
         context = str(row["context"])
         if split:
             context = " ".join(context.split())
@@ -606,7 +611,8 @@ class BaselineKernelPreprocessorV9(BaselineKernelPreprocessorV6):
             if row["duplicated_elems_num_with"] == -1:
                 raise Exception("duplicated_elems_num_with should not be -1.")
             max_duplicated_elems_num_with = max(
-                max_duplicated_elems_num_with, row["duplicated_elems_num_with"],
+                max_duplicated_elems_num_with,
+                row["duplicated_elems_num_with"],
             )
         res_preprocessed_results = []
         for i, j, row, is_successed in preprocessed_results:
