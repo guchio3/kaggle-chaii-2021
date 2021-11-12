@@ -145,10 +145,10 @@ class TrainPredPipeline(Pipeline):
                 f"answer_text_count <= {self.max_answer_text_count}"
             )
             if self.negative_sampling_num > 0:
-                fold_trn_df = pd.concat(
-                    fold_trn_df.groupby("id").apply(self._negative_down_sampling),
-                    axis=0,
-                ).reset_index(drop=True)
+                sampled_reses = []
+                for grp_df in fold_trn_df.groupby("id"):
+                    sampled_reses.append(self._negative_down_sampling(grp_df=grp_df))
+                fold_trn_df = pd.concat(sampled_reses, axis=0,).reset_index(drop=True)
             trn_loader = self._build_loader(
                 df=fold_trn_df,
                 sampler_type=self.config["sampler"]["trn_sampler_type"],
