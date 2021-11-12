@@ -47,6 +47,7 @@ class TrainPredPipeline(Pipeline):
 
         self.all_data_train = config["all_data_train"]
         self.cleaned_train = config["cleaned_train"]
+        self.negative_sampling_num = config["negative_sampling_num"]
         self.only_answer_text_training = config["only_answer_text_training"]
         self.only_answer_text_validation = config["only_answer_text_validation"]
         self.max_answer_text_count = config["max_answer_text_count"]
@@ -140,7 +141,14 @@ class TrainPredPipeline(Pipeline):
             ).reset_index(drop=True)
             if self.only_answer_text_training:
                 fold_trn_df = fold_trn_df.query("is_contain_answer_text == 1")
-            fold_trn_df = fold_trn_df.query(f"answer_text_count <= {self.max_answer_text_count}")
+            fold_trn_df = fold_trn_df.query(
+                f"answer_text_count <= {self.max_answer_text_count}"
+            )
+            if self.negative_sampling_num > 0:
+                fold_trn_df = pd.concat(
+                    fold_trn_df.groupby("id").apply(self._negative_down_sampling),
+                    axis=0,
+                ).reset_index(drop=True)
             trn_loader = self._build_loader(
                 df=fold_trn_df,
                 sampler_type=self.config["sampler"]["trn_sampler_type"],
@@ -233,6 +241,17 @@ class TrainPredPipeline(Pipeline):
         )
         self.logger.info(result_stats)
         self.logger.send_line_notification(message=result_stats)
+
+    def _negative_down_sampling(self, grp_df: DataFrame) -> DataFrame:
+        positive_samples_df = grp_df.query("is_contain_answer_text == 1")
+        tmp_negative_samples = grp_df.query("is_contain_answer_text == 0")
+        negative_samples_df = tmp_negative_samples.sample(
+            min(self.negative_sampling_num, len(tmp_negative_samples)), random_state=71
+        )
+        negative_down_sampled_df = pd.concat(
+            [positive_samples_df, negative_samples_df], axis=0
+        )
+        return negative_down_sampled_df
 
     def _build_loader(
         self,

@@ -1,6 +1,7 @@
 description: "train and pred base"
 all_data_train: false
 cleaned_train: false
+negative_sampling_num: -1
 only_answer_text_training: false
 only_answer_text_validation: false
 max_answer_text_count: 10000000000
