@@ -8,6 +8,7 @@ from pandas import DataFrame
 from torch.optim import Optimizer
 from torch.optim.lr_scheduler import _LRScheduler
 from torch.utils.data.dataloader import DataLoader
+from tqdm.auto import tqdm
 
 from src.checkpoint.checkpoint import Checkpoint
 from src.dataset.factory import DatasetFactory
@@ -145,8 +146,9 @@ class TrainPredPipeline(Pipeline):
                 f"answer_text_count <= {self.max_answer_text_count}"
             )
             if self.negative_sampling_num > 0:
+                self.logger.info("negative down sampling...")
                 sampled_reses = []
-                for grp_df in fold_trn_df.groupby("id"):
+                for _, grp_df in tqdm(fold_trn_df.groupby("id")):
                     sampled_reses.append(self._negative_down_sampling(grp_df=grp_df))
                 fold_trn_df = pd.concat(sampled_reses, axis=0,).reset_index(drop=True)
             trn_loader = self._build_loader(
