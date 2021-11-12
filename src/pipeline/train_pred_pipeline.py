@@ -135,8 +135,6 @@ class TrainPredPipeline(Pipeline):
             else:
                 trn_ids = trn_df.iloc[trn_idx]["id"].tolist()
                 fold_trn_df = preprocessed_trn_df.query(f"id in {trn_ids}")
-            trn_ids = trn_df.iloc[trn_idx]["id"].tolist()
-            fold_trn_df = preprocessed_trn_df.query(f"id in {trn_ids}")
             fold_trn_df = pd.concat(
                 [fold_trn_df, preprocessed_booster_train_df], axis=0
             ).reset_index(drop=True)
