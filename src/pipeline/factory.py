@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import List, Optional
+
 from src.config import ConfigLoader
 from src.factory import Factory
 from src.log import myLogger
@@ -15,7 +17,9 @@ class PipelineFactory(Factory[Pipeline]):
         pipeline_type: str,
         exp_id: str,
         device: str,
+        folds: Optional[List[int]],
         enforce_preprocess: bool,
+        pre_clean: bool,
         local_root_path: str,
         debug: bool,
     ) -> Pipeline:
@@ -38,7 +42,9 @@ class PipelineFactory(Factory[Pipeline]):
                 exp_id=exp_id,
                 config=config,
                 device=device,
+                folds=folds,
                 enforce_preprocess=enforce_preprocess,
+                pre_clean=pre_clean,
                 debug=debug,
                 logger=logger,
             )
