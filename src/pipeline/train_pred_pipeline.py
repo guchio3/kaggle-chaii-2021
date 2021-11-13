@@ -50,6 +50,7 @@ class TrainPredPipeline(Pipeline):
         self.data_repository = DataRepository(logger=logger)
 
         self.all_data_train = config["all_data_train"]
+        self.val_pseudo_filepath_from_root = config["val_pseudo_filepath_from_root"]
         self.cleaned_train = config["cleaned_train"]
         self.use_boost_as_valid = config["use_boost_as_valid"]
         self.negative_sampling_num = config["negative_sampling_num"]
@@ -98,39 +99,52 @@ class TrainPredPipeline(Pipeline):
                 exp_id=self.exp_id, delete_from_gcs=True
             )
 
-        if self.cleaned_train:
-            trn_df = self.data_repository.load_cleaned_train_df()
+        if self.val_pseudo_filepath_from_root:
+            val_pseudo_train_df = self.data_repository.load_val_pseudo_train_df(
+                self.val_pseudo_filepath_from_root
+            )
+            preprocessed_trn_df = val_pseudo_train_df.query("is_original").reset_index(
+                drop=True
+            )
+            preprocessed_booster_train_df = val_pseudo_train_df.query(
+                "not is_original"
+            ).reset_index(drop=True)
         else:
-            trn_df = self.data_repository.load_train_df()
-        trn_df["top20_context"] = trn_df["context"].apply(lambda context: context[:20])
-        booster_train_dfs = self.data_repository.load_booster_train_dfs(
-            self.booster_trn_data
-        )
-        preprocessor = self.preprocessor_factory.create(
-            data_repository=self.data_repository
-        )
-        preprocessed_trn_df = preprocessor(
-            df=trn_df,
-            dataset_name="cleaned_train" if self.cleaned_train else "train",
-            enforce_preprocess=self.enforce_preprocess,
-            is_test=False,
-        )
-        preprocessed_booster_train_dfs = []
-        for booster_dataset_name, booster_train_df in booster_train_dfs.items():
-            booster_train_df["top20_context"] = booster_train_df["context"].apply(
+            if self.cleaned_train:
+                trn_df = self.data_repository.load_cleaned_train_df()
+            else:
+                trn_df = self.data_repository.load_train_df()
+            trn_df["top20_context"] = trn_df["context"].apply(
                 lambda context: context[:20]
             )
-            preprocessed_booster_train_dfs.append(
-                preprocessor(
-                    df=booster_train_df,
-                    dataset_name=booster_dataset_name,
-                    enforce_preprocess=self.enforce_preprocess,
-                    is_test=False,
-                )
+            booster_train_dfs = self.data_repository.load_booster_train_dfs(
+                self.booster_trn_data
             )
-        preprocessed_booster_train_df = pd.concat(
-            preprocessed_booster_train_dfs, axis=0
-        ).reset_index(drop=True)
+            preprocessor = self.preprocessor_factory.create(
+                data_repository=self.data_repository
+            )
+            preprocessed_trn_df = preprocessor(
+                df=trn_df,
+                dataset_name="cleaned_train" if self.cleaned_train else "train",
+                enforce_preprocess=self.enforce_preprocess,
+                is_test=False,
+            )
+            preprocessed_booster_train_dfs = []
+            for booster_dataset_name, booster_train_df in booster_train_dfs.items():
+                booster_train_df["top20_context"] = booster_train_df["context"].apply(
+                    lambda context: context[:20]
+                )
+                preprocessed_booster_train_dfs.append(
+                    preprocessor(
+                        df=booster_train_df,
+                        dataset_name=booster_dataset_name,
+                        enforce_preprocess=self.enforce_preprocess,
+                        is_test=False,
+                    )
+                )
+            preprocessed_booster_train_df = pd.concat(
+                preprocessed_booster_train_dfs, axis=0
+            ).reset_index(drop=True)
 
         if self.use_boost_as_valid:
             preprocessed_trn_df = pd.concat(

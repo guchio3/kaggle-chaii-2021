@@ -122,6 +122,15 @@ class DataRepository(Repository):
         )
         return df
 
+    def load_val_pseudo_train_df(self, filepath_from_root: str) -> DataFrame:
+        df: DataFrame = self.load(
+            filepath_from_root=filepath_from_root,
+            mode="pkl",
+            load_from_gcs=True,
+            rm_local_after_load=False,
+        )
+        return df
+
     def load_test_df(self) -> DataFrame:
         filepath_from_root = self.__test_df_filepath_from_root()
         df: DataFrame = self.load(

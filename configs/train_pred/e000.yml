@@ -1,5 +1,6 @@
 description: "train and pred base"
 all_data_train: false
+val_pseudo_filepath_from_root: null
 cleaned_train: false
 use_boost_as_valid: false
 negative_sampling_num: -1
