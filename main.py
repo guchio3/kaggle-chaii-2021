@@ -37,6 +37,7 @@ def parse_args():
     parser.add_argument(
         "--folds",
         help="",
+        type=int,
         nargs="+",
         default=None,
     )
