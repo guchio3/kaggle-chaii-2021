@@ -1,7 +1,7 @@
 description: "psuedo val 1st booster valid, e042 gkf max_answer_text_count == 10 again"
 val_pseudo_filepath_from_root: data/dataset/val_pseudo/e070_-1.000_res_prep_df.pkl
 use_boost_as_valid: true
-max_answer_text_count: 10
+# max_answer_text_count: 10
 num_epochs: 4
 train_folds: [0, 1, 2, 3, 4]
 accum_mod: 8
