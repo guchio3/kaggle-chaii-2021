@@ -35,6 +35,7 @@ class TrainPredPipeline(Pipeline):
         config: Dict[str, Any],
         device: str,
         enforce_preprocess: bool,
+        pre_clean: bool,
         debug: bool,
         logger: myLogger,
     ) -> None:
@@ -42,12 +43,14 @@ class TrainPredPipeline(Pipeline):
         self.config = config
         self.device = device
         self.enforce_preprocess = enforce_preprocess
+        self.pre_clean = pre_clean
         self.debug = debug
 
         self.data_repository = DataRepository(logger=logger)
 
         self.all_data_train = config["all_data_train"]
         self.cleaned_train = config["cleaned_train"]
+        self.use_boost_as_valid = config["use_boost_as_valid"]
         self.negative_sampling_num = config["negative_sampling_num"]
         self.only_answer_text_training = config["only_answer_text_training"]
         self.only_answer_text_validation = config["only_answer_text_validation"]
@@ -86,9 +89,10 @@ class TrainPredPipeline(Pipeline):
     @class_dec_timer(unit="m")
     def _train(self) -> None:
         # clean best model weights
-        self.data_repository.clean_exp_checkpoint(
-            exp_id=self.exp_id, delete_from_gcs=True
-        )
+        if self.pre_clean:
+            self.data_repository.clean_exp_checkpoint(
+                exp_id=self.exp_id, delete_from_gcs=True
+            )
 
         if self.cleaned_train:
             trn_df = self.data_repository.load_cleaned_train_df()
@@ -121,6 +125,12 @@ class TrainPredPipeline(Pipeline):
             preprocessed_booster_train_dfs, axis=0
         ).reset_index(drop=True)
 
+        if self.use_boost_as_valid:
+            preprocessed_trn_df = pd.concat(
+                [preprocessed_trn_df, preprocessed_booster_train_df], axis=0
+            ).reset_index(drop=True)
+            preprocessed_booster_train_df = pd.DataFrame()
+
         splitter = self.splitter_factory.create()
         folds = splitter.split(
             trn_df["id"], trn_df["language"], groups=trn_df["top20_context"]
@@ -150,7 +160,10 @@ class TrainPredPipeline(Pipeline):
                 sampled_reses = []
                 for _, grp_df in tqdm(fold_trn_df.groupby("id")):
                     sampled_reses.append(self._negative_down_sampling(grp_df=grp_df))
-                fold_trn_df = pd.concat(sampled_reses, axis=0,).reset_index(drop=True)
+                fold_trn_df = pd.concat(
+                    sampled_reses,
+                    axis=0,
+                ).reset_index(drop=True)
             trn_loader = self._build_loader(
                 df=fold_trn_df,
                 sampler_type=self.config["sampler"]["trn_sampler_type"],

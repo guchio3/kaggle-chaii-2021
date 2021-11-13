@@ -1,6 +1,7 @@
 import argparse
 
 from pytorch_lightning.utilities.seed import seed_everything
+
 from src.pipeline.factory import PipelineFactory
 
 
@@ -41,6 +42,12 @@ def parse_args():
         default=False,
     )
     parser.add_argument(
+        "--pre_clean",
+        help="use pre clean or not",
+        action="store_true",
+        default=False,
+    )
+    parser.add_argument(
         "--debug",
         help="whether or not to use debug mode",
         action="store_true",
@@ -59,6 +66,7 @@ def main():
         exp_id=args.exp_id,
         device=args.device,
         enforce_preprocess=args.enforce_preprocess,
+        pre_clean=args.pre_clean,
         local_root_path=".",
         debug=args.debug,
     )
