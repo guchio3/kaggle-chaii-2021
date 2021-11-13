@@ -117,6 +117,9 @@ class TrainPredPipeline(Pipeline):
         )
         preprocessed_booster_train_dfs = []
         for booster_dataset_name, booster_train_df in booster_train_dfs.items():
+            booster_train_df["top20_context"] = booster_train_df["context"].apply(
+                lambda context: context[:20]
+            )
             preprocessed_booster_train_dfs.append(
                 preprocessor(
                     df=booster_train_df,
@@ -134,6 +137,7 @@ class TrainPredPipeline(Pipeline):
                 [preprocessed_trn_df, preprocessed_booster_train_df], axis=0
             ).reset_index(drop=True)
             preprocessed_booster_train_df = pd.DataFrame()
+            trn_df = preprocessed_trn_df.drop_duplicates("id").reset_index(drop=True)
 
         splitter = self.splitter_factory.create()
         folds = splitter.split(
@@ -164,10 +168,7 @@ class TrainPredPipeline(Pipeline):
                 sampled_reses = []
                 for _, grp_df in tqdm(fold_trn_df.groupby("id")):
                     sampled_reses.append(self._negative_down_sampling(grp_df=grp_df))
-                fold_trn_df = pd.concat(
-                    sampled_reses,
-                    axis=0,
-                ).reset_index(drop=True)
+                fold_trn_df = pd.concat(sampled_reses, axis=0,).reset_index(drop=True)
             trn_loader = self._build_loader(
                 df=fold_trn_df,
                 sampler_type=self.config["sampler"]["trn_sampler_type"],
