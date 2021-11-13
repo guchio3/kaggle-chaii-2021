@@ -1,5 +1,5 @@
 import os
-from typing import Any, Dict, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
@@ -34,6 +34,7 @@ class TrainPredPipeline(Pipeline):
         exp_id: str,
         config: Dict[str, Any],
         device: str,
+        folds: Optional[List[int]],
         enforce_preprocess: bool,
         pre_clean: bool,
         debug: bool,
@@ -56,7 +57,10 @@ class TrainPredPipeline(Pipeline):
         self.only_answer_text_validation = config["only_answer_text_validation"]
         self.max_answer_text_count = config["max_answer_text_count"]
         self.num_epochs = config["num_epochs"]
-        self.train_folds = config["train_folds"]
+        if folds is None:
+            self.train_folds = config["train_folds"]
+        else:
+            self.train_folds = folds
         self.accum_mod = config["accum_mod"]
         self.trn_batch_size = config["trn_batch_size"]
         self.val_batch_size = config["val_batch_size"]

@@ -36,6 +36,12 @@ def parse_args():
         required=True,
     )
     parser.add_argument(
+        "--folds",
+        help="",
+        nargs="+",
+        default=None,
+    )
+    parser.add_argument(
         "--enforce_preprocess",
         help="even if the preprocessed result exists",
         action="store_true",
@@ -65,6 +71,7 @@ def main():
         pipeline_type=args.pipeline_type,
         exp_id=args.exp_id,
         device=args.device,
+        folds=args.folds,
         enforce_preprocess=args.enforce_preprocess,
         pre_clean=args.pre_clean,
         local_root_path=".",
