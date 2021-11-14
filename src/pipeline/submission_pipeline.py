@@ -258,8 +258,8 @@ class SubmissionPipeline(Pipeline):
                 gc.collect()
                 # break
             del model_factory
-            del preprocessed_tst_df
             if not self.use_same_preprocess:
+                del preprocessed_tst_df
                 del tst_loader
             torch.cuda.empty_cache()
             gc.collect()
