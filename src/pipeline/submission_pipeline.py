@@ -67,6 +67,7 @@ class SubmissionPipeline(Pipeline):
         self.enforce_split = config["enforce_split"]
         self.text_batch_filter = config["text_batch_filter"]
         self.text_batch_ensemble = config["text_batch_ensemble"]
+        self.use_same_preprocess = config["use_same_preprocess"]
         # self.fill_sub_by_train = config["fill_sub_by_train"]
         # self.high_priority = config["high_priority"]
         # self.leven_thresh = config["leven_thresh"]
@@ -104,7 +105,7 @@ class SubmissionPipeline(Pipeline):
         else:
             raise Exception("ensembler_type {self.ensembler_type} is invalid.")
 
-        for train_exp_id in self.train_exp_ids:
+        for exp_id_i, train_exp_id in enumerate(self.train_exp_ids):
             exp_train_config = self.config_loader.load(
                 pipeline_type="train_pred", exp_id=train_exp_id, default_exp_id="e000"
             )
@@ -115,34 +116,35 @@ class SubmissionPipeline(Pipeline):
             ] = self.local_to_kaggle_kernel[
                 exp_train_config["preprocessor"]["tokenizer_type"]
             ]
-            preprocessor_factory = PreprocessorFactory(
-                **exp_train_config["preprocessor"], debug=self.debug, logger=self.logger
-            )
-            preprocessor = preprocessor_factory.create(
-                data_repository=self.data_repository,
-            )
-            preprocessed_tst_df = preprocessor(
-                df=tst_df, dataset_name="test", enforce_preprocess=False, is_test=True,
-            )
-            del preprocessor
-            del preprocessor_factory
-            gc.collect()
-            # loader
-            dataset_factory = DatasetFactory(
-                **exp_train_config["dataset"], logger=self.logger
-            )
-            sampler_factory = SamplerFactory(
-                **exp_train_config["sampler"], logger=self.logger
-            )
-            tst_loader = self._build_loader(
-                df=preprocessed_tst_df,
-                dataset_factory=dataset_factory,
-                sampler_factory=sampler_factory,
-                sampler_type="sequential",
-                batch_size=self.tst_batch_size,
-                drop_last=False,
-                debug=self.debug,
-            )
+            if exp_id_i == 0 or not self.use_same_preprocess:
+                preprocessor_factory = PreprocessorFactory(
+                    **exp_train_config["preprocessor"], debug=self.debug, logger=self.logger
+                )
+                preprocessor = preprocessor_factory.create(
+                    data_repository=self.data_repository,
+                )
+                preprocessed_tst_df = preprocessor(
+                    df=tst_df, dataset_name="test", enforce_preprocess=False, is_test=True,
+                )
+                del preprocessor
+                del preprocessor_factory
+                gc.collect()
+                # loader
+                dataset_factory = DatasetFactory(
+                    **exp_train_config["dataset"], logger=self.logger
+                )
+                sampler_factory = SamplerFactory(
+                    **exp_train_config["sampler"], logger=self.logger
+                )
+                tst_loader = self._build_loader(
+                    df=preprocessed_tst_df,
+                    dataset_factory=dataset_factory,
+                    sampler_factory=sampler_factory,
+                    sampler_type="sequential",
+                    batch_size=self.tst_batch_size,
+                    drop_last=False,
+                    debug=self.debug,
+                )
             if len(self.text_batch_exp_ids) > 0:
                 ensembled_text_batch_logits = None
                 for text_batch_exp_id in self.text_batch_exp_ids:
@@ -189,32 +191,33 @@ class SubmissionPipeline(Pipeline):
                     gc.collect()
 
                 if self.text_batch_filter:
-                    preprocessed_tst_df[
-                        "text_batch_logits"
-                    ] = ensembled_text_batch_logits
-                    del ensembled_text_batch_logits
-                    gc.collect()
+                    raise Exception("cannot use this right now.")
+                    # preprocessed_tst_df[
+                    #     "text_batch_logits"
+                    # ] = ensembled_text_batch_logits
+                    # del ensembled_text_batch_logits
+                    # gc.collect()
 
-                    preprocessed_tst_df = (
-                        preprocessed_tst_df.groupby("id")
-                        .apply(
-                            lambda grp_df: grp_df.sort_values(
-                                "text_batch_logits", ascending=False
-                            ).head(self.text_batch_topn)
-                        )
-                        .reset_index(drop=True)
-                    )
-                    del tst_loader
-                    gc.collect()
-                    tst_loader = self._build_loader(
-                        df=preprocessed_tst_df,
-                        dataset_factory=dataset_factory,
-                        sampler_factory=sampler_factory,
-                        sampler_type="sequential",
-                        batch_size=self.tst_batch_size,
-                        drop_last=False,
-                        debug=self.debug,
-                    )
+                    # preprocessed_tst_df = (
+                    #     preprocessed_tst_df.groupby("id")
+                    #     .apply(
+                    #         lambda grp_df: grp_df.sort_values(
+                    #             "text_batch_logits", ascending=False
+                    #         ).head(self.text_batch_topn)
+                    #     )
+                    #     .reset_index(drop=True)
+                    # )
+                    # del tst_loader
+                    # gc.collect()
+                    # tst_loader = self._build_loader(
+                    #     df=preprocessed_tst_df,
+                    #     dataset_factory=dataset_factory,
+                    #     sampler_factory=sampler_factory,
+                    #     sampler_type="sequential",
+                    #     batch_size=self.tst_batch_size,
+                    #     drop_last=False,
+                    #     debug=self.debug,
+                    # )
                 elif self.text_batch_ensemble:
                     sigmoid = Sigmoid()
                     text_batch_proba = sigmoid(
@@ -256,7 +259,8 @@ class SubmissionPipeline(Pipeline):
                 # break
             del model_factory
             del preprocessed_tst_df
-            del tst_loader
+            if not self.use_same_preprocess:
+                del tst_loader
             torch.cuda.empty_cache()
             gc.collect()
 
