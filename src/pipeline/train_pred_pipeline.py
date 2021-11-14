@@ -106,6 +106,7 @@ class TrainPredPipeline(Pipeline):
             preprocessed_trn_df = val_pseudo_train_df.query("is_original").reset_index(
                 drop=True
             )
+            trn_df = preprocessed_trn_df.drop_duplicates("id").reset_index(drop=True)
             preprocessed_booster_train_df = val_pseudo_train_df.query(
                 "not is_original"
             ).reset_index(drop=True)
