@@ -184,6 +184,8 @@ def _extract_best_answer_pred(
         best_candidate = baseline_kernel3_text_postprocess(
             answer_text=best_candidate, context=contexts[0]
         )
+    elif text_postprocess == "mypospro_ver1":
+        best_candidate = mypospro_ver1(answer_text=best_candidate, context=contexts[0])
     return best_candidate
 
 
@@ -237,6 +239,45 @@ def baseline_kernel3_text_postprocess(answer_text: str, context: str) -> str:
     answer_text = " ".join(answer_text.split())
     answer_text = answer_text.strip(punctuation)
     answer_text = baseline_kernel1_text_postprocess(
+        answer_text=answer_text, context=context
+    )
+    return answer_text
+
+
+def marathi_number_to_arabic_number(answer_text: str, context: str) -> str:
+    if not answer_text.isnumeric():
+        return answer_text
+
+    marathi_to_arabic = {
+        "०": "0",
+        "१": "1",
+        "२": "2",
+        "३": "3",
+        "४": "4",
+        "५": "5",
+        "६": "6",
+        "७": "7",
+        "८": "8",
+        "९": "9",
+    }
+
+    new_answer_text = answer_text
+    for marathi_num, arabic_num in marathi_to_arabic.items():
+        new_answer_text = new_answer_text.replace(marathi_num, arabic_num)
+    if context.find(new_answer_text) > 0:
+        return new_answer_text
+    return answer_text
+
+
+def mypospro_ver1(answer_text: str, context: str) -> str:
+    answer_text = " ".join(answer_text.split())
+    answer_text = answer_text.strip(
+        "".join(list(filter(lambda x: x != "%", punctuation)))
+    )
+    answer_text = baseline_kernel1_text_postprocess(
+        answer_text=answer_text, context=context
+    )
+    answer_text = marathi_number_to_arabic_number(
         answer_text=answer_text, context=context
     )
     return answer_text
