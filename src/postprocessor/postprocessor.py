@@ -181,10 +181,12 @@ def _extract_best_answer_pred(
             answer_text=best_candidate, context=contexts[0]
         )
     elif text_postprocess == "baseline_kernel3":
+        print("USE baseline_kernel3 !!!!!!!!!!!!!!!!!!!!")
         best_candidate = baseline_kernel3_text_postprocess(
             answer_text=best_candidate, context=contexts[0]
         )
     elif text_postprocess == "mypospro_ver1":
+        print("USE mypospro_ver1 !!!!!!!!!!!!!!!!!!!!")
         best_candidate = mypospro_ver1(answer_text=best_candidate, context=contexts[0])
     return best_candidate
 
