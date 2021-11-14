@@ -1,6 +1,6 @@
 description: "psuedo val 3rd NO booster valid, e042 gkf max_answer_text_count == 10 again"
 val_pseudo_filepath_from_root: data/dataset/val_pseudo/e072_e073_-1.000_res_prep_df.pkl
-only_answer_text_training: true
+only_answer_text_training: false
 use_boost_as_valid: false
 # max_answer_text_count: 10
 num_epochs: 4
