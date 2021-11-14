@@ -181,13 +181,13 @@ def _extract_best_answer_pred(
             answer_text=best_candidate, context=contexts[0]
         )
     elif text_postprocess == "baseline_kernel3":
-        print("USE baseline_kernel3 !!!!!!!!!!!!!!!!!!!!")
         best_candidate = baseline_kernel3_text_postprocess(
             answer_text=best_candidate, context=contexts[0]
         )
     elif text_postprocess == "mypospro_ver1":
-        print("USE mypospro_ver1 !!!!!!!!!!!!!!!!!!!!")
         best_candidate = mypospro_ver1(answer_text=best_candidate, context=contexts[0])
+    elif text_postprocess == "mypospro_ver2":
+        best_candidate = mypospro_ver2(answer_text=best_candidate, context=contexts[0])
     return best_candidate
 
 
@@ -246,8 +246,10 @@ def baseline_kernel3_text_postprocess(answer_text: str, context: str) -> str:
     return answer_text
 
 
-def marathi_number_to_arabic_number(answer_text: str, context: str) -> str:
-    if not answer_text.isnumeric():
+def marathi_number_to_arabic_number(
+    answer_text: str, context: str, only_whole_numeric: bool
+) -> str:
+    if only_whole_numeric and not answer_text.isnumeric():
         return answer_text
 
     marathi_to_arabic = {
@@ -280,7 +282,21 @@ def mypospro_ver1(answer_text: str, context: str) -> str:
         answer_text=answer_text, context=context
     )
     answer_text = marathi_number_to_arabic_number(
+        answer_text=answer_text, context=context, only_whole_numeric=True
+    )
+    return answer_text
+
+
+def mypospro_ver2(answer_text: str, context: str) -> str:
+    answer_text = " ".join(answer_text.split())
+    answer_text = answer_text.strip(
+        "".join(list(filter(lambda x: x != "%", punctuation)))
+    )
+    answer_text = baseline_kernel1_text_postprocess(
         answer_text=answer_text, context=context
+    )
+    answer_text = marathi_number_to_arabic_number(
+        answer_text=answer_text, context=context, only_whole_numeric=False
     )
     return answer_text
 
