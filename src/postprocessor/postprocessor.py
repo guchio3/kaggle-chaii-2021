@@ -246,13 +246,13 @@ def baseline_kernel3_text_postprocess(answer_text: str, context: str) -> str:
     return answer_text
 
 
-def marathi_number_to_arabic_number(
+def devanagari_number_to_arabic_number(
     answer_text: str, context: str, only_whole_numeric: bool
 ) -> str:
     if only_whole_numeric and not answer_text.isnumeric():
         return answer_text
 
-    marathi_to_arabic = {
+    devanagari_to_arabic = {
         "०": "0",
         "१": "1",
         "२": "2",
@@ -266,8 +266,8 @@ def marathi_number_to_arabic_number(
     }
 
     new_answer_text = answer_text
-    for marathi_num, arabic_num in marathi_to_arabic.items():
-        new_answer_text = new_answer_text.replace(marathi_num, arabic_num)
+    for devanagari_num, arabic_num in devanagari_to_arabic.items():
+        new_answer_text = new_answer_text.replace(devanagari_num, arabic_num)
     if context.find(new_answer_text) > 0:
         return new_answer_text
     return answer_text
@@ -281,7 +281,7 @@ def mypospro_ver1(answer_text: str, context: str) -> str:
     answer_text = baseline_kernel1_text_postprocess(
         answer_text=answer_text, context=context
     )
-    answer_text = marathi_number_to_arabic_number(
+    answer_text = devanagari_number_to_arabic_number(
         answer_text=answer_text, context=context, only_whole_numeric=True
     )
     return answer_text
@@ -295,7 +295,7 @@ def mypospro_ver2(answer_text: str, context: str) -> str:
     answer_text = baseline_kernel1_text_postprocess(
         answer_text=answer_text, context=context
     )
-    answer_text = marathi_number_to_arabic_number(
+    answer_text = devanagari_number_to_arabic_number(
         answer_text=answer_text, context=context, only_whole_numeric=False
     )
     return answer_text
