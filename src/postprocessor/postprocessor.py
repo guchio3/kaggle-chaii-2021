@@ -249,7 +249,7 @@ def baseline_kernel3_text_postprocess(answer_text: str, context: str) -> str:
 def devanagari_number_to_arabic_number(
     answer_text: str, context: str, only_whole_numeric: bool
 ) -> str:
-    if only_whole_numeric and not answer_text.isnumeric():
+    if only_whole_numeric and not answer_text.strip().isnumeric():
         return answer_text
 
     devanagari_to_arabic = {
